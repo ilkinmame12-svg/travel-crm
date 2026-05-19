@@ -21,7 +21,7 @@ export interface Booking {
   commissionPercent: number
   commissionAmount: number
   profit: number
-  paidAmount: number
+  paidAmount?: number
   manager: string
   iataPeriod: IATAPeriod
   status: BookingStatus
