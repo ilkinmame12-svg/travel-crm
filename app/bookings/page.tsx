@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useMemo, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
@@ -26,8 +26,17 @@ export default function SifarislerPage() {
   const [selected, setSelected] = useState<Booking | null>(null)
   const [filters, setFilters] = useState<BookingFilters>(EMPTY_FILTERS)
   const [activeTab, setActiveTab] = useState<BookingType | "all">("all")
+  const [paymentStatus, setPaymentStatus] = useState("unpaid")
+  const [paidAmount, setPaidAmount] = useState(0)
 
   useEffect(() => { fetchBookings() }, [])
+
+  useEffect(() => {
+    if (modal) {
+      setPaymentStatus(selected?.paymentStatus ?? "unpaid")
+      setPaidAmount(selected?.paidAmount ?? 0)
+    }
+  }, [modal, selected])
 
   const filtered = useMemo(() => bookings.filter(b => {
     if (activeTab !== "all" && b.bookingType !== activeTab) return false
@@ -44,11 +53,7 @@ export default function SifarislerPage() {
   const totalRevenue = filtered.reduce((s, b) => s + b.sellPrice, 0)
   const totalProfit = filtered.reduce((s, b) => s + b.profit, 0)
   const totalCost = filtered.reduce((s, b) => s + b.buyPrice, 0)
-
-  const typeCounts = BOOKING_TYPES.map(t => ({
-    ...t,
-    count: bookings.filter(b => b.bookingType === t.value).length
-  }))
+  const typeCounts = BOOKING_TYPES.map(t => ({ ...t, count: bookings.filter(b => b.bookingType === t.value).length }))
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -58,6 +63,7 @@ export default function SifarislerPage() {
     const commissionPercent = Number(fd.get("commissionPercent"))
     const commissionAmount = Math.round(sellPrice * commissionPercent) / 100
     const profit = sellPrice - buyPrice - commissionAmount
+    const paid = paymentStatus === "paid" ? sellPrice : paymentStatus === "partial" ? paidAmount : 0
 
     const data: BookingFormData = {
       bookingType: fd.get("bookingType") as BookingType,
@@ -70,10 +76,11 @@ export default function SifarislerPage() {
       travelers: Number(fd.get("travelers")),
       description: fd.get("description") as string,
       buyPrice, sellPrice, commissionPercent,
+      paidAmount: paid,
       manager: fd.get("manager") as string,
       iataPeriod: fd.get("iataPeriod") as "1-7" | "8-14" | "15-21" | "22-31",
       status: fd.get("status") as "pending" | "confirmed" | "completed" | "cancelled",
-      paymentStatus: fd.get("paymentStatus") as "unpaid" | "partial" | "paid",
+      paymentStatus: paymentStatus as "unpaid" | "partial" | "paid",
       notes: fd.get("notes") as string,
     }
 
@@ -130,9 +137,7 @@ export default function SifarislerPage() {
               const Icon = t.Icon
               return (
                 <button key={t.value} onClick={() => setActiveTab(t.value as BookingType)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    activeTab === t.value ? "bg-red-500 text-white" : "text-gray-500 hover:bg-gray-100"
-                  }`}>
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeTab === t.value ? "bg-red-500 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
                   <Icon size={14} />
                   {t.label} ({t.count})
                 </button>
@@ -171,18 +176,19 @@ export default function SifarislerPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                {["Növ", "Müştəri", "İstiqamət", "Tarixlər", "Menecer", "Satış", "Alış", "Mənfəət", "Status", "Ödəniş", "IATA", ""].map(h => (
+                {["Növ", "Müştəri", "İstiqamət", "Tarixlər", "Menecer", "Satış", "Ödənilib", "Qalıq", "Mənfəət", "Status", "Ödəniş", "IATA", ""].map(h => (
                   <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={12} className="text-center py-16 text-gray-400">Sifariş tapılmadı</td></tr>
+                <tr><td colSpan={13} className="text-center py-16 text-gray-400">Sifariş tapılmadı</td></tr>
               )}
               {filtered.map(b => {
                 const typeInfo = getTypeInfo(b.bookingType)
                 const Icon = typeInfo.Icon
+                const remaining = b.sellPrice - (b.paidAmount ?? 0)
                 return (
                   <tr key={b.id} className="hover:bg-gray-50 transition-colors group border-b border-gray-50">
                     <td className="px-4 py-3">
@@ -211,7 +217,14 @@ export default function SifarislerPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">{b.manager}</td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatCurrency(b.sellPrice)}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{formatCurrency(b.buyPrice)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-green-600 font-semibold">{formatCurrency(b.paidAmount ?? 0)}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={remaining > 0 ? "text-red-500 font-semibold" : "text-gray-400"}>
+                        {remaining > 0 ? formatCurrency(remaining) : "—"}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <span className={b.profit >= 0 ? "text-green-600 font-semibold" : "text-red-500 font-semibold"}>
                         {formatCurrency(b.profit)}
@@ -242,13 +255,9 @@ export default function SifarislerPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                         <button onClick={() => { setSelected(b); setModal("edit") }}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
-                          ✏️
-                        </button>
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">✏️</button>
                         <button onClick={() => { if(confirm("Silinsin?")) deleteBooking(b.id) }}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
-                          🗑️
-                        </button>
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">🗑️</button>
                       </div>
                     </td>
                   </tr>
@@ -278,7 +287,7 @@ export default function SifarislerPage() {
                           defaultChecked={selected ? selected.bookingType === t.value : t.value === "bilet"}
                           className="sr-only peer" />
                         <div className="border-2 rounded-xl p-3 text-center peer-checked:border-red-500 peer-checked:bg-red-50 hover:border-red-300 transition-all">
-                          <Icon size={20} className="mx-auto mb-1 text-gray-500 peer-checked:text-red-500" />
+                          <Icon size={20} className="mx-auto mb-1 text-gray-500" />
                           <p className="text-xs font-medium text-gray-600">{t.label}</p>
                         </div>
                       </label>
@@ -355,13 +364,23 @@ export default function SifarislerPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ödəniş</label>
-                <select name="paymentStatus" defaultValue={selected?.paymentStatus ?? "unpaid"} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ödəniş statusu</label>
+                <select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
                   <option value="unpaid">Ödənilməyib</option>
-                  <option value="partial">Qismən</option>
-                  <option value="paid">Ödənilib</option>
+                  <option value="partial">Qismən ödənilib</option>
+                  <option value="paid">Tam ödənilib</option>
                 </select>
               </div>
+              {paymentStatus === "partial" && (
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ödənilən məbləğ (AZN)</label>
+                  <input type="number" step="0.01" min="0" value={paidAmount}
+                    onChange={e => setPaidAmount(Number(e.target.value))}
+                    className="w-full border-2 border-orange-300 bg-orange-50 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  <p className="text-xs text-orange-600 mt-1">Müştərinin ödədiyi məbləği daxil edin</p>
+                </div>
+              )}
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Qeydlər</label>
                 <textarea name="notes" rows={2} defaultValue={selected?.notes} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none" />
@@ -381,4 +400,3 @@ export default function SifarislerPage() {
     </div>
   )
 }
-
