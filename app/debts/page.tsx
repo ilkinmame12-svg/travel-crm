@@ -25,14 +25,12 @@ export default function DebtsPage() {
 
   const bookingDebts = bookings.filter(b =>
     b.paymentStatus === "unpaid" || b.paymentStatus === "partial"
-  )
+  ).map(b => ({
+    ...b,
+    remaining: b.sellPrice - (b.paidAmount ?? 0)
+  }))
 
-  const theyOweFromBookings = bookingDebts.reduce((s, b) => {
-    if (b.paymentStatus === "unpaid") return s + b.sellPrice
-    if (b.paymentStatus === "partial") return s + b.sellPrice / 2
-    return s
-  }, 0)
-
+  const theyOweFromBookings = bookingDebts.reduce((s, b) => s + b.remaining, 0)
   const theyOweManual = manualDebts.filter(d => d.direction === "they_owe" && d.status === "pending").reduce((s, d) => s + d.amount, 0)
   const weOweManual = manualDebts.filter(d => d.direction === "we_owe" && d.status === "pending").reduce((s, d) => s + d.amount, 0)
 
@@ -76,7 +74,7 @@ export default function DebtsPage() {
           <div>
             <p className="text-sm text-gray-500">Bizə borclu (cəmi)</p>
             <p className="text-2xl font-bold text-green-600">{formatCurrency(totalTheyOwe)}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{bookingDebts.length} sifarişdən + {theyOweManual > 0 ? "əl ilə əlavə" : "0"}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{bookingDebts.length} ödənilməmiş sifariş</p>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
@@ -116,7 +114,7 @@ export default function DebtsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {["Müştəri", "İstiqamət", "Növ", "Uçuş tarixi", "Məbləğ", "Ödəniş statusu", "Menecer"].map(h => (
+                  {["Müştəri", "İstiqamət", "Növ", "Uçuş tarixi", "Ümumi məbləğ", "Ödənilib", "Qalıq borc", "Menecer"].map(h => (
                     <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">{h}</th>
                   ))}
                 </tr>
@@ -131,19 +129,21 @@ export default function DebtsPage() {
                     <td className="px-6 py-3 text-gray-600">{b.destination}</td>
                     <td className="px-6 py-3">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                        b.bookingType === "bilet" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                        b.bookingType === "bilet" ? "bg-blue-100 text-blue-700" :
+                        b.bookingType === "otel" ? "bg-purple-100 text-purple-700" :
+                        "bg-green-100 text-green-700"
                       }`}>
-                        {b.bookingType === "bilet" ? "✈️ Bilet" : "🏖️ Tur"}
+                        {b.bookingType === "bilet" ? "✈️ Bilet" :
+                         b.bookingType === "otel" ? "🏨 Otel" :
+                         b.bookingType === "tur" ? "🏖️ Tur" :
+                         b.bookingType === "kruiz" ? "🚢 Kruiz" : "🚗 Transfer"}
                       </span>
                     </td>
                     <td className="px-6 py-3 text-gray-500">{formatDate(b.departureDate)}</td>
-                    <td className="px-6 py-3 font-semibold text-green-600">{formatCurrency(b.sellPrice)}</td>
+                    <td className="px-6 py-3 font-semibold text-gray-900">{formatCurrency(b.sellPrice)}</td>
+                    <td className="px-6 py-3 font-semibold text-green-600">{formatCurrency(b.paidAmount ?? 0)}</td>
                     <td className="px-6 py-3">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                        b.paymentStatus === "partial" ? "bg-orange-100 text-orange-600" : "bg-red-100 text-red-600"
-                      }`}>
-                        {b.paymentStatus === "partial" ? "Qismən ödənilib" : "Ödənilməyib"}
-                      </span>
+                      <span className="font-bold text-red-500 text-base">{formatCurrency(b.remaining)}</span>
                     </td>
                     <td className="px-6 py-3 text-gray-600">{b.manager}</td>
                   </tr>
