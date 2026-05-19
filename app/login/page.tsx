@@ -2,11 +2,9 @@
 
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { useRouter } from "next/navigation"
 import Image from "next/image"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -17,14 +15,13 @@ export default function LoginPage() {
     setLoading(true)
     setError("")
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setError("Email və ya şifrə yanlışdır")
+      setError("Email və ya şifrə yanlışdır: " + error.message)
       setLoading(false)
     } else {
-      router.push("/")
-      router.refresh()
+      window.location.href = "/"
     }
   }
 
@@ -32,7 +29,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-md p-8">
         <div className="flex justify-center mb-8">
-          <Image src="/logo.png" alt="itstour" width={150} height={50} className="object-contain" />
+          <Image src="/logo.png" alt="itstour" width={150} height={50} style={{ width: "auto", height: "auto" }} className="object-contain" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Xoş gəldiniz</h1>
         <p className="text-sm text-gray-500 mb-6">CRM sisteminə daxil olun</p>
