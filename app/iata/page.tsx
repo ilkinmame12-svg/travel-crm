@@ -15,7 +15,7 @@ export default function IATAPage() {
   useEffect(() => { fetchBookings() }, [])
 
   const grouped = PERIODS.map(period => {
-    const items = bookings.filter(b => b.iataPeriod === period)
+   const items = bookings.filter(b => b.iataPeriod === period && b.bookingType === "bilet")
     const totalSell = items.reduce((s, b) => s + b.sellPrice, 0)
     const totalBuy = items.reduce((s, b) => s + b.buyPrice, 0)
     const totalProfit = items.reduce((s, b) => s + b.profit, 0)
