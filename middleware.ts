@@ -1,4 +1,5 @@
-﻿import { NextResponse, type NextRequest } from "next/server"
+﻿import { createServerClient } from "@supabase/ssr"
+import { NextResponse, type NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -7,13 +8,32 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const token = request.cookies.get("sb-mhiafbxagsuczrhbfaim-auth-token")
+  let supabaseResponse = NextResponse.next({ request })
 
-  if (!token) {
+  const supabase = createServerClient(
+    "https://mhiafbxagsuczrhbfaim.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oaWFmYnhhZ3N1Y3pyaGJmYWltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxODgxNTcsImV4cCI6MjA5NDc2NDE1N30.ekccTLvVxyUG-TjeufYJ-Un_y5YwRFNf-yIpmGeE5uQ",
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll() },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  return NextResponse.next()
+  return supabaseResponse
 }
 
 export const config = {
