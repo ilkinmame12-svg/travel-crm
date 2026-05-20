@@ -1,8 +1,8 @@
 ﻿import type { Booking, BookingFormData } from '../types'
 
 export function calcCommissionAmount(sellPrice: number, commissionPercent: number, buyPrice: number = 0): number {
-  const profit = sellPrice - buyPrice
-  return Math.round((profit * commissionPercent) / 100 * 100) / 100
+  const grossProfit = sellPrice - buyPrice
+  return Math.round((grossProfit * commissionPercent) / 100 * 100) / 100
 }
 
 export function calcProfit(sellPrice: number, buyPrice: number, commissionAmount: number): number {
