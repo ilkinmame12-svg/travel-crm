@@ -2,11 +2,14 @@
 import "./globals.css"
 import Sidebar from "@/components/layout/Sidebar"
 
-export const metadata: Metadata = {
-  title: "Travel CRM",
-  description: "Turizm idarəetməsi sistemi",
-}
 
+export const metadata: Metadata = {
+  title: "itstour CRM",
+  description: "Turizm idarəetməsi sistemi",
+  icons: {
+    icon: "/logo.png",
+  },
+}
 export default function RootLayout({
   children,
 }: {
