@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, HelpCircle, LogOut } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, HelpCircle, LogOut, BotMessageSquare } from "lucide-react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
+
 
 const MENU = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -12,7 +13,11 @@ const MENU = [
   { href: "/finances", label: "Maliyyə", icon: Wallet },
   { href: "/debts", label: "Borclar", icon: CreditCard },
   { href: "/iata", label: "IATA", icon: Globe },
+  { href: "/assistant", label: "AI Köməkçi", icon: BotMessageSquare },
 ]
+  
+
+
 
 const GENERAL = [
   { href: "/settings", label: "Settings", icon: Settings },
@@ -28,6 +33,7 @@ export default function Sidebar() {
     router.push("/login")
     router.refresh()
   }
+  
 
   return (
     <div className="w-60 min-h-screen bg-white flex flex-col border-r border-gray-100">
