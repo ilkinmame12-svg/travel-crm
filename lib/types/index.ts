@@ -1,7 +1,7 @@
 ﻿export type IATAPeriod = '1-7' | '8-14' | '15-21' | '22-31'
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid'
-export type BookingType = 'bilet' | 'otel' | 'tur' | 'kruiz' | 'transfer'
+export type BookingType = 'bilet' | 'otel' | 'tur' | 'kruiz' | 'transfer' | 'bagaj' | 'yer_secimi' | 'cip'
 
 export interface Booking {
   id: string
@@ -16,6 +16,8 @@ export interface Booking {
   returnDate: string
   travelers: number
   description?: string
+  vendor?: string
+  isIata?: boolean
   buyPrice: number
   sellPrice: number
   commissionPercent: number

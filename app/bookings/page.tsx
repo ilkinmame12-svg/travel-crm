@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import type { Booking, BookingFilters, BookingFormData, BookingType } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/calculations"
-import { Plus, Search, Plane, Hotel, Palmtree, Ship, Car } from "lucide-react"
+import { Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage, Armchair, Star } from "lucide-react"
 
 const MANAGERS = ["Miraslan Abbasov", "Rehime Qasimli", "Ayxan Elxanli", "Gunes Abdullazade", "Gunay Qurbanova", "Mircemil Abbasov", "Meryem Eliyeva"]
 
@@ -14,6 +14,9 @@ const BOOKING_TYPES = [
   { value: "tur", label: "Tur paketi", Icon: Palmtree, color: "green" },
   { value: "kruiz", label: "Kruiz", Icon: Ship, color: "cyan" },
   { value: "transfer", label: "Transfer", Icon: Car, color: "orange" },
+  { value: "bagaj", label: "Bagaj", Icon: Luggage, color: "yellow" },
+  { value: "yer_secimi", label: "Yer seçimi", Icon: Armchair, color: "pink" },
+  { value: "cip", label: "CIP xidmət", Icon: Star, color: "gold" },
 ]
 
 const EMPTY_FILTERS: BookingFilters = {
@@ -28,6 +31,7 @@ export default function SifarislerPage() {
   const [activeTab, setActiveTab] = useState<BookingType | "all">("all")
   const [paymentStatus, setPaymentStatus] = useState("unpaid")
   const [paidAmount, setPaidAmount] = useState(0)
+  const [isIata, setIsIata] = useState(false)
 
   useEffect(() => { fetchBookings() }, [])
 
@@ -35,6 +39,7 @@ export default function SifarislerPage() {
     if (modal) {
       setPaymentStatus(selected?.paymentStatus ?? "unpaid")
       setPaidAmount(selected?.paidAmount ?? 0)
+      setIsIata(selected?.isIata ?? false)
     }
   }, [modal, selected])
 
@@ -42,7 +47,9 @@ export default function SifarislerPage() {
     if (activeTab !== "all" && b.bookingType !== activeTab) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
-      if (!b.clientName.toLowerCase().includes(q) && !b.destination.toLowerCase().includes(q)) return false
+      if (!b.clientName.toLowerCase().includes(q) &&
+          !b.destination.toLowerCase().includes(q) &&
+          !(b.vendor ?? "").toLowerCase().includes(q)) return false
     }
     if (filters.status !== "all" && b.status !== filters.status) return false
     if (filters.manager && b.manager !== filters.manager) return false
@@ -75,6 +82,8 @@ export default function SifarislerPage() {
       returnDate: fd.get("returnDate") as string,
       travelers: Number(fd.get("travelers")),
       description: fd.get("description") as string,
+      vendor: fd.get("vendor") as string,
+      isIata,
       buyPrice, sellPrice, commissionPercent,
       paidAmount: paid,
       manager: fd.get("manager") as string,
@@ -95,6 +104,20 @@ export default function SifarislerPage() {
 
   function getTypeInfo(value: string) {
     return BOOKING_TYPES.find(t => t.value === value) ?? BOOKING_TYPES[0]
+  }
+
+  function getTypeBadgeClass(color: string) {
+    const map: Record<string, string> = {
+      blue: "bg-blue-100 text-blue-700",
+      purple: "bg-purple-100 text-purple-700",
+      green: "bg-green-100 text-green-700",
+      cyan: "bg-cyan-100 text-cyan-700",
+      orange: "bg-orange-100 text-orange-700",
+      yellow: "bg-yellow-100 text-yellow-700",
+      pink: "bg-pink-100 text-pink-700",
+      gold: "bg-amber-100 text-amber-700",
+    }
+    return map[color] ?? "bg-gray-100 text-gray-700"
   }
 
   return (
@@ -137,7 +160,7 @@ export default function SifarislerPage() {
               const Icon = t.Icon
               return (
                 <button key={t.value} onClick={() => setActiveTab(t.value as BookingType)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeTab === t.value ? "bg-red-500 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${activeTab === t.value ? "bg-red-500 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
                   <Icon size={14} />
                   {t.label} ({t.count})
                 </button>
@@ -176,14 +199,14 @@ export default function SifarislerPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                {["Növ", "Müştəri", "İstiqamət", "Tarixlər", "Menecer", "Satış", "Ödənilib", "Qalıq", "Mənfəət", "Status", "Ödəniş", "IATA", ""].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">{h}</th>
+                {["Növ", "Müştəri", "İstiqamət", "Vendor", "Tarixlər", "Menecer", "Satış", "Ödənilib", "Qalıq", "Mənfəət", "Status", "Ödəniş", "IATA", ""].map(h => (
+                  <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-3">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={13} className="text-center py-16 text-gray-400">Sifariş tapılmadı</td></tr>
+                <tr><td colSpan={14} className="text-center py-16 text-gray-400">Sifariş tapılmadı</td></tr>
               )}
               {filtered.map(b => {
                 const typeInfo = getTypeInfo(b.bookingType)
@@ -191,46 +214,50 @@ export default function SifarislerPage() {
                 const remaining = b.sellPrice - (b.paidAmount ?? 0)
                 return (
                   <tr key={b.id} className="hover:bg-gray-50 transition-colors group border-b border-gray-50">
-                    <td className="px-4 py-3">
-                      <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium w-fit ${
-                        typeInfo.color === "blue" ? "bg-blue-100 text-blue-700" :
-                        typeInfo.color === "purple" ? "bg-purple-100 text-purple-700" :
-                        typeInfo.color === "green" ? "bg-green-100 text-green-700" :
-                        typeInfo.color === "cyan" ? "bg-cyan-100 text-cyan-700" :
-                        "bg-orange-100 text-orange-700"
-                      }`}>
+                    <td className="px-3 py-3">
+                      <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium w-fit ${getTypeBadgeClass(typeInfo.color)}`}>
                         <Icon size={11} />
                         {typeInfo.label}
                       </div>
+                      {b.isIata && (
+                        <span className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-md mt-1 block w-fit">IATA</span>
+                      )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <p className="font-medium text-gray-900">{b.clientName}</p>
                       <p className="text-xs text-gray-400">{b.clientPhone}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <p className="text-gray-800">{b.destination}</p>
                       <p className="text-xs text-gray-400">{b.travelers} nəfər</p>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-3 py-3">
+                      {b.vendor ? (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">{b.vendor}</span>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <p className="text-gray-800">{formatDate(b.departureDate)}</p>
                       <p className="text-xs text-gray-400">→ {formatDate(b.returnDate)}</p>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{b.manager}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatCurrency(b.sellPrice)}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-3 text-gray-600 text-xs">{b.manager}</td>
+                    <td className="px-3 py-3 text-right font-semibold text-gray-900">{formatCurrency(b.sellPrice)}</td>
+                    <td className="px-3 py-3 text-right">
                       <span className="text-green-600 font-semibold">{formatCurrency(b.paidAmount ?? 0)}</span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-3 text-right">
                       <span className={remaining > 0 ? "text-red-500 font-semibold" : "text-gray-400"}>
                         {remaining > 0 ? formatCurrency(remaining) : "—"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-3 text-right">
                       <span className={b.profit >= 0 ? "text-green-600 font-semibold" : "text-red-500 font-semibold"}>
                         {formatCurrency(b.profit)}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                         b.status === "confirmed" ? "bg-green-100 text-green-700" :
                         b.status === "pending" ? "bg-amber-100 text-amber-700" :
@@ -239,7 +266,7 @@ export default function SifarislerPage() {
                         {b.status === "confirmed" ? "Təsdiqlənib" : b.status === "pending" ? "Gözləyir" : b.status === "completed" ? "Tamamlandı" : "Ləğv edildi"}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                         b.paymentStatus === "paid" ? "bg-green-100 text-green-700" :
                         b.paymentStatus === "partial" ? "bg-orange-100 text-orange-600" :
@@ -247,12 +274,12 @@ export default function SifarislerPage() {
                         {b.paymentStatus === "paid" ? "Ödənilib" : b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib"}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                    <td className="px-3 py-3">
+                      <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                         {b.iataPeriod}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                         <button onClick={() => { setSelected(b); setModal("edit") }}
                           className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">✏️</button>
@@ -278,7 +305,7 @@ export default function SifarislerPage() {
             <form onSubmit={handleSubmit} className="p-6 grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Sifariş növü *</label>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {BOOKING_TYPES.map(t => {
                     const Icon = t.Icon
                     return (
@@ -295,6 +322,26 @@ export default function SifarislerPage() {
                   })}
                 </div>
               </div>
+
+              <div className="col-span-2 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Vendor (haradan alındı)</label>
+                  <input name="vendor" defaultValue={selected?.vendor ?? ""}
+                    placeholder="Məs: Amadeus, Booking.com, IATA..."
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                </div>
+                <div className="flex items-end pb-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div className={`w-10 h-6 rounded-full transition-colors ${isIata ? "bg-blue-600" : "bg-gray-200"}`}
+                      onClick={() => setIsIata(!isIata)}>
+                      <div className={`w-5 h-5 bg-white rounded-full shadow mt-0.5 transition-transform ${isIata ? "translate-x-4 ml-0.5" : "translate-x-0.5"}`} />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">IATA biletidir</span>
+                    {isIata && <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-md">IATA</span>}
+                  </label>
+                </div>
+              </div>
+
               <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Müştəri</div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ad *</label>
@@ -314,11 +361,11 @@ export default function SifarislerPage() {
                 <input name="destination" defaultValue={selected?.destination} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Uçuş tarixi *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tarix (başlanğıc) *</label>
                 <input name="departureDate" type="date" defaultValue={selected?.departureDate} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Qayıdış tarixi *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tarix (son) *</label>
                 <input name="returnDate" type="date" defaultValue={selected?.returnDate} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
