@@ -95,7 +95,7 @@ export default function SifarislerPage() {
       notes: fd.get("notes") as string,
       ticketNumber: fd.get("ticketNumber") as string,
       bookingReference: fd.get("bookingReference") as string,
-      pnr: fd.get("pnr") as string,
+      pnr: fd.get("pnr") as string,10
     }
 
     if (modal === "edit" && selected) {
