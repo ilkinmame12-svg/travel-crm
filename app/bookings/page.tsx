@@ -17,6 +17,7 @@ const BOOKING_TYPES = [
   { value: "bagaj", label: "Bagaj", Icon: Luggage, color: "yellow" },
   { value: "yer_secimi", label: "Yer seçimi", Icon: Armchair, color: "pink" },
   { value: "cip", label: "CIP xidmət", Icon: Star, color: "gold" },
+  
 ]
 
 const EMPTY_FILTERS: BookingFilters = {
@@ -64,6 +65,7 @@ export default function SifarislerPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    
     const fd = new FormData(e.currentTarget)
     const sellPrice = Number(fd.get("sellPrice"))
     const buyPrice = Number(fd.get("buyPrice"))
@@ -91,6 +93,9 @@ export default function SifarislerPage() {
       status: fd.get("status") as "pending" | "confirmed" | "completed" | "cancelled",
       paymentStatus: paymentStatus as "unpaid" | "partial" | "paid",
       notes: fd.get("notes") as string,
+      ticketNumber: fd.get("ticketNumber") as string,
+      bookingReference: fd.get("bookingReference") as string,
+      pnr: fd.get("pnr") as string,
     }
 
     if (modal === "edit" && selected) {
@@ -428,6 +433,22 @@ export default function SifarislerPage() {
                   <p className="text-xs text-orange-600 mt-1">Müştərinin ödədiyi məbləği daxil edin</p>
                 </div>
               )}
+              <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-2">Referans nömrələri</div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Bilet nömrəsi</label>
+  <input name="ticketNumber" defaultValue={selected?.ticketNumber ?? ""} placeholder="Məs: 157-1234567890"
+    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+</div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Bron nömrəsi</label>
+  <input name="bookingReference" defaultValue={selected?.bookingReference ?? ""} placeholder="Məs: ABC123"
+    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+</div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">PNR</label>
+  <input name="pnr" defaultValue={selected?.pnr ?? ""} placeholder="Məs: XYZABC"
+    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+</div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Qeydlər</label>
                 <textarea name="notes" rows={2} defaultValue={selected?.notes} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none" />

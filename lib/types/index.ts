@@ -17,6 +17,9 @@ export interface Booking {
   travelers: number
   description?: string
   vendor?: string
+  ticketNumber?: string
+  bookingReference?: string
+  pnr?: string
   isIata?: boolean
   buyPrice: number
   sellPrice: number
