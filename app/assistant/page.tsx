@@ -84,22 +84,20 @@ ${recentBookings}`
     setLoading(true)
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: buildContext(),
-          messages: [
-            ...messages.filter(m => m.role !== "assistant" || messages.indexOf(m) > 0).map(m => ({
-              role: m.role,
-              content: m.content
-            })),
-            { role: "user", content: userMsg }
-          ]
-        })
-      })
+     const response = await fetch("/api/assistant", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    context: buildContext(),
+    messages: [
+      ...messages.filter((m, idx) => !(m.role === "assistant" && idx === 0)).map(m => ({
+        role: m.role,
+        content: m.content
+      })),
+      { role: "user", content: userMsg }
+    ]
+  })
+})
 
       const data = await response.json()
       const reply = data.content?.[0]?.text ?? "Xəta baş verdi"
