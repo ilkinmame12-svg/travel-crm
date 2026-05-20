@@ -21,6 +21,9 @@ export default function AssistantPage() {
 
   useEffect(() => { fetchBookings() }, [])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages])
+  const [mounted, setMounted] = useState(false)
+useEffect(() => { setMounted(true) }, [])
+if (!mounted) return null
 
   function buildContext() {
     const totalRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
