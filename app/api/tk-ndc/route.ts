@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         },
       }
 
-      const response = await fetch(`${TK_BASE_URL}/shop`, {
+        const response = await fetch(`${TK_BASE_URL}/v1/shop`, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
@@ -88,8 +88,7 @@ export async function POST(request: NextRequest) {
           },
         },
       }
-
-      const response = await fetch(`${TK_BASE_URL}/order-retrieve`, {
+const response = await fetch(`${TK_BASE_URL}/v1/order-retrieve`, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
