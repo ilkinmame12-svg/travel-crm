@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const TK_AUTH_URL = "https://api.turkishairlines.com/oauth/token"
-const TK_BASE_URL = "https://api.turkishairlines.com/v2"
+const TK_AUTH_URL = "https://sso.apim.turkishairlines.com/auth/realms/3scale/protocol/openid-connect/token"
+const TK_BASE_URL = "https://ndc.apim.turkishairlines.com"
 
 async function getToken() {
   const response = await fetch(TK_AUTH_URL, {
@@ -26,37 +26,79 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authentication failed" }, { status: 401 })
     }
 
-    let url = ""
-    let body = {}
-
-    if (action === "search") {
-      url = `${TK_BASE_URL}/flights/search`
-      body = {
-        originDestinations: [{
-          origin: params.origin,
-          destination: params.destination,
-          departureDate: params.departureDate,
-        }],
-        travelers: [{ type: "ADT", count: params.travelers || 1 }],
-        cabinClass: params.cabinClass || "ECONOMY",
-        currency: "AZN",
-        officeId: process.env.TK_IATA,
-      }
-    } else if (action === "check_pnr") {
-      url = `${TK_BASE_URL}/bookings/${params.pnr}`
+    const headers = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
     }
 
-    const response = await fetch(url, {
-      method: action === "check_pnr" ? "GET" : "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: action === "check_pnr" ? undefined : JSON.stringify(body),
-    })
+    if (action === "search") {
+      const body = {
+        RequestHeader: {
+          OfficeID: process.env.TK_IATA,
+          Language: "AZ",
+        },
+        IATA_AirShoppingRQ: {
+          CoreQuery: {
+            OriginDestinations: [{
+              OriginDestKey: "OD1",
+              Departure: {
+                AirportCode: params.origin || "GYD",
+                Date: params.departureDate,
+              },
+              Arrival: {
+                AirportCode: params.destination,
+              },
+            }],
+          },
+          Pax: Array.from({ length: params.travelers || 1 }, (_, i) => ({
+            PaxID: `PAX${i + 1}`,
+            PTC: "ADT",
+          })),
+          ShoppingCriteria: {
+            CabinType: {
+              CabinTypeCode: params.cabinClass === "BUSINESS" ? "C" : "Y",
+            },
+          },
+        },
+      }
 
-    const data = await response.json()
-    return NextResponse.json(data)
+      const response = await fetch(`${TK_BASE_URL}/shop`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      })
+      const data = await response.json()
+      return NextResponse.json(data)
+    }
+
+    if (action === "check_pnr") {
+      const body = {
+        RequestHeader: {
+          OfficeID: process.env.TK_IATA,
+          Language: "AZ",
+        },
+        IATA_OrderRetrieveRQ: {
+          Query: {
+            Filters: {
+              OrderID: {
+                Owner: "TK",
+                value: params.pnr,
+              },
+            },
+          },
+        },
+      }
+
+      const response = await fetch(`${TK_BASE_URL}/order-retrieve`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      })
+      const data = await response.json()
+      return NextResponse.json(data)
+    }
+
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
