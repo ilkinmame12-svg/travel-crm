@@ -48,9 +48,13 @@ export default function SifarislerPage() {
     if (activeTab !== "all" && b.bookingType !== activeTab) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
-      if (!b.clientName.toLowerCase().includes(q) &&
-          !b.destination.toLowerCase().includes(q) &&
-          !(b.vendor ?? "").toLowerCase().includes(q)) return false
+   if (!b.clientName.toLowerCase().includes(q) &&
+    !b.destination.toLowerCase().includes(q) &&
+    !(b.vendor ?? "").toLowerCase().includes(q) &&
+    !(b.ticketNumber ?? "").toLowerCase().includes(q) &&
+    !(b.bookingReference ?? "").toLowerCase().includes(q) &&
+    !(b.pnr ?? "").toLowerCase().includes(q) &&
+    !(b.notes ?? "").toLowerCase().includes(q)) return false
     }
     if (filters.status !== "all" && b.status !== filters.status) return false
     if (filters.manager && b.manager !== filters.manager) return false
@@ -175,7 +179,7 @@ export default function SifarislerPage() {
           <div className="flex gap-2 flex-wrap">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Axtar..." value={filters.search}
+              <input type="text" placeholder="Axtar (ad, bilet №, PNR...)"
                 onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
                 className="pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 w-48" />
             </div>
