@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const TK_AUTH_URL = "https://sso.apim.turkishairlines.com/auth/realms/3scale/protocol/openid-connect/token"
-const TK_BASE_URL = "https://ndc.apim.turkishairlines.com"
+const TK_BASE_URL = "https://ndc.apim.turkishairlines.com/api"
 
 async function getToken() {
   const response = await fetch(TK_AUTH_URL, {
