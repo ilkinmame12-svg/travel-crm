@@ -2,9 +2,11 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, HelpCircle, LogOut, BotMessageSquare, Users, PlaneTakeoff } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, HelpCircle, LogOut, BotMessageSquare, Users, PlaneTakeoff, Building2 } from "lucide-react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
+
+
 
 
 
@@ -14,12 +16,12 @@ const MENU = [
   { href: "/bookings", label: "Sifarişlər", icon: ClipboardList },
   { href: "/finances", label: "Maliyyə", icon: Wallet },
   { href: "/debts", label: "Borclar", icon: CreditCard },
+  { href: "/creditors", label: "Kreditorlar", icon: Building2 },
   { href: "/iata", label: "IATA", icon: Globe },
   { href: "/employees", label: "İşçilər", icon: Users },
   { href: "/flights", label: "TK NDC", icon: PlaneTakeoff },
   { href: "/assistant", label: "AI Köməkçi", icon: BotMessageSquare },
 ]
-
 
 const GENERAL = [
   { href: "/settings", label: "Settings", icon: Settings },
