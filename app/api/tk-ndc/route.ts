@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server"
 const TK_AUTH_URL = "https://sso.apim.turkishairlines.com/auth/realms/3scale/protocol/openid-connect/token"
 const TK_BASE_URL = "https://ndc.apim.turkishairlines.com/api"
 
+const ORG_ID = "268811531"
+const BRANCH_ID = "7EM"
+
 async function getToken() {
   const response = await fetch(TK_AUTH_URL, {
     method: "POST",
@@ -34,8 +37,9 @@ export async function POST(request: NextRequest) {
     if (action === "search") {
       const body = {
         RequestHeader: {
-          OfficeID: process.env.TK_IATA,
-          Language: "AZ",
+          OfficeID: ORG_ID,
+          BranchID: BRANCH_ID,
+          Language: "EN",
         },
         IATA_AirShoppingRQ: {
           CoreQuery: {
@@ -62,20 +66,27 @@ export async function POST(request: NextRequest) {
         },
       }
 
-        const response = await fetch(`${TK_BASE_URL}/v1/shop`, {
+      const response = await fetch(`${TK_BASE_URL}/shop`, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
       })
-      const data = await response.json()
-      return NextResponse.json(data)
+
+      const text = await response.text()
+      try {
+        const data = JSON.parse(text)
+        return NextResponse.json(data)
+      } catch {
+        return NextResponse.json({ error: text }, { status: 500 })
+      }
     }
 
     if (action === "check_pnr") {
       const body = {
         RequestHeader: {
-          OfficeID: process.env.TK_IATA,
-          Language: "AZ",
+          OfficeID: ORG_ID,
+          BranchID: BRANCH_ID,
+          Language: "EN",
         },
         IATA_OrderRetrieveRQ: {
           Query: {
@@ -88,13 +99,20 @@ export async function POST(request: NextRequest) {
           },
         },
       }
-const response = await fetch(`${TK_BASE_URL}/v1/order-retrieve`, {
+
+      const response = await fetch(`${TK_BASE_URL}/order-retrieve`, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
       })
-      const data = await response.json()
-      return NextResponse.json(data)
+
+      const text = await response.text()
+      try {
+        const data = JSON.parse(text)
+        return NextResponse.json(data)
+      } catch {
+        return NextResponse.json({ error: text }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 })
