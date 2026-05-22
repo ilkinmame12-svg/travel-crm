@@ -358,7 +358,7 @@ export default function SifarislerPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Telefon *</label>
-                <input name="clientPhone" defaultValue={selected?.clientPhone} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                <input name="clientPhone" defaultValue={selected?.clientPhone}  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
