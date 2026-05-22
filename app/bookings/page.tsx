@@ -354,7 +354,7 @@ export default function SifarislerPage() {
               <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Müştəri</div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ad *</label>
-                <input name="clientName" defaultValue={selected?.clientName} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+            <ClientAutocomplete defaultValue={selected?.clientName ?? ""} bookings={bookings} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Telefon *</label>
@@ -468,7 +468,50 @@ export default function SifarislerPage() {
             </form>
           </div>
         </div>
+        
       )}
     </div>
   )
+  function ClientAutocomplete({ defaultValue, bookings }: { defaultValue: string, bookings: any[] }) {
+  const [value, setValue] = useState(defaultValue)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [show, setShow] = useState(false)
+
+  const uniqueClients = [...new Set(bookings.map(b => b.clientName))].filter(Boolean)
+
+  function handleChange(v: string) {
+    setValue(v)
+    if (v.length > 0) {
+      const filtered = uniqueClients.filter(c => c.toLowerCase().includes(v.toLowerCase())).slice(0, 6)
+      setSuggestions(filtered)
+      setShow(true)
+    } else {
+      setShow(false)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <input
+        name="clientName"
+        value={value}
+        onChange={e => handleChange(e.target.value)}
+        onBlur={() => setTimeout(() => setShow(false), 150)}
+        required
+        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+      />
+      {show && suggestions.length > 0 && (
+        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-xl shadow-lg mt-1 overflow-hidden">
+          {suggestions.map(s => (
+            <button key={s} type="button"
+              onClick={() => { setValue(s); setShow(false) }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 hover:text-red-600 transition-colors">
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 }
