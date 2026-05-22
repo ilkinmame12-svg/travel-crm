@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const TK_AUTH_URL = "https://sso.apim.turkishairlines.com/auth/realms/3scale/protocol/openid-connect/token"
-const TK_SHOPPING_URL = "https://ndc.apim.turkishairlines.com/shopping"
-const TK_ORDER_URL = "https://ndc.apim.turkishairlines.com/order"
+const TK_SHOPPING_URL = "https://ndc.apim.turkishairlines.com:443"
+const TK_ORDER_URL = "https://ndc.apim.turkishairlines.com:443"
 
 const ORG_ID = "268811531"
 const BRANCH_ID = "7EM"
