@@ -10,7 +10,8 @@ const BRANCH_ID = "7EM"
 async function getToken() {
   const response = await fetch(TK_AUTH_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: { "Content-Type": "text/xml",
+"Accept": "text/xml",},
     body: new URLSearchParams({
       grant_type: "client_credentials",
       client_id: process.env.TK_CLIENT_ID!,
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
   </n1:Request>
 </n1:IATA_AirShoppingRQ>`
 
-      const response = await fetch(`${TK_SHOPPING_URL}/api/shop`, {
+      const response = await fetch(`https://ndc.apim.turkishairlines.com:443/shop`, {
         method: "POST",
         headers,
         body: xml,
