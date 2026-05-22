@@ -10,8 +10,7 @@ const BRANCH_ID = "7EM"
 async function getToken() {
   const response = await fetch(TK_AUTH_URL, {
     method: "POST",
-    headers: { "Content-Type": "text/xml",
-"Accept": "text/xml",},
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "client_credentials",
       client_id: process.env.TK_CLIENT_ID!,
@@ -19,9 +18,9 @@ async function getToken() {
     }),
   })
   const data = await response.json()
+  console.log("Token response:", JSON.stringify(data))
   return data.access_token
 }
-
 export async function POST(request: NextRequest) {
   try {
     const { action, params } = await request.json()
