@@ -1,7 +1,6 @@
 ﻿import type { Metadata } from "next"
 import "./globals.css"
-import Sidebar from "@/components/layout/Sidebar"
-
+import Sidebar, { MobileNav } from "@/components/layout/Sidebar"
 
 export const metadata: Metadata = {
   title: "itstour CRM",
@@ -10,6 +9,7 @@ export const metadata: Metadata = {
     icon: "/logo.png",
   },
 }
+
 export default function RootLayout({
   children,
 }: {
@@ -19,8 +19,11 @@ export default function RootLayout({
     <html lang="az">
       <body>
         <div className="flex min-h-screen bg-gray-50">
-          <Sidebar />
+          <div className="hidden md:block">
+            <Sidebar />
+          </div>
           <main className="flex-1 overflow-auto bg-gray-50">
+            <MobileNav />
             {children}
           </main>
         </div>

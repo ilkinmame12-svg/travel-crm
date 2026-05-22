@@ -6,11 +6,6 @@ import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, He
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 
-
-
-
-
-
 const MENU = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/bookings", label: "Sifarişlər", icon: ClipboardList },
@@ -28,6 +23,40 @@ const GENERAL = [
   { href: "/help", label: "Help", icon: HelpCircle },
 ]
 
+export function MobileNav() {
+  const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push("/login")
+    router.refresh()
+  }
+
+  return (
+    <div className="md:hidden bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+      <Image src="/logo.png" alt="itstour" width={80} height={30} style={{ width: "auto", height: "auto" }} className="object-contain" />
+      <div className="flex gap-1 overflow-x-auto">
+        {MENU.map(item => {
+          const active = pathname === item.href
+          const Icon = item.icon
+          return (
+            <Link key={item.href} href={item.href}
+              className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                active ? "bg-red-500 text-white" : "text-gray-500 hover:bg-gray-100"
+              }`}>
+              <Icon size={16} />
+            </Link>
+          )
+        })}
+      </div>
+      <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500">
+        <LogOut size={18} />
+      </button>
+    </div>
+  )
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
@@ -37,7 +66,6 @@ export default function Sidebar() {
     router.push("/login")
     router.refresh()
   }
-  
 
   return (
     <div className="w-60 min-h-screen bg-white flex flex-col border-r border-gray-100">
