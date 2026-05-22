@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const TK_AUTH_URL = "https://sso.apim.turkishairlines.com/auth/realms/3scale/protocol/openid-connect/token"
-const TK_SHOPPING_URL = "https://ndc.apim.turkishairlines.com:443"
-const TK_ORDER_URL = "https://ndc.apim.turkishairlines.com:443"
-
-const ORG_ID = "268811531"
+const TK_SHOPPING_URL = "https://ndc.apim.turkishairlines.com:443/api"
+const TK_ORDER_URL = "https://ndc.apim.turkishairlines.com:443/api"
+const ORG_ID = "268811531"  // sənin OrgID-in
 const BRANCH_ID = "7EM"
+
 
 async function getToken() {
   const response = await fetch(TK_AUTH_URL, {
