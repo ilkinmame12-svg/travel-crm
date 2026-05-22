@@ -158,7 +158,7 @@ export default function SifarislerPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden overflow-x-auto">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex gap-2 flex-wrap">
             <button onClick={() => setActiveTab("all")}
@@ -205,7 +205,7 @@ export default function SifarislerPage() {
         {loading ? (
           <div className="text-center py-16 text-gray-400">Yüklənir...</div>
         ) : (
-          <table className="w-full text-sm">
+         <table className="w-full text-sm min-w-[1400px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 {["Növ", "Müştəri", "İstiqamət", "Vendor", "Tarixlər", "Menecer", "Satış", "Ödənilib", "Qalıq", "Mənfəət", "Status", "Ödəniş", "IATA", ""].map(h => (
