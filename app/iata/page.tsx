@@ -13,16 +13,18 @@ export default function IATAPage() {
   const [activePeriod, setActivePeriod] = useState<string>("1-7")
 
   useEffect(() => { fetchBookings() }, [])
-const [selectedMonth, setSelectedMonth] = useState(() => {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-})
-    const grouped = PERIODS.map(period => {
-    const items = bookings.filter(b => 
-  b.iataPeriod === period && 
-  b.isIata === true && 
-  b.departureDate.startsWith(selectedMonth)
-)
+
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
+
+  const grouped = PERIODS.map(period => {
+    const items = bookings.filter(b =>
+      b.iataPeriod === period &&
+      b.isIata === true &&
+      b.departureDate.startsWith(selectedMonth)
+    )
     const totalSell = items.reduce((s, b) => s + b.sellPrice, 0)
     const totalBuy = items.reduce((s, b) => s + b.buyPrice, 0)
     const totalProfit = items.reduce((s, b) => s + b.profit, 0)
@@ -102,41 +104,48 @@ const [selectedMonth, setSelectedMonth] = useState(() => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+
+      {/* ✅ HEADER — один раз, без дублирования */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">IATA Periods</h1>
           <p className="text-sm text-gray-500 mt-1">Aylıq IATA hesabatı</p>
         </div>
-        <button onClick={exportAllToExcel}
-          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700">
-          <Download size={16} />
-          Hamısını Excel-ə yüklə
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2.5">
+            <span className="text-sm font-medium text-gray-600">Ay:</span>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="text-sm text-gray-900 focus:outline-none bg-transparent"
+            />
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+              {bookings.filter(b => b.isIata && b.departureDate.startsWith(selectedMonth)).length} bilet
+            </span>
+          </div>
+          <button
+            onClick={exportAllToExcel}
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
+          >
+            <Download size={16} />
+            Hamısını Excel-ə yüklə
+          </button>
+        </div>
       </div>
 
+      {/* ✅ КАРТОЧКИ — ровно 4 в сетке, без лишних div внутри grid */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="flex items-center justify-between mb-6">
-  <div>
-    <h1 className="text-2xl font-bold text-gray-900">IATA Periods</h1>
-    <p className="text-sm text-gray-500 mt-0.5">Aylıq IATA hesabatı</p>
-  </div>
-  <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2.5">
-    <span className="text-sm font-medium text-gray-600">Ay:</span>
-    <input type="month" value={selectedMonth}
-      onChange={e => setSelectedMonth(e.target.value)}
-      className="text-sm text-gray-900 focus:outline-none bg-transparent" />
-    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
-      {bookings.filter(b => b.isIata && b.departureDate.startsWith(selectedMonth)).length} bilet
-    </span>
-  </div>
-</div>
         {grouped.map(g => (
-          <button key={g.period} onClick={() => setActivePeriod(g.period)}
+          <button
+            key={g.period}
+            onClick={() => setActivePeriod(g.period)}
             className={`text-left p-5 rounded-2xl border transition-all ${
               activePeriod === g.period
                 ? "bg-blue-600 border-blue-600 text-white shadow-lg"
                 : "bg-white border-gray-100 hover:border-blue-200 hover:shadow-sm"
-            }`}>
+            }`}
+          >
             <div className="flex items-center justify-between mb-4">
               <h2 className={`text-lg font-bold ${activePeriod === g.period ? "text-white" : "text-gray-900"}`}>
                 Period {g.period}
@@ -173,6 +182,7 @@ const [selectedMonth, setSelectedMonth] = useState(() => {
         ))}
       </div>
 
+      {/* ТАБЛИЦА */}
       <div className="bg-white rounded-2xl border border-gray-100">
         <div className="px-6 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -187,8 +197,10 @@ const [selectedMonth, setSelectedMonth] = useState(() => {
               <span className="text-gray-500">Komissiya: <span className="font-semibold text-blue-600">{formatCurrency(active.totalCommission)}</span></span>
               <span className="text-gray-500">Mənfəət: <span className={`font-semibold ${active.totalProfit >= 0 ? "text-green-600" : "text-red-500"}`}>{formatCurrency(active.totalProfit)}</span></span>
             </div>
-            <button onClick={exportToExcel}
-              className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-700">
+            <button
+              onClick={exportToExcel}
+              className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-700"
+            >
               <Download size={14} />
               Excel
             </button>
