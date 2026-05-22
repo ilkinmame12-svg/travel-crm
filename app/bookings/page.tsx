@@ -374,8 +374,8 @@ export default function SifarislerPage() {
                 <input name="departureDate" type="date" defaultValue={selected?.departureDate} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tarix (son) *</label>
-                <input name="returnDate" type="date" defaultValue={selected?.returnDate} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+               <label className="block text-sm font-medium text-gray-700 mb-1">Tarix (son)</label>
+<input name="returnDate" type="date" defaultValue={selected?.returnDate} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Turistlər</label>
