@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const TK_AUTH_URL = "https://sso.apim.turkishairlines.com/auth/realms/3scale/protocol/openid-connect/token"
-const TK_BASE_URL = "https://ndc.apim.turkishairlines.com/api"
+const TK_SHOPPING_URL = "https://ndc.apim.turkishairlines.com/shopping"
+const TK_ORDER_URL = "https://ndc.apim.turkishairlines.com/order"
 
 const ORG_ID = "268811531"
 const BRANCH_ID = "7EM"
@@ -31,88 +32,100 @@ export async function POST(request: NextRequest) {
 
     const headers = {
       "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
+      "Content-Type": "application/xml",
+      "Accept": "application/xml",
     }
 
     if (action === "search") {
-      const body = {
-        RequestHeader: {
-          OfficeID: ORG_ID,
-          BranchID: BRANCH_ID,
-          Language: "EN",
-        },
-        IATA_AirShoppingRQ: {
-          CoreQuery: {
-            OriginDestinations: [{
-              OriginDestKey: "OD1",
-              Departure: {
-                AirportCode: params.origin || "GYD",
-                Date: params.departureDate,
-              },
-              Arrival: {
-                AirportCode: params.destination,
-              },
-            }],
-          },
-          Pax: Array.from({ length: params.travelers || 1 }, (_, i) => ({
-            PaxID: `PAX${i + 1}`,
-            PTC: "ADT",
-          })),
-          ShoppingCriteria: {
-            CabinType: {
-              CabinTypeCode: params.cabinClass === "BUSINESS" ? "C" : "Y",
-            },
-          },
-        },
-      }
+      const trxId = Date.now().toString()
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<n1:IATA_AirShoppingRQ
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:n1="http://www.iata.org/IATA/2015/EASD/00/IATA_OffersAndOrdersMessage"
+  xmlns:cns="http://www.iata.org/IATA/2015/EASD/00/IATA_OffersAndOrdersCommonTypes">
+  <n1:DistributionChain>
+    <cns:Org>
+      <cns:OrgID>${ORG_ID}</cns:OrgID>
+      <cns:Role>Agency</cns:Role>
+    </cns:Org>
+  </n1:DistributionChain>
+  <n1:PayloadAttributes>
+    <cns:TrxID>${trxId}</cns:TrxID>
+    <cns:CorrelationID>${trxId}</cns:CorrelationID>
+    <cns:PrimaryLangID>EN</cns:PrimaryLangID>
+    <cns:VersionNumber>21.36</cns:VersionNumber>
+  </n1:PayloadAttributes>
+  <n1:Request>
+    <cns:FlightRequest>
+      <cns:FlightRequestOriginDestinationsCriteria>
+        <cns:OriginDestCriteria>
+          <cns:DestArrivalCriteria>
+            <cns:IATA_LocationCode>${params.destination}</cns:IATA_LocationCode>
+          </cns:DestArrivalCriteria>
+          <cns:OriginDepCriteria>
+            <cns:Date>${params.departureDate}</cns:Date>
+            <cns:IATA_LocationCode>${params.origin || "GYD"}</cns:IATA_LocationCode>
+          </cns:OriginDepCriteria>
+        </cns:OriginDestCriteria>
+      </cns:FlightRequestOriginDestinationsCriteria>
+    </cns:FlightRequest>
+    <cns:Pax>
+      <cns:PaxID>PAX1</cns:PaxID>
+      <cns:PTC>ADT</cns:PTC>
+    </cns:Pax>
+    <cns:ShoppingCriteria>
+      <cns:CabinTypeCriteria>
+        <cns:CabinType>
+          <cns:CabinTypeCode>${params.cabinClass === "BUSINESS" ? "C" : "Y"}</cns:CabinTypeCode>
+        </cns:CabinType>
+      </cns:CabinTypeCriteria>
+    </cns:ShoppingCriteria>
+  </n1:Request>
+</n1:IATA_AirShoppingRQ>`
 
-      const response = await fetch(`${TK_BASE_URL}/shop`, {
+      const response = await fetch(`${TK_SHOPPING_URL}/shop`, {
         method: "POST",
         headers,
-        body: JSON.stringify(body),
+        body: xml,
       })
 
       const text = await response.text()
-      try {
-        const data = JSON.parse(text)
-        return NextResponse.json(data)
-      } catch {
-        return NextResponse.json({ error: text }, { status: 500 })
-      }
+      return NextResponse.json({ xml: text, status: response.status })
     }
 
     if (action === "check_pnr") {
-      const body = {
-        RequestHeader: {
-          OfficeID: ORG_ID,
-          BranchID: BRANCH_ID,
-          Language: "EN",
-        },
-        IATA_OrderRetrieveRQ: {
-          Query: {
-            Filters: {
-              OrderID: {
-                Owner: "TK",
-                value: params.pnr,
-              },
-            },
-          },
-        },
-      }
+      const trxId = Date.now().toString()
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<n1:IATA_OrderRetrieveRQ
+  xmlns:n1="http://www.iata.org/IATA/2015/EASD/00/IATA_OffersAndOrdersMessage"
+  xmlns:cns="http://www.iata.org/IATA/2015/EASD/00/IATA_OffersAndOrdersCommonTypes">
+  <n1:DistributionChain>
+    <cns:Org>
+      <cns:OrgID>${ORG_ID}</cns:OrgID>
+      <cns:Role>Agency</cns:Role>
+    </cns:Org>
+  </n1:DistributionChain>
+  <n1:PayloadAttributes>
+    <cns:TrxID>${trxId}</cns:TrxID>
+    <cns:CorrelationID>${trxId}</cns:CorrelationID>
+    <cns:PrimaryLangID>EN</cns:PrimaryLangID>
+    <cns:VersionNumber>21.36</cns:VersionNumber>
+  </n1:PayloadAttributes>
+  <n1:Query>
+    <cns:Filters>
+      <cns:OrderID Owner="TK">${params.pnr}</cns:OrderID>
+    </cns:Filters>
+  </n1:Query>
+</n1:IATA_OrderRetrieveRQ>`
 
-      const response = await fetch(`${TK_BASE_URL}/order-retrieve`, {
+      const response = await fetch(`${TK_ORDER_URL}/order-retrieve`, {
         method: "POST",
         headers,
-        body: JSON.stringify(body),
+        body: xml,
       })
 
       const text = await response.text()
-      try {
-        const data = JSON.parse(text)
-        return NextResponse.json(data)
-      } catch {
-        return NextResponse.json({ error: text }, { status: 500 })
-      }
+      return NextResponse.json({ xml: text, status: response.status })
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 })
