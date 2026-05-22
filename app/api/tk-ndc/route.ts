@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
   </n1:Request>
 </n1:IATA_AirShoppingRQ>`
 
-      const response = await fetch(`${TK_SHOPPING_URL}/shop`, {
+      const response = await fetch(`${TK_SHOPPING_URL}/api/shop`, {
         method: "POST",
         headers,
         body: xml,
