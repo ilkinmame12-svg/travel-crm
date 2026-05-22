@@ -13,9 +13,16 @@ export default function IATAPage() {
   const [activePeriod, setActivePeriod] = useState<string>("1-7")
 
   useEffect(() => { fetchBookings() }, [])
-
+const [selectedMonth, setSelectedMonth] = useState(() => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+})
     const grouped = PERIODS.map(period => {
-    const items = bookings.filter(b => b.iataPeriod === period && b.isIata === true)
+    const items = bookings.filter(b => 
+  b.iataPeriod === period && 
+  b.isIata === true && 
+  b.departureDate.startsWith(selectedMonth)
+)
     const totalSell = items.reduce((s, b) => s + b.sellPrice, 0)
     const totalBuy = items.reduce((s, b) => s + b.buyPrice, 0)
     const totalProfit = items.reduce((s, b) => s + b.profit, 0)
@@ -108,6 +115,15 @@ export default function IATAPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="flex items-center gap-3 mb-4">
+  <label className="text-sm font-medium text-gray-700">Ay seçin:</label>
+  <input type="month" value={selectedMonth}
+    onChange={e => setSelectedMonth(e.target.value)}
+    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+  <span className="text-sm text-gray-500">
+    {bookings.filter(b => b.isIata && b.departureDate.startsWith(selectedMonth)).length} bilet
+  </span>
+</div>
         {grouped.map(g => (
           <button key={g.period} onClick={() => setActivePeriod(g.period)}
             className={`text-left p-5 rounded-2xl border transition-all ${
