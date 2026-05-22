@@ -115,14 +115,20 @@ const [selectedMonth, setSelectedMonth] = useState(() => {
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-  <label className="text-sm font-medium text-gray-700">Ay seçin:</label>
-  <input type="month" value={selectedMonth}
-    onChange={e => setSelectedMonth(e.target.value)}
-    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
-  <span className="text-sm text-gray-500">
-    {bookings.filter(b => b.isIata && b.departureDate.startsWith(selectedMonth)).length} bilet
-  </span>
+        <div className="flex items-center justify-between mb-6">
+  <div>
+    <h1 className="text-2xl font-bold text-gray-900">IATA Periods</h1>
+    <p className="text-sm text-gray-500 mt-0.5">Aylıq IATA hesabatı</p>
+  </div>
+  <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2.5">
+    <span className="text-sm font-medium text-gray-600">Ay:</span>
+    <input type="month" value={selectedMonth}
+      onChange={e => setSelectedMonth(e.target.value)}
+      className="text-sm text-gray-900 focus:outline-none bg-transparent" />
+    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+      {bookings.filter(b => b.isIata && b.departureDate.startsWith(selectedMonth)).length} bilet
+    </span>
+  </div>
 </div>
         {grouped.map(g => (
           <button key={g.period} onClick={() => setActivePeriod(g.period)}
