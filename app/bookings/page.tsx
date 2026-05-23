@@ -42,7 +42,7 @@ useEffect(() => {
   fetchBookings()
   setReady(true)
 }, [])
-
+if (!ready) return null
   useEffect(() => {
     if (modal) {
       setPaymentStatus(selected?.paymentStatus ?? "unpaid")
@@ -50,7 +50,7 @@ useEffect(() => {
       setIsIata(selected?.isIata ?? false)
     }
   }, [modal, selected])
-if (!ready) return null
+
   const filtered = useMemo(() => bookings.filter(b => {
     if (activeTab !== "all" && b.bookingType !== activeTab) return false
     if (filters.search) {
@@ -67,13 +67,14 @@ if (!ready) return null
     if (filters.manager && b.manager !== filters.manager) return false
     if (filters.iataPeriod !== "all" && b.iataPeriod !== filters.iataPeriod) return false
     return true
+    
   }), [bookings, filters, activeTab])
 
   const totalRevenue = filtered.reduce((s, b) => s + b.sellPrice, 0)
   const totalProfit = filtered.reduce((s, b) => s + b.profit, 0)
   const totalCost = filtered.reduce((s, b) => s + b.buyPrice, 0)
   const typeCounts = BOOKING_TYPES.map(t => ({ ...t, count: bookings.filter(b => b.bookingType === t.value).length }))
-
+  if (!ready) return null
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
   e.preventDefault()
   
