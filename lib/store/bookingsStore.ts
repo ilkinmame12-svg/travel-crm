@@ -46,20 +46,21 @@ function toBooking(row: any): Booking {
 }
 
 function toRow(data: any) {
+  const today = new Date().toISOString().split("T")[0]
   return {
     booking_type: data.bookingType,
     client_name: data.clientName,
     client_phone: data.clientPhone,
     client_email: data.clientEmail,
     destination: data.destination,
-    departure_date: data.departureDate,
-    return_date: data.returnDate,
+    departure_date: data.departureDate || today,
+    return_date: data.returnDate || today,
     travelers: data.travelers,
     description: data.description,
     vendor: data.vendor ?? '',
-  ticket_number: data.ticketNumber ?? '',
-  booking_reference: data.bookingReference ?? '',
-  pnr: data.pnr ?? '',
+    ticket_number: data.ticketNumber ?? '',
+    booking_reference: data.bookingReference ?? '',
+    pnr: data.pnr ?? '',
     is_iata: data.isIata ?? false,
     buy_price: data.buyPrice,
     sell_price: data.sellPrice,
@@ -72,6 +73,8 @@ function toRow(data: any) {
     status: data.status,
     payment_status: data.paymentStatus,
     notes: data.notes,
+    updated_by: data.updated_by ?? '',
+    updated_by_role: data.updated_by_role ?? '',
     updated_at: new Date().toISOString(),
   }
 }
