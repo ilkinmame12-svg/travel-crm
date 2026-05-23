@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, HelpCircle, LogOut, BotMessageSquare, Users, PlaneTakeoff, Building2 } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, HelpCircle, LogOut, BotMessageSquare, Users, PlaneTakeoff, Building2, Scale } from "lucide-react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import { useUserRole } from "@/lib/hooks/useUserRole"
@@ -13,12 +13,12 @@ const ALL_MENU = [
   { href: "/finances", label: "Maliyyə", icon: Wallet, roles: ["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/debts", label: "Borclar", icon: CreditCard, roles: ["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/creditors", label: "Kreditorlar", icon: Building2, roles: ["it_admin", "boss", "direktor", "muhasib"] },
+  { href: "/balances", label: "Balanslar", icon: Scale, roles: ["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/iata", label: "IATA", icon: Globe, roles: ["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/employees", label: "İşçilər", icon: Users, roles: ["it_admin", "boss", "direktor"] },
   { href: "/flights", label: "TK NDC", icon: PlaneTakeoff, roles: ["it_admin", "direktor", "menecer"] },
   { href: "/assistant", label: "AI Köməkçi", icon: BotMessageSquare, roles: ["it_admin", "boss", "direktor"] },
 ]
-
 const ROLE_LABELS: Record<string, string> = {
   it_admin: "IT Admin",
   boss: "Boss",
