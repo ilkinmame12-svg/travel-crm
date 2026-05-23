@@ -1,5 +1,5 @@
 ﻿"use client"
-
+import { supabase } from "@/lib/supabase"
 import { useState, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { usePaymentsStore } from "@/lib/store/paymentsStore"
@@ -41,19 +41,78 @@ export default function FinancesPage() {
   const unpaidBookings = bookings.filter(b => b.paymentStatus !== "paid")
 
   async function handleAddIncome(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const fd = new FormData(e.currentTarget)
-    await addPayment({
-      clientName: fd.get("name") as string,
-      amount: Number(fd.get("amount")),
-      description: fd.get("description") as string,
-      date: fd.get("date") as string,
-      bookingId: selectedBookingId || undefined,
-    })
-    await fetchBookings()
-    setSelectedBookingId("")
-    setModal(null)
+  e.preventDefault()
+  const fd = new FormData(e.currentTarget)
+  const clientName = fd.get("name") as string
+  let remaining = Number(fd.get("amount"))
+  const date = fd.get("date") as string
+  const description = fd.get("description") as string
+
+  // 1. Əgər konkret booking seçilibsə - əvvəlcə onu ödə
+  if (selectedBookingId) {
+    const booking = bookings.find(b => b.id === selectedBookingId)
+    if (booking) {
+      const debt = booking.sellPrice - (booking.paidAmount ?? 0)
+      const toPay = Math.min(remaining, debt)
+      await addPayment({
+        clientName, amount: toPay, description, date, bookingId: selectedBookingId,
+      })
+      remaining -= toPay
+    }
   }
+
+  // 2. Qalan məbləği köhnə borclardan başlayaraq ödə
+  if (remaining > 0) {
+    const unpaidBookings = bookings
+      .filter(b =>
+        b.clientName.toLowerCase() === clientName.toLowerCase() &&
+        b.paymentStatus !== "paid" &&
+        b.id !== selectedBookingId
+      )
+      .sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
+
+    for (const booking of unpaidBookings) {
+      if (remaining <= 0) break
+      const debt = booking.sellPrice - (booking.paidAmount ?? 0)
+      if (debt <= 0) continue
+      const toPay = Math.min(remaining, debt)
+      await addPayment({
+        clientName, amount: toPay, description: `Auto: ${description}`, date, bookingId: booking.id,
+      })
+      remaining -= toPay
+    }
+  }
+
+  // 3. Hələ qalan varsa - Balansa əlavə et
+  if (remaining > 0) {
+    // Check if client balance exists
+    const { data: existingBalance } = await supabase
+      .from("client_balances")
+      .select("*")
+      .ilike("client_name", clientName)
+      .single()
+
+    if (existingBalance) {
+      await supabase.from("client_balances")
+        .update({ balance: existingBalance.balance + remaining })
+        .eq("id", existingBalance.id)
+    } else {
+      await supabase.from("client_balances")
+        .insert({ client_name: clientName, balance: remaining })
+    }
+
+    await supabase.from("client_balance_transactions").insert({
+      client_name: clientName,
+      amount: remaining,
+      type: "credit",
+      description: `Artıq ödəniş: ${description}`,
+    })
+  }
+
+  await fetchBookings()
+  setSelectedBookingId("")
+  setModal(null)
+}
 
   function handleAddExpense(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
