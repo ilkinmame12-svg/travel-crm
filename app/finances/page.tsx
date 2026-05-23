@@ -34,9 +34,7 @@ useEffect(() => {
   setReady(true)
 }, [])
 
-if (!ready) return null
-
-  const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
+const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
   const totalBookingCost = bookings.reduce((s, b) => s + b.buyPrice, 0)
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
   const totalManualIncome = payments.reduce((s, p) => s + p.amount, 0)
@@ -44,6 +42,8 @@ if (!ready) return null
   const margin = totalBookingRevenue > 0 ? Math.round((totalProfit / totalBookingRevenue) * 100) : 0
 
   const unpaidBookings = bookings.filter(b => b.paymentStatus !== "paid")
+
+  if (!ready) return null
 
   async function handleAddIncome(e: React.FormEvent<HTMLFormElement>) {
   e.preventDefault()

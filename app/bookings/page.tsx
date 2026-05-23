@@ -381,11 +381,16 @@ const isReadOnly = profile?.role === "boss"
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tarix (başlanğıc) *</label>
-                <input name="departureDate" type="date" defaultValue={selected?.departureDate} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+           <input name="departureDate" type="date" 
+  defaultValue={selected?.departureDate ?? new Date().toISOString().split("T")[0]} 
+  required 
+  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
                <label className="block text-sm font-medium text-gray-700 mb-1">Tarix (son)</label>
-<input name="returnDate" type="date" defaultValue={selected?.returnDate} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+<input name="returnDate" type="date"
+  defaultValue={selected?.returnDate ?? new Date().toISOString().split("T")[0]}
+  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Turistlər</label>
