@@ -96,20 +96,60 @@ export const useBookingsStore = create<BookingsStore>((set, get) => ({
   },
 
   addBooking: async (data) => {
-    const calculated = applyCalculations(data)
-    const row = toRow(calculated)
-    const { data: inserted, error } = await supabase
-      .from('bookings')
-      .insert(row)
-      .select()
-      .single()
-    if (!error && inserted) {
-      const booking = toBooking(inserted)
-      set((state) => ({ bookings: [booking, ...state.bookings] }))
-      return booking
+  const calculated = applyCalculations(data)
+  
+  // Check client balance
+  const { data: clientBalance } = await supabase
+    .from("client_balances")
+    .select("*")
+    .ilike("client_name", data.clientName)
+    .single()
+
+  let paidAmount = calculated.paidAmount ?? 0
+  let paymentStatus = calculated.paymentStatus
+  let balanceUsed = 0
+
+  if (clientBalance && clientBalance.balance > 0) {
+    const debt = calculated.sellPrice - paidAmount
+    if (debt > 0) {
+      balanceUsed = Math.min(clientBalance.balance, debt)
+      paidAmount += balanceUsed
+
+      if (paidAmount >= calculated.sellPrice) {
+        paymentStatus = "paid"
+      } else if (paidAmount > 0) {
+        paymentStatus = "partial"
+      }
+
+      // Deduct from balance
+      const newBalance = clientBalance.balance - balanceUsed
+      await supabase.from("client_balances")
+        .update({ balance: newBalance })
+        .eq("id", clientBalance.id)
+
+      await supabase.from("client_balance_transactions").insert({
+        client_name: data.clientName,
+        amount: balanceUsed,
+        type: "debit",
+        description: `Avtomatik: yeni sifariş üçün balansdan silinib`,
+      })
     }
-    throw new Error(error?.message)
-  },
+  }
+
+  const row = toRow({ ...calculated, paidAmount, paymentStatus })
+  const { data: inserted, error } = await supabase
+    .from("bookings")
+    .insert(row)
+    .select()
+    .single()
+
+  if (!error && inserted) {
+    const booking = toBooking(inserted)
+    set((state) => ({ bookings: [booking, ...state.bookings] }))
+    return booking
+  }
+  throw new Error(error?.message)
+},
 
   updateBooking: async (id, data) => {
     const calculated = applyCalculations(data)
