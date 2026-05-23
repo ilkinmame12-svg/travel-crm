@@ -26,10 +26,15 @@ export default function FinancesPage() {
   const [tab, setTab] = useState<"overview" | "income" | "expense">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
 
-  useEffect(() => {
-    fetchBookings()
-    fetchPayments()
-  }, [])
+const [ready, setReady] = useState(false)
+
+useEffect(() => {
+  fetchBookings()
+  fetchPayments()
+  setReady(true)
+}, [])
+
+if (!ready) return null
 
   const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
   const totalBookingCost = bookings.reduce((s, b) => s + b.buyPrice, 0)
