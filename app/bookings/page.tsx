@@ -36,7 +36,12 @@ const isReadOnly = profile?.role === "boss"
   const [paidAmount, setPaidAmount] = useState(0)
   const [isIata, setIsIata] = useState(false)
 
-  useEffect(() => { fetchBookings() }, [])
+ const [ready, setReady] = useState(false)
+
+useEffect(() => {
+  fetchBookings()
+  setReady(true)
+}, [])
 
   useEffect(() => {
     if (modal) {
@@ -45,7 +50,7 @@ const isReadOnly = profile?.role === "boss"
       setIsIata(selected?.isIata ?? false)
     }
   }, [modal, selected])
-
+if (!ready) return null
   const filtered = useMemo(() => bookings.filter(b => {
     if (activeTab !== "all" && b.bookingType !== activeTab) return false
     if (filters.search) {
