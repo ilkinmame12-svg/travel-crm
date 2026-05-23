@@ -99,11 +99,13 @@ export const useBookingsStore = create<BookingsStore>((set, get) => ({
   const calculated = applyCalculations(data)
   
   // Check client balance
-  const { data: clientBalance } = await supabase
-    .from("client_balances")
-    .select("*")
-    .ilike("client_name", data.clientName)
-    .single()
+ const { data: balanceRows } = await supabase
+  .from("client_balances")
+  .select("*")
+  .ilike("client_name", data.clientName)
+  .limit(1)
+
+const clientBalance = balanceRows?.[0] ?? null
 
   let paidAmount = calculated.paidAmount ?? 0
   let paymentStatus = calculated.paymentStatus
