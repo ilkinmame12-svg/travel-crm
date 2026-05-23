@@ -48,6 +48,18 @@ export default function FinancesPage() {
   const date = fd.get("date") as string
   const description = fd.get("description") as string
 
+  console.log("Starting payment:", { clientName, remaining })
+
+  // Unpaid bookings
+  const unpaidBookings = bookings
+    .filter(b =>
+      b.clientName.toLowerCase() === clientName.toLowerCase() &&
+      b.paymentStatus !== "paid"
+    )
+    .sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
+
+  console.log("Unpaid bookings found:", unpaidBookings.length)
+
   // 1. Əgər konkret booking seçilibsə - əvvəlcə onu ödə
   if (selectedBookingId) {
     const booking = bookings.find(b => b.id === selectedBookingId)
