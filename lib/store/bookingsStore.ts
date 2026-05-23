@@ -125,9 +125,12 @@ const clientBalance = balanceRows?.[0] ?? null
 
       // Deduct from balance
       const newBalance = clientBalance.balance - balanceUsed
-      await supabase.from("client_balances")
-        .update({ balance: newBalance })
-        .eq("id", clientBalance.id)
+     const { error: balanceError } = await supabase
+  .from("client_balances")
+  .update({ balance: newBalance })
+  .eq("id", clientBalance.id)
+
+console.log("Balance update:", { newBalance, error: balanceError })
 
       await supabase.from("client_balance_transactions").insert({
         client_name: data.clientName,
