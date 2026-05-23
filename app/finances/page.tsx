@@ -17,11 +17,7 @@ interface Expense {
 export default function FinancesPage() {
   const { bookings, fetchBookings } = useBookingsStore()
   const { payments, fetchPayments, addPayment, deletePayment } = usePaymentsStore()
-  const [expenses, setExpenses] = useState<Expense[]>([
-    { id: "1", name: "Ofis icarəsi", amount: 800, category: "Ofis", date: "2024-11-01" },
-    { id: "2", name: "Internet", amount: 50, category: "Kommunal", date: "2024-11-01" },
-    { id: "3", name: "Reklam", amount: 200, category: "Marketing", date: "2024-11-05" },
-  ])
+const [expenses, setExpenses] = useState<Expense[]>([])
   const [modal, setModal] = useState<"expense" | "income" | null>(null)
   const [tab, setTab] = useState<"overview" | "income" | "expense">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
