@@ -1,5 +1,5 @@
 "use client"
-
+import { useUserRole } from "@/lib/hooks/useUserRole"
 import { useState, useMemo, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import type { Booking, BookingFilters, BookingFormData, BookingType } from "@/lib/types"
@@ -25,6 +25,8 @@ const EMPTY_FILTERS: BookingFilters = {
 }
 
 export default function SifarislerPage() {
+  const { profile, canDelete } = useUserRole()
+const isReadOnly = profile?.role === "boss"
   const { bookings, loading, fetchBookings, addBooking, updateBooking, deleteBooking } = useBookingsStore()
   const [modal, setModal] = useState<"create" | "edit" | null>(null)
   const [selected, setSelected] = useState<Booking | null>(null)
@@ -68,48 +70,50 @@ export default function SifarislerPage() {
   const typeCounts = BOOKING_TYPES.map(t => ({ ...t, count: bookings.filter(b => b.bookingType === t.value).length }))
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    
-    const fd = new FormData(e.currentTarget)
-    const sellPrice = Number(fd.get("sellPrice"))
-    const buyPrice = Number(fd.get("buyPrice"))
-    const commissionPercent = Number(fd.get("commissionPercent"))
-    const commissionAmount = Math.round(sellPrice * commissionPercent) / 100
-    const profit = sellPrice - buyPrice - commissionAmount
-    const paid = paymentStatus === "paid" ? sellPrice : paymentStatus === "partial" ? paidAmount : 0
+  e.preventDefault()
+  
+  const fd = new FormData(e.currentTarget)
+  const sellPrice = Number(fd.get("sellPrice"))
+  const buyPrice = Number(fd.get("buyPrice"))
+  const commissionPercent = Number(fd.get("commissionPercent"))
+  const commissionAmount = Math.round(sellPrice * commissionPercent) / 100
+  const profit = sellPrice - buyPrice - commissionAmount
+  const paid = paymentStatus === "paid" ? sellPrice : paymentStatus === "partial" ? paidAmount : 0
 
-    const data: BookingFormData = {
-      bookingType: fd.get("bookingType") as BookingType,
-      clientName: fd.get("clientName") as string,
-      clientPhone: fd.get("clientPhone") as string,
-      clientEmail: fd.get("clientEmail") as string,
-      destination: fd.get("destination") as string,
-      departureDate: fd.get("departureDate") as string,
-      returnDate: fd.get("returnDate") as string,
-      travelers: Number(fd.get("travelers")),
-      description: fd.get("description") as string,
-      vendor: fd.get("vendor") as string,
-      isIata,
-      buyPrice, sellPrice, commissionPercent,
-      paidAmount: paid,
-      manager: fd.get("manager") as string,
-      iataPeriod: fd.get("iataPeriod") as "1-7" | "8-14" | "15-21" | "22-31",
-      status: fd.get("status") as "pending" | "confirmed" | "completed" | "cancelled",
-      paymentStatus: paymentStatus as "unpaid" | "partial" | "paid",
-      notes: fd.get("notes") as string,
-      ticketNumber: fd.get("ticketNumber") as string,
-      bookingReference: fd.get("bookingReference") as string,
-      pnr: fd.get("pnr") as string,
-    }
-
-    if (modal === "edit" && selected) {
-      await updateBooking(selected.id, data)
-    } else {
-      await addBooking(data)
-    }
-    setModal(null)
-    setSelected(null)
+  const data: BookingFormData = {
+    bookingType: fd.get("bookingType") as BookingType,
+    clientName: fd.get("clientName") as string,
+    clientPhone: fd.get("clientPhone") as string,
+    clientEmail: fd.get("clientEmail") as string,
+    destination: fd.get("destination") as string,
+    departureDate: fd.get("departureDate") as string,
+    returnDate: fd.get("returnDate") as string,
+    travelers: Number(fd.get("travelers")),
+    description: fd.get("description") as string,
+    vendor: fd.get("vendor") as string,
+    isIata,
+    buyPrice, sellPrice, commissionPercent,
+    paidAmount: paid,
+    manager: fd.get("manager") as string,
+    iataPeriod: fd.get("iataPeriod") as "1-7" | "8-14" | "15-21" | "22-31",
+    status: fd.get("status") as "pending" | "confirmed" | "completed" | "cancelled",
+    paymentStatus: paymentStatus as "unpaid" | "partial" | "paid",
+    notes: fd.get("notes") as string,
+    ticketNumber: fd.get("ticketNumber") as string,
+    bookingReference: fd.get("bookingReference") as string,
+    pnr: fd.get("pnr") as string,
+    updated_by: profile?.fullName ?? "Admin",
+    updated_by_role: profile?.role ?? "",
   }
+
+  if (modal === "edit" && selected) {
+    await updateBooking(selected.id, data)
+  } else {
+    await addBooking(data)
+  }
+  setModal(null)
+  setSelected(null)
+}
 
   function getTypeInfo(value: string) {
     return BOOKING_TYPES.find(t => t.value === value) ?? BOOKING_TYPES[0]
@@ -136,11 +140,13 @@ export default function SifarislerPage() {
           <h1 className="text-2xl font-bold text-gray-900">Sifarişlər</h1>
           <p className="text-sm text-gray-500 mt-0.5">{filtered.length} / {bookings.length} sifariş</p>
         </div>
-        <button onClick={() => { setSelected(null); setModal("create") }}
-          className="flex items-center gap-2 bg-red-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 shadow-sm">
-          <Plus size={16} />
-          Yeni sifariş
-        </button>
+      {!isReadOnly && (
+  <button onClick={() => { setSelected(null); setModal("create") }}
+    className="flex items-center gap-2 bg-red-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 shadow-sm">
+    <Plus size={16} />
+    Yeni sifariş
+  </button>
+)}
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-4">
@@ -290,11 +296,15 @@ export default function SifarislerPage() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                        <button onClick={() => { setSelected(b); setModal("edit") }}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">✏️</button>
-                        <button onClick={() => { if(confirm("Silinsin?")) deleteBooking(b.id) }}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">🗑️</button>
-                      </div>
+                    {!isReadOnly && (
+                      <button onClick={() => { setSelected(b); setModal("edit") }}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">✏️</button>
+                    )}
+                    {canDelete && (
+                      <button onClick={() => { if(confirm("Silinsin?")) deleteBooking(b.id) }}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">🗑️</button>
+                    )}
+                  </div>
                     </td>
                   </tr>
                 )

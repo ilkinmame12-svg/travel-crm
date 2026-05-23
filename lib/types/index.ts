@@ -32,6 +32,8 @@ export interface Booking {
   status: BookingStatus
   paymentStatus: PaymentStatus
   notes?: string
+  updated_by?: string
+  updated_by_role?: string
 }
 
 export type BookingFormData = Omit<Booking, 'id' | 'createdAt' | 'updatedAt' | 'commissionAmount' | 'profit'>
