@@ -36,14 +36,14 @@ const isReadOnly = profile?.role === "boss"
   const [paidAmount, setPaidAmount] = useState(0)
   const [isIata, setIsIata] = useState(false)
 
- const [ready, setReady] = useState(false)
+const [ready, setReady] = useState(false)
 
 useEffect(() => {
   fetchBookings()
   setReady(true)
 }, [])
-if (!ready) return null
-  useEffect(() => {
+
+useEffect(() => {
     if (modal) {
       setPaymentStatus(selected?.paymentStatus ?? "unpaid")
       setPaidAmount(selected?.paidAmount ?? 0)
@@ -73,8 +73,7 @@ if (!ready) return null
   const totalRevenue = filtered.reduce((s, b) => s + b.sellPrice, 0)
   const totalProfit = filtered.reduce((s, b) => s + b.profit, 0)
   const totalCost = filtered.reduce((s, b) => s + b.buyPrice, 0)
-  const typeCounts = BOOKING_TYPES.map(t => ({ ...t, count: bookings.filter(b => b.bookingType === t.value).length }))
-  if (!ready) return null
+   const typeCounts = BOOKING_TYPES.map(t => ({ ...t, count: bookings.filter(b => b.bookingType === t.value).length }))
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
   e.preventDefault()
   
@@ -510,7 +509,7 @@ if (!ready) return null
       setShow(false)
     }
   }
-
+  if (!ready) return null
   return (
     <div className="relative">
       <input
