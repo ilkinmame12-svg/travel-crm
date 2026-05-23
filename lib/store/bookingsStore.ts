@@ -103,7 +103,7 @@ console.log("Checking balance for:", data.clientName)
 const { data: balanceRows } = await supabase
   .from("client_balances")
   .select("*")
-  .ilike("client_name", data.clientName)
+  .eq("client_name", data.clientName)
   .limit(1)
 
 const clientBalance = balanceRows?.[0] ?? null
