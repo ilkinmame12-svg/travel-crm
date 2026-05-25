@@ -6,7 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/calculations"
 import { Download } from "lucide-react"
 import * as XLSX from "xlsx"
 
-const PERIODS = ["1-7", "8-14", "15-21", "22-31"] as const
+const PERIODS = ["1-7", "8-15", "16-22", "23-31"] as const
 
 export default function IATAPage() {
   const { bookings, fetchBookings } = useBookingsStore()
