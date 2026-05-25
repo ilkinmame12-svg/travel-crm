@@ -205,10 +205,10 @@ useEffect(() => {
             <select value={filters.iataPeriod} onChange={e => setFilters(f => ({ ...f, iataPeriod: e.target.value as any }))}
               className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
               <option value="all">Bütün periodlar</option>
-              <option value="1-7">IATA 1-7</option>
-              <option value="8-14">IATA 8-14</option>
-              <option value="15-21">IATA 15-21</option>
-              <option value="22-31">IATA 22-31</option>
+           <option value="1-7">1-7</option>
+          <option value="8-15">8-15</option>
+          <option value="16-23">16-23</option>
+          <option value="24-31">24-31</option>
             </select>
           </div>
         </div>
