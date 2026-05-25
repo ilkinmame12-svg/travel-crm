@@ -423,12 +423,12 @@ useEffect(() => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">IATA period</label>
-                <select name="iataPeriod" defaultValue={selected?.iataPeriod ?? "1-7"} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
-                  <option value="1-7">1-7</option>
-                  <option value="8-14">8-14</option>
-                  <option value="15-21">15-21</option>
-                  <option value="22-31">22-31</option>
-                </select>
+             <select name="iataPeriod" defaultValue={selected?.iataPeriod ?? "1-7"} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
+  <option value="1-7">1-7</option>
+  <option value="8-15">8-15</option>
+  <option value="16-22">16-22</option>
+  <option value="23-31">23-31</option>
+</select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
