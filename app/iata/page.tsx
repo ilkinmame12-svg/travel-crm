@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { formatCurrency, formatDate } from "@/lib/calculations"
 import { Download } from "lucide-react"
@@ -18,7 +18,8 @@ export default function IATAPage() {
     fetchBookings()
     setReady(true)
   }, [])
-  const grouped = PERIODS.map(period => {
+
+  const grouped = useMemo(() => PERIODS.map(period => {
     const items = bookings.filter(b =>
       b.iataPeriod === period &&
       b.isIata === true &&
@@ -29,9 +30,9 @@ export default function IATAPage() {
     const totalProfit = items.reduce((s, b) => s + b.profit, 0)
     const totalCommission = items.reduce((s, b) => s + b.commissionAmount, 0)
     return { period, items, totalSell, totalBuy, totalProfit, totalCommission }
-  })
+  }), [bookings, selectedMonth])
 
-  const active = grouped.find(g => g.period === activePeriod)!
+  const active = useMemo(() => grouped.find(g => g.period === activePeriod) ?? grouped[0], [grouped, activePeriod])
 
   function exportToExcel() {
     const rows = active.items.map(b => ({
@@ -50,24 +51,6 @@ export default function IATAPage() {
       "Ödəniş": b.paymentStatus === "paid" ? "Ödənilib" : b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib",
       "Status": b.status === "confirmed" ? "Təsdiqlənib" : b.status === "pending" ? "Gözləyir" : b.status === "completed" ? "Tamamlandı" : "Ləğv edildi",
     }))
-
-    rows.push({
-      "Müştəri": "CƏMI",
-      "Telefon": "",
-      "İstiqamət": "",
-      "Uçuş tarixi": "",
-      "Qayıdış tarixi": "",
-      "Turistlər": active.items.reduce((s, b) => s + b.travelers, 0),
-      "Menecer": "",
-      "Satış (AZN)": active.totalSell,
-      "Alış (AZN)": active.totalBuy,
-      "Komissiya %": 0,
-      "Komissiya (AZN)": active.totalCommission,
-      "Mənfəət (AZN)": active.totalProfit,
-      "Ödəniş": "",
-      "Status": "",
-    })
-
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, `Period ${activePeriod}`)
@@ -100,12 +83,11 @@ export default function IATAPage() {
     })
     XLSX.writeFile(wb, `IATA_Hesabat.xlsx`)
   }
-if (!ready) return null
-  return (
-    
-    <div className="min-h-screen bg-gray-50 p-6">
 
-      {/* ✅ HEADER — один раз, без дублирования */}
+  if (!ready) return null
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">IATA Periods</h1>
@@ -134,7 +116,6 @@ if (!ready) return null
         </div>
       </div>
 
-      {/* ✅ КАРТОЧКИ — ровно 4 в сетке, без лишних div внутри grid */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {grouped.map(g => (
           <button
@@ -182,7 +163,6 @@ if (!ready) return null
         ))}
       </div>
 
-      {/* ТАБЛИЦА */}
       <div className="bg-white rounded-2xl border border-gray-100">
         <div className="px-6 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
