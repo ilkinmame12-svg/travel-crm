@@ -20,15 +20,23 @@ export default function DebtsPage() {
   const [manualDebts, setManualDebts] = useState<ManualDebt[]>([])
   const [modal, setModal] = useState(false)
   const [tab, setTab] = useState<"all" | "bookings" | "manual">("all")
+  const [search, setSearch] = useState("")
+  const [managerFilter, setManagerFilter] = useState("")
 
   useEffect(() => { fetchBookings() }, [])
 
   const bookingDebts = bookings.filter(b =>
     b.paymentStatus === "unpaid" || b.paymentStatus === "partial"
-  ).map(b => ({
+  ).filter(b => {
+    if (search && !b.clientName.toLowerCase().includes(search.toLowerCase())) return false
+    if (managerFilter && b.manager !== managerFilter) return false
+    return true
+  }).map(b => ({
     ...b,
     remaining: b.sellPrice - (b.paidAmount ?? 0)
   }))
+
+  const managers = [...new Set(bookings.map(b => b.manager).filter(Boolean))]
 
   const theyOweFromBookings = bookingDebts.reduce((s, b) => s + b.remaining, 0)
   const theyOweManual = manualDebts.filter(d => d.direction === "they_owe" && d.status === "pending").reduce((s, d) => s + d.amount, 0)
@@ -53,6 +61,7 @@ export default function DebtsPage() {
   }
 
   return (
+    
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -65,7 +74,23 @@ export default function DebtsPage() {
           Yeni borc
         </button>
       </div>
-
+<div className="flex gap-3 mb-4 flex-wrap">
+  <input
+    type="text"
+    placeholder="Müştəri adı ilə axtar..."
+    value={search}
+    onChange={e => setSearch(e.target.value)}
+    className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48"
+  />
+  <select
+    value={managerFilter}
+    onChange={e => setManagerFilter(e.target.value)}
+    className="border border-gray-200 rounded-xl px-4 py-2 text-sm"
+  >
+    <option value="">Bütün menecerlər</option>
+    {managers.map(m => <option key={m} value={m}>{m}</option>)}
+  </select>
+</div>
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center">
