@@ -11,14 +11,13 @@ const PERIODS = ["1-7", "8-15", "16-23", "24-31"] as const
 export default function IATAPage() {
   const { bookings, fetchBookings } = useBookingsStore()
   const [activePeriod, setActivePeriod] = useState<string>("1-7")
+  const [selectedMonth, setSelectedMonth] = useState("2026-01")
+  const [ready, setReady] = useState(false)
 
-useEffect(() => { 
-  fetchBookings()
-  setReady(true)
-}, [])
-
-const [selectedMonth, setSelectedMonth] = useState("2026-01")
-const [ready, setReady] = useState(false)
+  useEffect(() => {
+    fetchBookings()
+    setReady(true)
+  }, [])
   const grouped = PERIODS.map(period => {
     const items = bookings.filter(b =>
       b.iataPeriod === period &&
