@@ -1,5 +1,5 @@
 ﻿"use client"
-
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, HelpCircle, LogOut, BotMessageSquare, Users, PlaneTakeoff, Building2, Scale } from "lucide-react"
@@ -39,6 +39,9 @@ export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
   const { profile } = useUserRole()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   const MENU = ALL_MENU.filter(item => !profile || item.roles.includes(profile.role))
 
@@ -48,7 +51,9 @@ export function MobileNav() {
     router.refresh()
   }
 
+ if (!mounted) return <div className="md:hidden bg-white border-b border-gray-100 px-4 py-3 h-12" /> 
   return (
+    
     <div className="md:hidden bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
       <Image src="/logo.png" alt="itstour" width={80} height={30} style={{ width: "auto", height: "auto" }} className="object-contain" />
       <div className="flex gap-1 overflow-x-auto">
@@ -76,6 +81,9 @@ export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { profile } = useUserRole()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   const MENU = ALL_MENU.filter(item => !profile || item.roles.includes(profile.role))
 
@@ -85,6 +93,7 @@ export default function Sidebar() {
     router.refresh()
   }
 
+ if (!mounted) return <div className="w-60 min-h-screen bg-white border-r border-gray-100" />
   return (
     <div className="w-60 min-h-screen bg-white flex flex-col border-r border-gray-100">
       <div className="px-6 py-5 border-b border-gray-100">
