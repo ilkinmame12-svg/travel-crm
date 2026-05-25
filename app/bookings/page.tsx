@@ -100,7 +100,7 @@ useEffect(() => {
     buyPrice, sellPrice, commissionPercent,
     paidAmount: paid,
     manager: fd.get("manager") as string,
-    iataPeriod: fd.get("iataPeriod") as "1-7" | "8-14" | "15-21" | "22-31",
+    iataPeriod: fd.get("iataPeriod") as "1-7" | "8-15" | "16-23" | "24-31",
     status: fd.get("status") as "pending" | "confirmed" | "completed" | "cancelled",
     paymentStatus: paymentStatus as "unpaid" | "partial" | "paid",
     notes: fd.get("notes") as string,
