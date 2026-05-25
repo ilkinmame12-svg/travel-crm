@@ -2,7 +2,7 @@
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { useState, useMemo, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
-import type { Booking, BookingFilters, BookingFormData, BookingType } from "@/lib/types"
+import type { Booking, BookingFilters, BookingFormData, BookingType, IATAPeriod } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/calculations"
 import { Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage, Armchair, Star } from "lucide-react"
 
@@ -100,7 +100,7 @@ useEffect(() => {
     buyPrice, sellPrice, commissionPercent,
     paidAmount: paid,
     manager: fd.get("manager") as string,
-    iataPeriod: fd.get("iataPeriod") as "1-7" | "8-15" | "16-23" | "24-31",
+    iataPeriod: fd.get("iataPeriod") as IATAPeriod,
     status: fd.get("status") as "pending" | "confirmed" | "completed" | "cancelled",
     paymentStatus: paymentStatus as "unpaid" | "partial" | "paid",
     notes: fd.get("notes") as string,
