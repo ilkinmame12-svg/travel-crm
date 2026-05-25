@@ -12,13 +12,13 @@ export default function IATAPage() {
   const { bookings, fetchBookings } = useBookingsStore()
   const [activePeriod, setActivePeriod] = useState<string>("1-7")
 
-  useEffect(() => { fetchBookings() }, [])
+useEffect(() => { 
+  fetchBookings()
+  setReady(true)
+}, [])
 
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  })
-
+const [selectedMonth, setSelectedMonth] = useState("2026-01")
+const [ready, setReady] = useState(false)
   const grouped = PERIODS.map(period => {
     const items = bookings.filter(b =>
       b.iataPeriod === period &&
@@ -101,8 +101,9 @@ export default function IATAPage() {
     })
     XLSX.writeFile(wb, `IATA_Hesabat.xlsx`)
   }
-
+if (!ready) return null
   return (
+    
     <div className="min-h-screen bg-gray-50 p-6">
 
       {/* ✅ HEADER — один раз, без дублирования */}
