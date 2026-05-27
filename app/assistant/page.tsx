@@ -12,7 +12,13 @@ interface Message {
 
 export default function AssistantPage() {
   const { bookings, fetchBookings } = useBookingsStore()
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Message[]>(() => {
+  if (typeof window === 'undefined') return []
+  try {
+    const saved = localStorage.getItem('assistant_messages')
+    return saved ? JSON.parse(saved) : []
+  } catch { return [] }
+})
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
@@ -25,9 +31,10 @@ export default function AssistantPage() {
   }, [])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
+  if (messages.length > 0) {
+    localStorage.setItem('assistant_messages', JSON.stringify(messages.slice(-50)))
+  }
+}, [messages])
   function buildContext() {
     const totalRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
     const totalCost = bookings.reduce((s, b) => s + b.buyPrice, 0)
@@ -116,10 +123,21 @@ ${managerSummary}`
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex flex-col">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">AI Köməkçi</h1>
-        <p className="text-sm text-gray-500 mt-0.5">CRM məlumatlarınız əsasında suallarınızı cavablayır</p>
-      </div>
+     <div className="mb-6 flex items-center justify-between">
+  <div>
+    <h1 className="text-2xl font-bold text-gray-900">AI Köməkçi</h1>
+    <p className="text-sm text-gray-500 mt-0.5">CRM məlumatlarınız əsasında suallarınızı cavablayır</p>
+  </div>
+  <button
+    onClick={() => {
+      localStorage.removeItem('assistant_messages')
+      setMessages([{ role: "assistant", content: "Salam! Mən itstour CRM köməkçisiyəm." }])
+    }}
+    className="text-xs text-gray-400 hover:text-red-500 px-3 py-1.5 border border-gray-200 rounded-lg"
+  >
+    Təmizlə
+  </button>
+</div>
 
       <div className="flex-1 bg-white rounded-2xl border border-gray-100 flex flex-col" style={{ minHeight: "500px" }}>
         <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ maxHeight: "calc(100vh - 320px)" }}>
