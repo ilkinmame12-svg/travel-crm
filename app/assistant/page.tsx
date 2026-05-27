@@ -47,7 +47,18 @@ export default function AssistantPage() {
       `${name}: ${stats.count} sifariş, ${formatCurrency(stats.revenue)} gəlir, ${formatCurrency(stats.profit)} mənfəət`
     ).join("\n")
 
+    const topDebts = unpaid
+      .sort((a, b) => (b.sellPrice - (b.paidAmount ?? 0)) - (a.sellPrice - (a.paidAmount ?? 0)))
+      .slice(0, 10)
+      .map(b => `${b.clientName}: ${formatCurrency(b.sellPrice - (b.paidAmount ?? 0))} borc (${b.departureDate})`)
+      .join("\n")
+
+    const recentBookings = bookings.slice(0, 20).map(b =>
+      `${b.clientName} | ${b.destination} | ${b.departureDate} | ${formatCurrency(b.sellPrice)} | ${b.paymentStatus} | ${b.manager}`
+    ).join("\n")
+
     return `Sen itstour CRM sisteminin AI kömekçisisən. Azerbaycan dilinde qısa ve aydın cavab ver.
+Istifadəçi sifariş axtarırsa, müştəri adına, tarixə və ya menecerə görə tap.
 
 ÜMUMI MALİYYƏ:
 - Ümumi gəlir: ${formatCurrency(totalRevenue)}
@@ -59,6 +70,14 @@ SİFARİŞLƏR:
 - Cəmi: ${bookings.length}
 - Gözləyən: ${bookings.filter(b => b.status === "pending").length}
 - Təsdiqlənmiş: ${bookings.filter(b => b.status === "confirmed").length}
+- Ödənilib: ${bookings.filter(b => b.paymentStatus === "paid").length}
+- Ödənilməyib: ${bookings.filter(b => b.paymentStatus === "unpaid").length}
+
+ƏN BÖYÜK BORCLAR (TOP 10):
+${topDebts}
+
+SON 20 SİFARİŞ:
+${recentBookings}
 
 MENECERLƏR:
 ${managerSummary}`
