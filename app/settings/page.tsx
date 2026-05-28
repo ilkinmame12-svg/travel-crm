@@ -41,33 +41,17 @@ export default function SettingsPage() {
 if (!ready) return null
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+  const file = e.target.files?.[0]
+  if (!file) return
+  console.log("file:", file.name, file.size)
+  const { data: { user } } = await supabase.auth.getUser()
+  console.log("user:", user?.id)
+  if (!user) return
 
-    const ext = file.name.split('.').pop()
-    const path = `avatars/${user.id}.${ext}`
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
-    if (error) { setMessage("Şəkil yüklənmədi: " + error.message); return }
-
-    const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path)
-    setAvatarUrl(publicUrl)
-    setMessage("Şəkil yükləndi!")
-  }
-
-  async function handleSaveProfile() {
-    setLoading(true)
-    setMessage("")
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { error } = await supabase.from("user_profiles").update({
-      full_name: fullName,
-      phone,
-      position,
-      avatar_url: avatarUrl,
-    }).eq("id", user.id)
+  const ext = file.name.split('.').pop()
+  const path = `avatars/${user.id}.${ext}`
+  const { error, data } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
+  console.log("upload result:", error, data)
 
     if (error) setMessage("Xəta: " + error.message)
     else setMessage("✅ Profil yeniləndi!")
