@@ -20,8 +20,9 @@ export default function DebtsPage() {
   const [manualDebts, setManualDebts] = useState<ManualDebt[]>([])
   const [modal, setModal] = useState(false)
   const [tab, setTab] = useState<"all" | "bookings" | "manual">("all")
-  const [search, setSearch] = useState("")
-  const [managerFilter, setManagerFilter] = useState("")
+ const [search, setSearch] = useState("")
+const [managerFilter, setManagerFilter] = useState("")
+const [typeFilter, setTypeFilter] = useState<string[]>([])
 
   useEffect(() => { fetchBookings() }, [])
 
@@ -29,8 +30,9 @@ export default function DebtsPage() {
     b.paymentStatus === "unpaid" || b.paymentStatus === "partial"
   ).filter(b => {
     if (search && !b.clientName.toLowerCase().includes(search.toLowerCase())) return false
-    if (managerFilter && b.manager !== managerFilter) return false
-    return true
+   if (managerFilter && b.manager !== managerFilter) return false
+if (typeFilter.length > 0 && !typeFilter.includes(b.bookingType)) return false
+return true
   }).map(b => ({
     ...b,
     remaining: b.sellPrice - (b.paidAmount ?? 0)
@@ -74,7 +76,7 @@ export default function DebtsPage() {
           Yeni borc
         </button>
       </div>
-<div className="flex gap-3 mb-4 flex-wrap">
+<div className="flex gap-3 mb-4 flex-wrap items-center">
   <input
     type="text"
     placeholder="Müştəri adı ilə axtar..."
@@ -82,14 +84,27 @@ export default function DebtsPage() {
     onChange={e => setSearch(e.target.value)}
     className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48"
   />
-  <select
-    value={managerFilter}
-    onChange={e => setManagerFilter(e.target.value)}
-    className="border border-gray-200 rounded-xl px-4 py-2 text-sm"
-  >
-    <option value="">Bütün menecerlər</option>
-    {managers.map(m => <option key={m} value={m}>{m}</option>)}
-  </select>
+  {[
+    { value: "bilet", label: "✈️ Bilet" },
+    { value: "otel", label: "🏨 Otel" },
+    { value: "tur", label: "🏖️ Tur" },
+    { value: "transfer", label: "🚗 Transfer" },
+    { value: "kruiz", label: "🚢 Kruiz" },
+  ].map(t => (
+    <button
+      key={t.value}
+      onClick={() => setTypeFilter(prev =>
+        prev.includes(t.value) ? prev.filter(x => x !== t.value) : [...prev, t.value]
+      )}
+      className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors ${
+        typeFilter.includes(t.value)
+          ? "bg-red-500 text-white border-red-500"
+          : "bg-white text-gray-600 border-gray-200 hover:border-red-300"
+      }`}
+    >
+      {t.label}
+    </button>
+  ))}
 </div>
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
