@@ -10,7 +10,6 @@ export default function SettingsPage() {
   const [phone, setPhone] = useState("")
   const [position, setPosition] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
-  const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -24,7 +23,7 @@ export default function SettingsPage() {
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) { setReady(true); return }
       const { data } = await supabase.from("user_profiles").select("*").eq("id", user.id).single()
       if (data) {
         setProfile(data)
@@ -43,12 +42,10 @@ export default function SettingsPage() {
     if (!file) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
     const ext = file.name.split('.').pop()
     const path = `avatars/${user.id}.${ext}`
     const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
     if (error) { setMessage("Şəkil yüklənmədi: " + error.message); return }
-
     const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path)
     setAvatarUrl(publicUrl)
     setMessage("Şəkil yükləndi!")
@@ -59,35 +56,26 @@ export default function SettingsPage() {
     setMessage("")
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
     const { error } = await supabase.from("user_profiles").update({
       full_name: fullName,
       phone,
       position,
       avatar_url: avatarUrl,
     }).eq("id", user.id)
-
     if (error) setMessage("Xəta: " + error.message)
     else setMessage("✅ Profil yeniləndi!")
     setLoading(false)
   }
 
   async function handleChangePassword() {
-    if (newPassword !== confirmPassword) {
-      setPasswordMessage("Şifrələr uyğun gəlmir!")
-      return
-    }
-    if (newPassword.length < 6) {
-      setPasswordMessage("Şifrə ən az 6 simvol olmalıdır!")
-      return
-    }
+    if (newPassword !== confirmPassword) { setPasswordMessage("Şifrələr uyğun gəlmir!"); return }
+    if (newPassword.length < 6) { setPasswordMessage("Şifrə ən az 6 simvol olmalıdır!"); return }
     setPasswordLoading(true)
     setPasswordMessage("")
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) setPasswordMessage("Xəta: " + error.message)
     else {
       setPasswordMessage("✅ Şifrə dəyişdirildi!")
-      setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
     }
@@ -101,7 +89,6 @@ export default function SettingsPage() {
       <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Profil Ayarları</h1>
 
-        {/* Avatar */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Profil Şəkli</h2>
           <div className="flex items-center gap-6">
@@ -129,73 +116,53 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Profile Info */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Şəxsi Məlumatlar</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Ad Soyad</label>
-              <input
-                value={fullName}
-                onChange={e => setFullName(e.target.value)}
+              <input value={fullName} onChange={e => setFullName(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-                placeholder="Adınızı daxil edin"
-              />
+                placeholder="Adınızı daxil edin" />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
-              <input
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
+              <input value={phone} onChange={e => setPhone(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-                placeholder="+994 XX XXX XX XX"
-              />
+                placeholder="+994 XX XXX XX XX" />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Vəzifə</label>
-              <input
-                value={position}
-                onChange={e => setPosition(e.target.value)}
+              <input value={position} onChange={e => setPosition(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-                placeholder="Məsələn: Menecer"
-              />
+                placeholder="Məsələn: Menecer" />
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Email</label>
-              <input
-                value={profile?.email ?? ""}
-                disabled
-                className="w-full border border-gray-100 rounded-xl px-4 py-2.5 text-sm bg-gray-50 text-gray-400"
-              />
+              <input value={profile?.email ?? ""} disabled
+                className="w-full border border-gray-100 rounded-xl px-4 py-2.5 text-sm bg-gray-50 text-gray-400" />
             </div>
           </div>
           {message && (
             <p className={`mt-3 text-sm ${message.startsWith("✅") ? "text-green-600" : "text-red-500"}`}>{message}</p>
           )}
-          <button
-            onClick={handleSaveProfile}
-            disabled={loading}
-            className="mt-4 flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-50"
-          >
+          <button onClick={handleSaveProfile} disabled={loading}
+            className="mt-4 flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-50">
             <Save size={16} />
             {loading ? "Yadda saxlanır..." : "Yadda saxla"}
           </button>
         </div>
 
-        {/* Change Password */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Şifrəni Dəyiş</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Yeni Şifrə</label>
               <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={newPassword}
+                <input type={showPassword ? "text" : "password"} value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 pr-10"
-                  placeholder="Yeni şifrə"
-                />
+                  placeholder="Yeni şifrə" />
                 <button onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-gray-400">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -203,23 +170,17 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Şifrəni Təsdiq Et</label>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={confirmPassword}
+              <input type={showPassword ? "text" : "password"} value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-                placeholder="Şifrəni təkrarlayın"
-              />
+                placeholder="Şifrəni təkrarlayın" />
             </div>
           </div>
           {passwordMessage && (
             <p className={`mt-3 text-sm ${passwordMessage.startsWith("✅") ? "text-green-600" : "text-red-500"}`}>{passwordMessage}</p>
           )}
-          <button
-            onClick={handleChangePassword}
-            disabled={passwordLoading || !newPassword || !confirmPassword}
-            className="mt-4 flex items-center gap-2 bg-gray-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-900 disabled:opacity-50"
-          >
+          <button onClick={handleChangePassword} disabled={passwordLoading || !newPassword || !confirmPassword}
+            className="mt-4 flex items-center gap-2 bg-gray-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-900 disabled:opacity-50">
             <Save size={16} />
             {passwordLoading ? "Dəyişdirilir..." : "Şifrəni dəyiş"}
           </button>
