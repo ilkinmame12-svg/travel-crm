@@ -22,21 +22,23 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data } = await supabase.from("user_profiles").select("*").eq("id", user.id).single()
-      if (data) {
-        setProfile(data)
-        setFullName(data.full_name ?? "")
-        setPhone(data.phone ?? "")
-        setPosition(data.position ?? "")
-        setAvatarUrl(data.avatar_url ?? "")
-      }
-      setReady(true)
+  async function load() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setReady(true); return }
+    const { data } = await supabase.from("user_profiles").select("*").eq("id", user.id).single()
+    if (data) {
+      setProfile(data)
+      setFullName(data.full_name ?? "")
+      setPhone(data.phone ?? "")
+      setPosition(data.position ?? "")
+      setAvatarUrl(data.avatar_url ?? "")
     }
-    load()
-  }, [])
+    setReady(true)
+  }
+  load()
+}, [])
+
+if (!ready) return null
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
