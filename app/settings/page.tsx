@@ -22,23 +22,22 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-  async function load() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setReady(true); return }
-    const { data } = await supabase.from("user_profiles").select("*").eq("id", user.id).single()
-    if (data) {
-      setProfile(data)
-      setFullName(data.full_name ?? "")
-      setPhone(data.phone ?? "")
-      setPosition(data.position ?? "")
-      setAvatarUrl(data.avatar_url ?? "")
+   async function load() {
+  const { data: { user } } = await supabase.auth.getUser()
+  console.log("user:", user)
+  if (!user) { setReady(true); return }
+      const { data } = await supabase.from("user_profiles").select("*").eq("id", user.id).single()
+      if (data) {
+        setProfile(data)
+        setFullName(data.full_name ?? "")
+        setPhone(data.phone ?? "")
+        setPosition(data.position ?? "")
+        setAvatarUrl(data.avatar_url ?? "")
+      }
+      setReady(true)
     }
-    setReady(true)
-  }
-  load()
-}, [])
-
-if (!ready) return null
+    load()
+  }, [])
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
   const file = e.target.files?.[0]
@@ -52,6 +51,19 @@ if (!ready) return null
   const path = `avatars/${user.id}.${ext}`
   const { error, data } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
   console.log("upload result:", error, data)
+
+  async function handleSaveProfile() {
+    setLoading(true)
+    setMessage("")
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { error } = await supabase.from("user_profiles").update({
+      full_name: fullName,
+      phone,
+      position,
+      avatar_url: avatarUrl,
+    }).eq("id", user.id)
 
     if (error) setMessage("Xəta: " + error.message)
     else setMessage("✅ Profil yeniləndi!")
