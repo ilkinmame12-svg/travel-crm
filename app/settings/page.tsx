@@ -101,11 +101,12 @@ export default function SettingsPage() {
                 )}
               </div>
               <button
-                onClick={() => fileRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
-              >
-                <Camera size={13} />
-              </button>
+  type="button"
+  onClick={() => fileRef.current?.click()}
+  className="absolute -bottom-1 -right-1 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
+>
+  <Camera size={13} />
+</button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
             </div>
             <div>
