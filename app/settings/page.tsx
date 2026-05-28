@@ -22,10 +22,9 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-   async function load() {
-  const { data: { user } } = await supabase.auth.getUser()
-  console.log("user:", user)
-  if (!user) { setReady(true); return }
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
       const { data } = await supabase.from("user_profiles").select("*").eq("id", user.id).single()
       if (data) {
         setProfile(data)
@@ -40,17 +39,20 @@ export default function SettingsPage() {
   }, [])
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  console.log("file:", file.name, file.size)
-  const { data: { user } } = await supabase.auth.getUser()
-  console.log("user:", user?.id)
-  if (!user) return
+    const file = e.target.files?.[0]
+    if (!file) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-  const ext = file.name.split('.').pop()
-  const path = `avatars/${user.id}.${ext}`
-  const { error, data } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
-  console.log("upload result:", error, data)
+    const ext = file.name.split('.').pop()
+    const path = `avatars/${user.id}.${ext}`
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true })
+    if (error) { setMessage("Şəkil yüklənmədi: " + error.message); return }
+
+    const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path)
+    setAvatarUrl(publicUrl)
+    setMessage("Şəkil yükləndi!")
+  }
 
   async function handleSaveProfile() {
     setLoading(true)
