@@ -81,7 +81,7 @@ export function MobileNav() {
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { profile } = useUserRole()
+  const { profile, loading } = useUserRole()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -137,11 +137,15 @@ export default function Sidebar() {
       </div>
       <div className="px-4 pb-4 space-y-2">
         <div className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-xl">
-          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-            <span className="text-red-600 text-sm font-semibold">
-              {profile?.fullName?.[0] ?? "?"}
-            </span>
-          </div>
+         <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center overflow-hidden">
+  {profile?.avatarUrl ? (
+    <img src={profile.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+  ) : (
+    <span className="text-red-600 text-sm font-semibold">
+      {profile?.fullName?.[0]?.toUpperCase() ?? (loading ? "..." : "?")}
+    </span>
+  )}
+</div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{profile?.fullName ?? "..."}</p>
             <span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${ROLE_COLORS[profile?.role ?? ""] ?? "bg-gray-100 text-gray-500"}`}>

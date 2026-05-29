@@ -8,6 +8,7 @@ interface UserProfile {
   email: string
   fullName: string
   role: UserRole
+  avatarUrl: string | null
 }
 
 export function useUserRole() {
@@ -25,14 +26,15 @@ export function useUserRole() {
         .eq("id", user.id)
         .single()
 
-      if (data) {
-        setProfile({
-          id: data.id,
-          email: data.email,
-          fullName: data.full_name,
-          role: data.role,
-        })
-      }
+  if (data) {
+  setProfile({
+    id: data.id,
+    email: data.email,
+    fullName: data.full_name,
+    role: data.role,
+    avatarUrl: data.avatar_url ?? null,
+  })
+}
       setLoading(false)
     }
     fetchProfile()
