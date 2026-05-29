@@ -17,115 +17,78 @@ interface Expense {
 export default function FinancesPage() {
   const { bookings, fetchBookings } = useBookingsStore()
   const { payments, fetchPayments, addPayment, deletePayment } = usePaymentsStore()
-const [expenses, setExpenses] = useState<Expense[]>([])
+  const [expenses, setExpenses] = useState<Expense[]>([])
   const [modal, setModal] = useState<"expense" | "income" | null>(null)
   const [tab, setTab] = useState<"overview" | "income" | "expense">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
+  const [cashBalance, setCashBalance] = useState(10)
+  const [cashModal, setCashModal] = useState(false)
+  const [cashInput, setCashInput] = useState("")
+  const [cashOperation, setCashOperation] = useState<"add" | "subtract">("add")
+  const [ready, setReady] = useState(false)
 
-const [ready, setReady] = useState(false)
+  useEffect(() => {
+    fetchBookings()
+    fetchPayments()
+    setReady(true)
+  }, [])
 
-useEffect(() => {
-  fetchBookings()
-  fetchPayments()
-  setReady(true)
-}, [])
-
-const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
+  const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
   const totalBookingCost = bookings.reduce((s, b) => s + b.buyPrice, 0)
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
   const totalManualIncome = payments.reduce((s, p) => s + p.amount, 0)
   const totalProfit = bookings.reduce((s, b) => s + b.profit, 0) - totalExpenses + totalManualIncome
   const margin = totalBookingRevenue > 0 ? Math.round((totalProfit / totalBookingRevenue) * 100) : 0
-
   const unpaidBookings = bookings.filter(b => b.paymentStatus !== "paid")
 
   if (!ready) return null
 
   async function handleAddIncome(e: React.FormEvent<HTMLFormElement>) {
-  e.preventDefault()
-  const fd = new FormData(e.currentTarget)
-  const clientName = fd.get("name") as string
-  let remaining = Number(fd.get("amount"))
-  const date = fd.get("date") as string
-  const description = fd.get("description") as string
+    e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    const clientName = fd.get("name") as string
+    let remaining = Number(fd.get("amount"))
+    const date = fd.get("date") as string
+    const description = fd.get("description") as string
 
-  console.log("Starting payment:", { clientName, remaining })
-
-  // Unpaid bookings
-  const unpaidBookings = bookings
-    .filter(b =>
-      b.clientName.toLowerCase() === clientName.toLowerCase() &&
-      b.paymentStatus !== "paid"
-    )
-    .sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
-
-  console.log("Unpaid bookings found:", unpaidBookings.length)
-
-  // 1. Əgər konkret booking seçilibsə - əvvəlcə onu ödə
-  if (selectedBookingId) {
-    const booking = bookings.find(b => b.id === selectedBookingId)
-    if (booking) {
-      const debt = booking.sellPrice - (booking.paidAmount ?? 0)
-      const toPay = Math.min(remaining, debt)
-      await addPayment({
-        clientName, amount: toPay, description, date, bookingId: selectedBookingId,
-      })
-      remaining -= toPay
-    }
-  }
-
-  // 2. Qalan məbləği köhnə borclardan başlayaraq ödə
-  if (remaining > 0) {
-    const unpaidBookings = bookings
-      .filter(b =>
-        b.clientName.toLowerCase() === clientName.toLowerCase() &&
-        b.paymentStatus !== "paid" &&
-        b.id !== selectedBookingId
-      )
-      .sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
-
-    for (const booking of unpaidBookings) {
-      if (remaining <= 0) break
-      const debt = booking.sellPrice - (booking.paidAmount ?? 0)
-      if (debt <= 0) continue
-      const toPay = Math.min(remaining, debt)
-      await addPayment({
-        clientName, amount: toPay, description: `Auto: ${description}`, date, bookingId: booking.id,
-      })
-      remaining -= toPay
-    }
-  }
-
-  // 3. Hələ qalan varsa - Balansa əlavə et
-  if (remaining > 0) {
-    // Check if client balance exists
-    const { data: existingBalance } = await supabase
-      .from("client_balances")
-      .select("*")
-      .ilike("client_name", clientName)
-      .single()
-
-    if (existingBalance) {
-      await supabase.from("client_balances")
-        .update({ balance: existingBalance.balance + remaining })
-        .eq("id", existingBalance.id)
-    } else {
-      await supabase.from("client_balances")
-        .insert({ client_name: clientName, balance: remaining })
+    if (selectedBookingId) {
+      const booking = bookings.find(b => b.id === selectedBookingId)
+      if (booking) {
+        const debt = booking.sellPrice - (booking.paidAmount ?? 0)
+        const toPay = Math.min(remaining, debt)
+        await addPayment({ clientName, amount: toPay, description, date, bookingId: selectedBookingId })
+        remaining -= toPay
+      }
     }
 
-    await supabase.from("client_balance_transactions").insert({
-      client_name: clientName,
-      amount: remaining,
-      type: "credit",
-      description: `Artıq ödəniş: ${description}`,
-    })
-  }
+    if (remaining > 0) {
+      const unpaid = bookings
+        .filter(b => b.clientName.toLowerCase() === clientName.toLowerCase() && b.paymentStatus !== "paid" && b.id !== selectedBookingId)
+        .sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
+      for (const booking of unpaid) {
+        if (remaining <= 0) break
+        const debt = booking.sellPrice - (booking.paidAmount ?? 0)
+        if (debt <= 0) continue
+        const toPay = Math.min(remaining, debt)
+        await addPayment({ clientName, amount: toPay, description: `Auto: ${description}`, date, bookingId: booking.id })
+        remaining -= toPay
+      }
+    }
 
-  await fetchBookings()
-  setSelectedBookingId("")
-  setModal(null)
-}
+    if (remaining > 0) {
+      const { data: existingBalance } = await supabase.from("client_balances").select("*").ilike("client_name", clientName).single()
+      if (existingBalance) {
+        await supabase.from("client_balances").update({ balance: existingBalance.balance + remaining }).eq("id", existingBalance.id)
+      } else {
+        await supabase.from("client_balances").insert({ client_name: clientName, balance: remaining })
+      }
+      await supabase.from("client_balance_transactions").insert({ client_name: clientName, amount: remaining, type: "credit", description: `Artıq ödəniş: ${description}` })
+    }
+
+    await fetchBookings()
+    setSelectedBookingId("")
+    setModal(null)
+  }
 
   function handleAddExpense(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -161,7 +124,7 @@ const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-5 gap-4 mb-6">
         <div className="bg-green-600 rounded-2xl p-5 text-white">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm opacity-90">Ümumi gəlir</p>
@@ -193,6 +156,14 @@ const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
           </div>
           <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-500"}`}>{formatCurrency(totalProfit)}</p>
           <p className="text-xs text-gray-400 mt-1">Marja: {margin}%</p>
+        </div>
+        <div className="bg-white rounded-2xl border-2 border-blue-200 p-5 cursor-pointer hover:border-blue-400 transition-colors" onClick={() => setCashModal(true)}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-gray-500">Kassa (Nağd)</p>
+            <span className="text-lg">💵</span>
+          </div>
+          <p className="text-2xl font-bold text-blue-600">{formatCurrency(cashBalance)}</p>
+          <p className="text-xs text-gray-400 mt-1">Ofisdəki nağd pul</p>
         </div>
       </div>
 
@@ -296,9 +267,7 @@ const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
                         <td className="py-3 text-gray-500">{p.description}</td>
                         <td className="py-3 text-gray-500">{p.date}</td>
                         <td className="py-3 font-bold text-green-600">{formatCurrency(p.amount)}</td>
-                        <td className="py-3 text-xs text-gray-400">
-                          {booking ? `${booking.destination}` : "—"}
-                        </td>
+                        <td className="py-3 text-xs text-gray-400">{booking ? `${booking.destination}` : "—"}</td>
                         <td className="py-3">
                           <button onClick={() => deletePayment(p.id)}
                             className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
@@ -350,6 +319,58 @@ const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
           </div>
         )}
       </div>
+
+      {cashModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold">💵 Kassa</h2>
+              <button onClick={() => setCashModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 rounded-xl p-4 text-center">
+                <p className="text-sm text-gray-500">Cari balans</p>
+                <p className="text-3xl font-bold text-blue-600">{formatCurrency(cashBalance)}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setCashOperation("add")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashOperation === "add" ? "bg-green-500 text-white border-green-500" : "border-gray-200 text-gray-600"}`}>
+                  + Əlavə et
+                </button>
+                <button onClick={() => setCashOperation("subtract")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashOperation === "subtract" ? "bg-red-500 text-white border-red-500" : "border-gray-200 text-gray-600"}`}>
+                  − Çıxar
+                </button>
+              </div>
+              <input
+                type="number"
+                value={cashInput}
+                onChange={e => setCashInput(e.target.value)}
+                placeholder="Məbləğ (AZN)"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const amount = parseFloat(cashInput)
+                    if (!amount || amount <= 0) return
+                    setCashBalance(prev => cashOperation === "add" ? prev + amount : Math.max(0, prev - amount))
+                    setCashInput("")
+                    setCashModal(false)
+                  }}
+                  className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700"
+                >
+                  Təsdiq et
+                </button>
+                <button onClick={() => setCashModal(false)}
+                  className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
+                  Ləğv et
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal === "income" && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
