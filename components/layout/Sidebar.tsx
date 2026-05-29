@@ -17,7 +17,7 @@ const ALL_MENU = [
   { href: "/iata", label: "IATA", icon: Globe, roles: ["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/employees", label: "İşçilər", icon: Users, roles: ["it_admin", "boss", "direktor"] },
   { href: "/flights", label: "TK NDC", icon: PlaneTakeoff, roles: ["it_admin", "direktor", "menecer"] },
-  { href: "/assistant", label: "AI Köməkçi", icon: BotMessageSquare, roles: ["it_admin", "boss", "direktor"] },
+  { href: "/assistant", label: "AI Köməkçi", icon: BotMessageSquare, roles:["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/settings", label: "Ayarlar", icon: Settings, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
 ]
 const ROLE_LABELS: Record<string, string> = {
