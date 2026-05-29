@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
+import { supabase } from "@/lib/supabase"
 import { formatCurrency, formatDate } from "@/lib/calculations"
-import { Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react"
+import { Plus, Trash2, TrendingUp, TrendingDown, CheckCircle } from "lucide-react"
 
 interface ManualDebt {
   id: string
@@ -17,12 +18,13 @@ interface ManualDebt {
 
 export default function DebtsPage() {
   const { bookings, fetchBookings } = useBookingsStore()
+  const [payModal, setPayModal] = useState<any>(null)
+  const [payAmount, setPayAmount] = useState("")
   const [manualDebts, setManualDebts] = useState<ManualDebt[]>([])
   const [modal, setModal] = useState(false)
   const [tab, setTab] = useState<"all" | "bookings" | "manual">("all")
- const [search, setSearch] = useState("")
-const [managerFilter, setManagerFilter] = useState("")
-const [typeFilter, setTypeFilter] = useState<string[]>([])
+  const [search, setSearch] = useState("")
+  const [typeFilter, setTypeFilter] = useState<string[]>([])
 
   useEffect(() => { fetchBookings() }, [])
 
@@ -30,22 +32,31 @@ const [typeFilter, setTypeFilter] = useState<string[]>([])
     b.paymentStatus === "unpaid" || b.paymentStatus === "partial"
   ).filter(b => {
     if (search && !b.clientName.toLowerCase().includes(search.toLowerCase())) return false
-   if (managerFilter && b.manager !== managerFilter) return false
-if (typeFilter.length > 0 && !typeFilter.includes(b.bookingType)) return false
-return true
+    if (typeFilter.length > 0 && !typeFilter.includes(b.bookingType)) return false
+    return true
   }).map(b => ({
     ...b,
     remaining: b.sellPrice - (b.paidAmount ?? 0)
   }))
 
-  const managers = [...new Set(bookings.map(b => b.manager).filter(Boolean))]
-
   const theyOweFromBookings = bookingDebts.reduce((s, b) => s + b.remaining, 0)
   const theyOweManual = manualDebts.filter(d => d.direction === "they_owe" && d.status === "pending").reduce((s, d) => s + d.amount, 0)
   const weOweManual = manualDebts.filter(d => d.direction === "we_owe" && d.status === "pending").reduce((s, d) => s + d.amount, 0)
-
   const totalTheyOwe = theyOweFromBookings + theyOweManual
   const totalWeOwe = weOweManual
+
+  async function handlePay() {
+    const amount = parseFloat(payAmount)
+    if (!amount || amount <= 0) return
+    const newPaid = (payModal.paidAmount ?? 0) + amount
+    const newStatus = newPaid >= payModal.sellPrice ? "paid" : "partial"
+    await supabase.from("bookings").update({
+      paid_amount: newPaid,
+      payment_status: newStatus
+    }).eq("id", payModal.id)
+    await fetchBookings()
+    setPayModal(null)
+  }
 
   function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -63,7 +74,6 @@ return true
   }
 
   return (
-    
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -76,36 +86,38 @@ return true
           Yeni borc
         </button>
       </div>
-<div className="flex gap-3 mb-4 flex-wrap items-center">
-  <input
-    type="text"
-    placeholder="Müştəri adı ilə axtar..."
-    value={search}
-    onChange={e => setSearch(e.target.value)}
-    className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48"
-  />
-  {[
-    { value: "bilet", label: "✈️ Bilet" },
-    { value: "otel", label: "🏨 Otel" },
-    { value: "tur", label: "🏖️ Tur" },
-    { value: "transfer", label: "🚗 Transfer" },
-    { value: "kruiz", label: "🚢 Kruiz" },
-  ].map(t => (
-    <button
-      key={t.value}
-      onClick={() => setTypeFilter(prev =>
-        prev.includes(t.value) ? prev.filter(x => x !== t.value) : [...prev, t.value]
-      )}
-      className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors ${
-        typeFilter.includes(t.value)
-          ? "bg-red-500 text-white border-red-500"
-          : "bg-white text-gray-600 border-gray-200 hover:border-red-300"
-      }`}
-    >
-      {t.label}
-    </button>
-  ))}
-</div>
+
+      <div className="flex gap-3 mb-4 flex-wrap items-center">
+        <input
+          type="text"
+          placeholder="Müştəri adı ilə axtar..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48"
+        />
+        {[
+          { value: "bilet", label: "✈️ Bilet" },
+          { value: "otel", label: "🏨 Otel" },
+          { value: "tur", label: "🏖️ Tur" },
+          { value: "transfer", label: "🚗 Transfer" },
+          { value: "kruiz", label: "🚢 Kruiz" },
+        ].map(t => (
+          <button
+            key={t.value}
+            onClick={() => setTypeFilter(prev =>
+              prev.includes(t.value) ? prev.filter(x => x !== t.value) : [...prev, t.value]
+            )}
+            className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors ${
+              typeFilter.includes(t.value)
+                ? "bg-red-500 text-white border-red-500"
+                : "bg-white text-gray-600 border-gray-200 hover:border-red-300"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center">
@@ -154,7 +166,7 @@ return true
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {["Müştəri", "İstiqamət", "Növ", "Uçuş tarixi", "Ümumi məbləğ", "Ödənilib", "Qalıq borc", "Menecer"].map(h => (
+                  {["Müştəri", "İstiqamət", "Növ", "Uçuş tarixi", "Ümumi məbləğ", "Ödənilib", "Qalıq borc", "Menecer", ""].map(h => (
                     <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-6 py-3">{h}</th>
                   ))}
                 </tr>
@@ -186,6 +198,15 @@ return true
                       <span className="font-bold text-red-500 text-base">{formatCurrency(b.remaining)}</span>
                     </td>
                     <td className="px-6 py-3 text-gray-600">{b.manager}</td>
+                    <td className="px-6 py-3">
+                      <button
+                        onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
+                        className="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2.5 py-1.5 rounded-lg hover:bg-green-100 font-medium"
+                      >
+                        <CheckCircle size={13} />
+                        Ödə
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -251,6 +272,46 @@ return true
           </div>
         )}
       </div>
+
+      {payModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold">Ödəniş qeyd et</h2>
+              <button onClick={() => setPayModal(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">Müştəri</p>
+                <p className="font-semibold text-gray-900">{payModal.clientName}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Qalıq borc</p>
+                <p className="font-bold text-red-500 text-lg">{formatCurrency(payModal.remaining)}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ödəniş məbləği (AZN)</label>
+                <input
+                  type="number"
+                  value={payAmount}
+                  onChange={e => setPayAmount(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={handlePay}
+                  className="flex-1 bg-green-500 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-green-600">
+                  Ödənişi qeyd et
+                </button>
+                <button onClick={() => setPayModal(null)}
+                  className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
+                  Ləğv et
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
