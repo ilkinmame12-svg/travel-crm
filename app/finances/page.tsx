@@ -22,8 +22,14 @@ export default function FinancesPage() {
   const [tab, setTab] = useState<"overview" | "income" | "expense">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
   const [cashBalance, setCashBalance] = useState(10)
- const [cashAZN, setCashAZN] = useState(10)
-const [cashUSD, setCashUSD] = useState(0)
+const [cashAZN, setCashAZN] = useState(() => {
+  if (typeof window === 'undefined') return 10
+  return parseFloat(localStorage.getItem('cash_azn') ?? '10')
+})
+const [cashUSD, setCashUSD] = useState(() => {
+  if (typeof window === 'undefined') return 0
+  return parseFloat(localStorage.getItem('cash_usd') ?? '0')
+})
 const [cashModal, setCashModal] = useState(false)
 const [cashInput, setCashInput] = useState("")
 const [cashReason, setCashReason] = useState("")
@@ -382,14 +388,18 @@ const [cashCurrency, setCashCurrency] = useState<"AZN" | "USD">("AZN")
             onClick={() => {
               const amount = parseFloat(cashInput)
               if (!amount || amount <= 0) return
-              if (cashCurrency === "AZN") {
-                setCashAZN(prev => cashOperation === "add" ? prev + amount : Math.max(0, prev - amount))
-              } else {
-                setCashUSD(prev => cashOperation === "add" ? prev + amount : Math.max(0, prev - amount))
-              }
-              setCashInput("")
-              setCashReason("")
-              setCashModal(false)
+            if (cashCurrency === "AZN") {
+  const newVal = cashOperation === "add" ? cashAZN + amount : Math.max(0, cashAZN - amount)
+  setCashAZN(newVal)
+  localStorage.setItem('cash_azn', String(newVal))
+} else {
+  const newVal = cashOperation === "add" ? cashUSD + amount : Math.max(0, cashUSD - amount)
+  setCashUSD(newVal)
+  localStorage.setItem('cash_usd', String(newVal))
+}
+setCashInput("")
+setCashReason("")
+setCashModal(false)
             }}
             className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700"
           >
