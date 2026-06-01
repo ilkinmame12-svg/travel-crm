@@ -21,7 +21,6 @@ export default function FinancesPage() {
   const [modal, setModal] = useState<"expense" | "income" | null>(null)
   const [tab, setTab] = useState<"overview" | "income" | "expense">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
-  const [cashBalance, setCashBalance] = useState(10)
 const [cashAZN, setCashAZN] = useState(() => {
   if (typeof window === 'undefined') return 10
   return parseFloat(localStorage.getItem('cash_azn') ?? '10')
