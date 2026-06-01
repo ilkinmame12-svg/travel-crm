@@ -68,7 +68,8 @@ export default function SifarislerPage() {
     }
   }, [modal, selected])
 
-  const filtered = useMemo(() => bookings.filter(b => {
+ const filtered = useMemo(() => bookings.filter(b => {
+    if (profile?.role === "menecer" && b.manager !== profile.fullName) return false
     if (activeTab !== "all" && b.bookingType !== activeTab) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
