@@ -1,4 +1,4 @@
-﻿  "use client"
+"use client"
 import { supabase } from "@/lib/supabase"
 import { useState, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
@@ -21,19 +21,19 @@ export default function FinancesPage() {
   const [modal, setModal] = useState<"expense" | "income" | null>(null)
   const [tab, setTab] = useState<"overview" | "income" | "expense">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
-const [cashAZN, setCashAZN] = useState(() => {
-  if (typeof window === 'undefined') return 10
-  return parseFloat(localStorage.getItem('cash_azn') ?? '10')
-})
-const [cashUSD, setCashUSD] = useState(() => {
-  if (typeof window === 'undefined') return 0
-  return parseFloat(localStorage.getItem('cash_usd') ?? '0')
-})
-const [cashModal, setCashModal] = useState(false)
-const [cashInput, setCashInput] = useState("")
-const [cashReason, setCashReason] = useState("")
-const [cashOperation, setCashOperation] = useState<"add" | "subtract">("add")
-const [cashCurrency, setCashCurrency] = useState<"AZN" | "USD">("AZN")
+  const [cashAZN, setCashAZN] = useState(() => {
+    if (typeof window === 'undefined') return 0
+    return parseFloat(localStorage.getItem('cash_azn') ?? '0')
+  })
+  const [cashUSD, setCashUSD] = useState(() => {
+    if (typeof window === 'undefined') return 0
+    return parseFloat(localStorage.getItem('cash_usd') ?? '0')
+  })
+  const [cashModal, setCashModal] = useState(false)
+  const [cashInput, setCashInput] = useState("")
+  const [cashReason, setCashReason] = useState("")
+  const [cashOperation, setCashOperation] = useState<"add" | "subtract">("add")
+  const [cashCurrency, setCashCurrency] = useState<"AZN" | "USD">("AZN")
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -163,16 +163,16 @@ const [cashCurrency, setCashCurrency] = useState<"AZN" | "USD">("AZN")
             <p className="text-sm text-gray-500">Xalis mənfəət</p>
             <DollarSign size={18} className="text-green-500" />
           </div>
-   <div className="bg-white rounded-2xl border-2 border-blue-200 p-5 cursor-pointer hover:border-blue-400 transition-colors" onClick={() => setCashModal(true)}>
-  <div className="flex items-center justify-between mb-3">
-    <p className="text-sm text-gray-500">Kassa (Nağd)</p>
-    <span className="text-lg">💵</span>
-  </div>
-  <p className="text-xl font-bold text-blue-600">{formatCurrency(cashAZN)}</p>
-  <p className="text-sm font-semibold text-green-600">${cashUSD.toFixed(2)}</p>
-  <p className="text-xs text-gray-400 mt-1">Ofisdəki nağd pul</p>
-</div>
-          <p className="text-2xl font-bold text-blue-600">{formatCurrency(cashBalance)}</p>
+          <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-500"}`}>{formatCurrency(totalProfit)}</p>
+          <p className="text-xs text-gray-400 mt-1">Marja: {margin}%</p>
+        </div>
+        <div className="bg-white rounded-2xl border-2 border-blue-200 p-5 cursor-pointer hover:border-blue-400 transition-colors" onClick={() => setCashModal(true)}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-gray-500">Kassa (Nağd)</p>
+            <span className="text-lg">💵</span>
+          </div>
+          <p className="text-xl font-bold text-blue-600">{formatCurrency(cashAZN)}</p>
+          <p className="text-sm font-semibold text-green-600">${cashUSD.toFixed(2)}</p>
           <p className="text-xs text-gray-400 mt-1">Ofisdəki nağd pul</p>
         </div>
       </div>
@@ -330,89 +330,89 @@ const [cashCurrency, setCashCurrency] = useState<"AZN" | "USD">("AZN")
         )}
       </div>
 
-     {cashModal && (
-  <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-      <div className="flex items-center justify-between px-6 py-4 border-b">
-        <h2 className="text-lg font-semibold">💵 Kassa</h2>
-        <button onClick={() => setCashModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-      </div>
-      <div className="p-6 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-blue-50 rounded-xl p-3 text-center">
-            <p className="text-xs text-gray-500 mb-1">AZN</p>
-            <p className="text-xl font-bold text-blue-600">{formatCurrency(cashAZN)}</p>
+      {cashModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold">💵 Kassa</h2>
+              <button onClick={() => setCashModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-blue-50 rounded-xl p-3 text-center">
+                  <p className="text-xs text-gray-500 mb-1">AZN</p>
+                  <p className="text-xl font-bold text-blue-600">{formatCurrency(cashAZN)}</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-3 text-center">
+                  <p className="text-xs text-gray-500 mb-1">USD</p>
+                  <p className="text-xl font-bold text-green-600">${cashUSD.toFixed(2)}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setCashOperation("add")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashOperation === "add" ? "bg-green-500 text-white border-green-500" : "border-gray-200 text-gray-600"}`}>
+                  + Gəlir
+                </button>
+                <button onClick={() => setCashOperation("subtract")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashOperation === "subtract" ? "bg-red-500 text-white border-red-500" : "border-gray-200 text-gray-600"}`}>
+                  − Xərc
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setCashCurrency("AZN")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashCurrency === "AZN" ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600"}`}>
+                  AZN
+                </button>
+                <button onClick={() => setCashCurrency("USD")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashCurrency === "USD" ? "bg-green-600 text-white border-green-600" : "border-gray-200 text-gray-600"}`}>
+                  USD
+                </button>
+              </div>
+              <input
+                type="number"
+                value={cashInput}
+                onChange={e => setCashInput(e.target.value)}
+                placeholder={`Məbləğ (${cashCurrency})`}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <input
+                type="text"
+                value={cashReason}
+                onChange={e => setCashReason(e.target.value)}
+                placeholder="Səbəb (məs: Müştəri ödənişi, Ofis xərci...)"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const amount = parseFloat(cashInput)
+                    if (!amount || amount <= 0) return
+                    if (cashCurrency === "AZN") {
+                      const newVal = cashOperation === "add" ? cashAZN + amount : Math.max(0, cashAZN - amount)
+                      setCashAZN(newVal)
+                      localStorage.setItem('cash_azn', String(newVal))
+                    } else {
+                      const newVal = cashOperation === "add" ? cashUSD + amount : Math.max(0, cashUSD - amount)
+                      setCashUSD(newVal)
+                      localStorage.setItem('cash_usd', String(newVal))
+                    }
+                    setCashInput("")
+                    setCashReason("")
+                    setCashModal(false)
+                  }}
+                  className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700"
+                >
+                  Təsdiq et
+                </button>
+                <button onClick={() => setCashModal(false)}
+                  className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
+                  Ləğv et
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="bg-green-50 rounded-xl p-3 text-center">
-            <p className="text-xs text-gray-500 mb-1">USD</p>
-            <p className="text-xl font-bold text-green-600">${cashUSD.toFixed(2)}</p>
-          </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setCashOperation("add")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashOperation === "add" ? "bg-green-500 text-white border-green-500" : "border-gray-200 text-gray-600"}`}>
-            + Gəlir
-          </button>
-          <button onClick={() => setCashOperation("subtract")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashOperation === "subtract" ? "bg-red-500 text-white border-red-500" : "border-gray-200 text-gray-600"}`}>
-            − Xərc
-          </button>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setCashCurrency("AZN")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashCurrency === "AZN" ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600"}`}>
-            AZN
-          </button>
-          <button onClick={() => setCashCurrency("USD")}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashCurrency === "USD" ? "bg-green-600 text-white border-green-600" : "border-gray-200 text-gray-600"}`}>
-            USD
-          </button>
-        </div>
-        <input
-          type="number"
-          value={cashInput}
-          onChange={e => setCashInput(e.target.value)}
-          placeholder={`Məbləğ (${cashCurrency})`}
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
-        <input
-          type="text"
-          value={cashReason}
-          onChange={e => setCashReason(e.target.value)}
-          placeholder="Səbəb (məs: Müştəri ödənişi, Ofis xərci...)"
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              const amount = parseFloat(cashInput)
-              if (!amount || amount <= 0) return
-            if (cashCurrency === "AZN") {
-  const newVal = cashOperation === "add" ? cashAZN + amount : Math.max(0, cashAZN - amount)
-  setCashAZN(newVal)
-  localStorage.setItem('cash_azn', String(newVal))
-} else {
-  const newVal = cashOperation === "add" ? cashUSD + amount : Math.max(0, cashUSD - amount)
-  setCashUSD(newVal)
-  localStorage.setItem('cash_usd', String(newVal))
-}
-setCashInput("")
-setCashReason("")
-setCashModal(false)
-            }}
-            className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700"
-          >
-            Təsdiq et
-          </button>
-          <button onClick={() => setCashModal(false)}
-            className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
-            Ləğv et
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {modal === "income" && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
