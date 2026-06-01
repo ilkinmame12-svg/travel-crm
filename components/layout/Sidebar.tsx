@@ -2,10 +2,11 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, HelpCircle, LogOut, BotMessageSquare, Users, PlaneTakeoff, Building2, Scale } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, HelpCircle, LogOut, BotMessageSquare, Users, PlaneTakeoff, Building2, Scale,Clock } from "lucide-react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import { useUserRole } from "@/lib/hooks/useUserRole"
+
 
 const ALL_MENU = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
@@ -19,6 +20,7 @@ const ALL_MENU = [
   { href: "/flights", label: "TK NDC", icon: PlaneTakeoff, roles: ["it_admin", "direktor", "menecer"] },
   { href: "/assistant", label: "AI Köməkçi", icon: BotMessageSquare, roles:["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/settings", label: "Ayarlar", icon: Settings, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
+  { href: "/drafts", label: "Təsdiq", icon: Clock, roles: ["it_admin", "direktor", "muhasib", "menecer"] },
 ]
 const ROLE_LABELS: Record<string, string> = {
   it_admin: "IT Admin",

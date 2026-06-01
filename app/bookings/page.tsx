@@ -111,14 +111,46 @@ useEffect(() => {
     updated_by_role: profile?.role ?? "",
   }
 
-  if (modal === "edit" && selected) {
+ if (modal === "edit" && selected) {
     await updateBooking(selected.id, data)
+  } else if (profile?.role === "menecer") {
+    // Menecer - göndər təsdiqə
+    const { supabase } = await import("@/lib/supabase")
+    await supabase.from("booking_drafts").insert({
+      client_name: data.clientName,
+      client_phone: data.clientPhone,
+      destination: data.destination,
+      departure_date: data.departureDate,
+      return_date: data.returnDate,
+      travelers: data.travelers,
+      booking_type: data.bookingType,
+      description: data.description,
+      vendor: data.vendor,
+      is_iata: data.isIata,
+      buy_price: data.buyPrice,
+      sell_price: data.sellPrice,
+      commission_percent: data.commissionPercent,
+      commission_amount: commissionAmount,
+      profit: profit,
+      paid_amount: data.paidAmount,
+      manager: data.manager,
+      iata_period: data.iataPeriod,
+      status: data.status,
+      payment_status: data.paymentStatus,
+      notes: data.notes,
+      ticket_number: data.ticketNumber,
+      booking_reference: data.bookingReference,
+      pnr: data.pnr,
+      submitted_by: profile?.fullName ?? "",
+      submitted_by_role: profile?.role ?? "",
+      review_status: "pending",
+    })
+    alert("✅ Sifariş təsdiq üçün göndərildi!")
   } else {
     await addBooking(data)
   }
   setModal(null)
   setSelected(null)
-}
 
   function getTypeInfo(value: string) {
     return BOOKING_TYPES.find(t => t.value === value) ?? BOOKING_TYPES[0]
