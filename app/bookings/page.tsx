@@ -2,6 +2,7 @@
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { useState, useMemo, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
+import { supabase } from "@/lib/supabase"
 import type { Booking, BookingFilters, BookingFormData, BookingType, IATAPeriod } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/calculations"
 import { Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage, Armchair, Star } from "lucide-react"
@@ -17,16 +18,33 @@ const BOOKING_TYPES = [
   { value: "bagaj", label: "Bagaj", Icon: Luggage, color: "yellow" },
   { value: "yer_secimi", label: "Yer seçimi", Icon: Armchair, color: "pink" },
   { value: "cip", label: "CIP xidmət", Icon: Star, color: "gold" },
-  
 ]
 
 const EMPTY_FILTERS: BookingFilters = {
   search: "", status: "all", manager: "", iataPeriod: "all", bookingType: "all", dateFrom: "", dateTo: ""
 }
 
+function getTypeInfo(value: string) {
+  return BOOKING_TYPES.find(t => t.value === value) ?? BOOKING_TYPES[0]
+}
+
+function getTypeBadgeClass(color: string) {
+  const map: Record<string, string> = {
+    blue: "bg-blue-100 text-blue-700",
+    purple: "bg-purple-100 text-purple-700",
+    green: "bg-green-100 text-green-700",
+    cyan: "bg-cyan-100 text-cyan-700",
+    orange: "bg-orange-100 text-orange-700",
+    yellow: "bg-yellow-100 text-yellow-700",
+    pink: "bg-pink-100 text-pink-700",
+    gold: "bg-amber-100 text-amber-700",
+  }
+  return map[color] ?? "bg-gray-100 text-gray-700"
+}
+
 export default function SifarislerPage() {
   const { profile, canDelete } = useUserRole()
-const isReadOnly = profile?.role === "boss"
+  const isReadOnly = profile?.role === "boss"
   const { bookings, loading, fetchBookings, addBooking, updateBooking, deleteBooking } = useBookingsStore()
   const [modal, setModal] = useState<"create" | "edit" | null>(null)
   const [selected, setSelected] = useState<Booking | null>(null)
@@ -35,15 +53,14 @@ const isReadOnly = profile?.role === "boss"
   const [paymentStatus, setPaymentStatus] = useState("unpaid")
   const [paidAmount, setPaidAmount] = useState(0)
   const [isIata, setIsIata] = useState(false)
+  const [ready, setReady] = useState(false)
 
-const [ready, setReady] = useState(false)
+  useEffect(() => {
+    fetchBookings()
+    setReady(true)
+  }, [])
 
-useEffect(() => {
-  fetchBookings()
-  setReady(true)
-}, [])
-
-useEffect(() => {
+  useEffect(() => {
     if (modal) {
       setPaymentStatus(selected?.paymentStatus ?? "unpaid")
       setPaidAmount(selected?.paidAmount ?? 0)
@@ -55,120 +72,102 @@ useEffect(() => {
     if (activeTab !== "all" && b.bookingType !== activeTab) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
-   if (!b.clientName.toLowerCase().includes(q) &&
-    !b.destination.toLowerCase().includes(q) &&
-    !(b.vendor ?? "").toLowerCase().includes(q) &&
-    !(b.ticketNumber ?? "").toLowerCase().includes(q) &&
-    !(b.bookingReference ?? "").toLowerCase().includes(q) &&
-    !(b.pnr ?? "").toLowerCase().includes(q) &&
-    !(b.notes ?? "").toLowerCase().includes(q)) return false
+      if (!b.clientName.toLowerCase().includes(q) &&
+        !b.destination.toLowerCase().includes(q) &&
+        !(b.vendor ?? "").toLowerCase().includes(q) &&
+        !(b.ticketNumber ?? "").toLowerCase().includes(q) &&
+        !(b.bookingReference ?? "").toLowerCase().includes(q) &&
+        !(b.pnr ?? "").toLowerCase().includes(q) &&
+        !(b.notes ?? "").toLowerCase().includes(q)) return false
     }
     if (filters.status !== "all" && b.status !== filters.status) return false
     if (filters.manager && b.manager !== filters.manager) return false
     if (filters.iataPeriod !== "all" && b.iataPeriod !== filters.iataPeriod) return false
     return true
-    
   }), [bookings, filters, activeTab])
 
   const totalRevenue = filtered.reduce((s, b) => s + b.sellPrice, 0)
   const totalProfit = filtered.reduce((s, b) => s + b.profit, 0)
   const totalCost = filtered.reduce((s, b) => s + b.buyPrice, 0)
-   const typeCounts = BOOKING_TYPES.map(t => ({ ...t, count: bookings.filter(b => b.bookingType === t.value).length }))
+  const typeCounts = BOOKING_TYPES.map(t => ({ ...t, count: bookings.filter(b => b.bookingType === t.value).length }))
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-  e.preventDefault()
-  
-  const fd = new FormData(e.currentTarget)
-  const sellPrice = Number(fd.get("sellPrice"))
-  const buyPrice = Number(fd.get("buyPrice"))
-  const commissionPercent = Number(fd.get("commissionPercent"))
-  const commissionAmount = Math.round(sellPrice * commissionPercent) / 100
-  const profit = sellPrice - buyPrice - commissionAmount
-  const paid = paymentStatus === "paid" ? sellPrice : paymentStatus === "partial" ? paidAmount : 0
+    e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    const sellPrice = Number(fd.get("sellPrice"))
+    const buyPrice = Number(fd.get("buyPrice"))
+    const commissionPercent = Number(fd.get("commissionPercent"))
+    const commissionAmount = Math.round(sellPrice * commissionPercent) / 100
+    const profit = sellPrice - buyPrice - commissionAmount
+    const paid = paymentStatus === "paid" ? sellPrice : paymentStatus === "partial" ? paidAmount : 0
 
-  const data: BookingFormData = {
-    bookingType: fd.get("bookingType") as BookingType,
-    clientName: fd.get("clientName") as string,
-    clientPhone: fd.get("clientPhone") as string,
-    clientEmail: fd.get("clientEmail") as string,
-    destination: fd.get("destination") as string,
-    departureDate: fd.get("departureDate") as string,
-    returnDate: fd.get("returnDate") as string,
-    travelers: Number(fd.get("travelers")),
-    description: fd.get("description") as string,
-    vendor: fd.get("vendor") as string,
-    isIata,
-    buyPrice, sellPrice, commissionPercent,
-    paidAmount: paid,
-    manager: fd.get("manager") as string,
-  iataPeriod: fd.get("iataPeriod") as IATAPeriod,
-    status: fd.get("status") as "pending" | "confirmed" | "completed" | "cancelled",
-    paymentStatus: paymentStatus as "unpaid" | "partial" | "paid",
-    notes: fd.get("notes") as string,
-    ticketNumber: fd.get("ticketNumber") as string,
-    bookingReference: fd.get("bookingReference") as string,
-    pnr: fd.get("pnr") as string,
-    updated_by: profile?.fullName ?? "Admin",
-    updated_by_role: profile?.role ?? "",
-  }
-
- if (modal === "edit" && selected) {
-    await updateBooking(selected.id, data)
-  } else if (profile?.role === "menecer") {
-    // Menecer - göndər təsdiqə
-    const { supabase } = await import("@/lib/supabase")
-    await supabase.from("booking_drafts").insert({
-      client_name: data.clientName,
-      client_phone: data.clientPhone,
-      destination: data.destination,
-      departure_date: data.departureDate,
-      return_date: data.returnDate,
-      travelers: data.travelers,
-      booking_type: data.bookingType,
-      description: data.description,
-      vendor: data.vendor,
-      is_iata: data.isIata,
-      buy_price: data.buyPrice,
-      sell_price: data.sellPrice,
-      commission_percent: data.commissionPercent,
-      commission_amount: commissionAmount,
-      profit: profit,
-      paid_amount: data.paidAmount,
-      manager: data.manager,
-      iata_period: data.iataPeriod,
-      status: data.status,
-      payment_status: data.paymentStatus,
-      notes: data.notes,
-      ticket_number: data.ticketNumber,
-      booking_reference: data.bookingReference,
-      pnr: data.pnr,
-      submitted_by: profile?.fullName ?? "",
-      submitted_by_role: profile?.role ?? "",
-      review_status: "pending",
-    })
-    alert("✅ Sifariş təsdiq üçün göndərildi!")
-  } else {
-    await addBooking(data)
-  }
-  setModal(null)
-  setSelected(null)
-
-  function getTypeInfo(value: string) {
-    return BOOKING_TYPES.find(t => t.value === value) ?? BOOKING_TYPES[0]
-  }
-
-  function getTypeBadgeClass(color: string) {
-    const map: Record<string, string> = {
-      blue: "bg-blue-100 text-blue-700",
-      purple: "bg-purple-100 text-purple-700",
-      green: "bg-green-100 text-green-700",
-      cyan: "bg-cyan-100 text-cyan-700",
-      orange: "bg-orange-100 text-orange-700",
-      yellow: "bg-yellow-100 text-yellow-700",
-      pink: "bg-pink-100 text-pink-700",
-      gold: "bg-amber-100 text-amber-700",
+    const data: BookingFormData = {
+      bookingType: fd.get("bookingType") as BookingType,
+      clientName: fd.get("clientName") as string,
+      clientPhone: fd.get("clientPhone") as string,
+      clientEmail: fd.get("clientEmail") as string,
+      destination: fd.get("destination") as string,
+      departureDate: fd.get("departureDate") as string,
+      returnDate: fd.get("returnDate") as string,
+      travelers: Number(fd.get("travelers")),
+      description: fd.get("description") as string,
+      vendor: fd.get("vendor") as string,
+      isIata,
+      buyPrice, sellPrice, commissionPercent,
+      paidAmount: paid,
+      manager: fd.get("manager") as string,
+      iataPeriod: fd.get("iataPeriod") as IATAPeriod,
+      status: fd.get("status") as "pending" | "confirmed" | "completed" | "cancelled",
+      paymentStatus: paymentStatus as "unpaid" | "partial" | "paid",
+      notes: fd.get("notes") as string,
+      ticketNumber: fd.get("ticketNumber") as string,
+      bookingReference: fd.get("bookingReference") as string,
+      pnr: fd.get("pnr") as string,
+      updated_by: profile?.fullName ?? "Admin",
+      updated_by_role: profile?.role ?? "",
     }
-    return map[color] ?? "bg-gray-100 text-gray-700"
+
+    if (modal === "edit" && selected) {
+      await updateBooking(selected.id, data)
+    } else if (profile?.role === "menecer") {
+      await supabase.from("booking_drafts").insert({
+        client_name: data.clientName,
+        client_phone: data.clientPhone,
+        destination: data.destination,
+        departure_date: data.departureDate,
+        return_date: data.returnDate,
+        travelers: data.travelers,
+        booking_type: data.bookingType,
+        description: data.description,
+        vendor: data.vendor,
+        is_iata: data.isIata,
+        buy_price: data.buyPrice,
+        sell_price: data.sellPrice,
+        commission_percent: data.commissionPercent,
+        commission_amount: commissionAmount,
+        profit: profit,
+        paid_amount: data.paidAmount,
+        manager: data.manager,
+        iata_period: data.iataPeriod,
+        status: data.status,
+        payment_status: data.paymentStatus,
+        notes: data.notes,
+        ticket_number: data.ticketNumber,
+        booking_reference: data.bookingReference,
+        pnr: data.pnr,
+        submitted_by: profile?.fullName ?? "",
+        submitted_by_role: profile?.role ?? "",
+        review_status: "pending",
+      })
+      alert("✅ Sifariş təsdiq üçün göndərildi!")
+    } else {
+      await addBooking(data)
+    }
+    setModal(null)
+    setSelected(null)
   }
+
+  if (!ready) return null
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -177,13 +176,13 @@ useEffect(() => {
           <h1 className="text-2xl font-bold text-gray-900">Sifarişlər</h1>
           <p className="text-sm text-gray-500 mt-0.5">{filtered.length} / {bookings.length} sifariş</p>
         </div>
-      {!isReadOnly && (
-  <button onClick={() => { setSelected(null); setModal("create") }}
-    className="flex items-center gap-2 bg-red-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 shadow-sm">
-    <Plus size={16} />
-    Yeni sifariş
-  </button>
-)}
+        {!isReadOnly && (
+          <button onClick={() => { setSelected(null); setModal("create") }}
+            className="flex items-center gap-2 bg-red-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 shadow-sm">
+            <Plus size={16} />
+            {profile?.role === "menecer" ? "Sifariş göndər" : "Yeni sifariş"}
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-4">
@@ -237,10 +236,10 @@ useEffect(() => {
             <select value={filters.iataPeriod} onChange={e => setFilters(f => ({ ...f, iataPeriod: e.target.value as any }))}
               className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
               <option value="all">Bütün periodlar</option>
-           <option value="1-7">1-7</option>
-          <option value="8-15">8-15</option>
-          <option value="16-23">16-23</option>
-          <option value="24-31">24-31</option>
+              <option value="1-7">1-7</option>
+              <option value="8-15">8-15</option>
+              <option value="16-23">16-23</option>
+              <option value="24-31">24-31</option>
             </select>
           </div>
         </div>
@@ -248,7 +247,7 @@ useEffect(() => {
         {loading ? (
           <div className="text-center py-16 text-gray-400">Yüklənir...</div>
         ) : (
-         <table className="w-full text-sm min-w-[1400px]">
+          <table className="w-full text-sm min-w-[1400px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 {["Növ", "Müştəri", "İstiqamət", "Vendor", "Tarixlər", "Menecer", "Satış", "Ödənilib", "Qalıq", "Mənfəət", "Status", "Ödəniş", "IATA", ""].map(h => (
@@ -333,15 +332,15 @@ useEffect(() => {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                    {!isReadOnly && (
-                      <button onClick={() => { setSelected(b); setModal("edit") }}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">✏️</button>
-                    )}
-                    {canDelete && (
-                      <button onClick={() => { if(confirm("Silinsin?")) deleteBooking(b.id) }}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">🗑️</button>
-                    )}
-                  </div>
+                        {!isReadOnly && (
+                          <button onClick={() => { setSelected(b); setModal("edit") }}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">✏️</button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => { if (confirm("Silinsin?")) deleteBooking(b.id) }}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">🗑️</button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -355,7 +354,12 @@ useEffect(() => {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4 pt-8">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">{modal === "edit" ? "Redaktə et" : "Yeni sifariş"}</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">{modal === "edit" ? "Redaktə et" : "Yeni sifariş"}</h2>
+                {profile?.role === "menecer" && modal === "create" && (
+                  <p className="text-xs text-amber-600 mt-0.5">⏳ Sifariş təsdiq üçün göndəriləcək</p>
+                )}
+              </div>
               <button onClick={() => { setModal(null); setSelected(null) }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 grid grid-cols-2 gap-4">
@@ -381,7 +385,7 @@ useEffect(() => {
 
               <div className="col-span-2 grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vendor (haradan alındı)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
                   <input name="vendor" defaultValue={selected?.vendor ?? ""}
                     placeholder="Məs: Amadeus, Booking.com, IATA..."
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
@@ -401,16 +405,17 @@ useEffect(() => {
               <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Müştəri</div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ad *</label>
-            <ClientAutocomplete defaultValue={selected?.clientName ?? ""} bookings={bookings} />
+                <ClientAutocomplete defaultValue={selected?.clientName ?? ""} bookings={bookings} ready={ready} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-<input name="clientPhone" defaultValue={selected?.clientPhone} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                <input name="clientPhone" defaultValue={selected?.clientPhone} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input name="clientEmail" type="email" defaultValue={selected?.clientEmail} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
+
               <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-2">Səfər</div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">İstiqamət *</label>
@@ -418,21 +423,21 @@ useEffect(() => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tarix (başlanğıc) *</label>
-           <input name="departureDate" type="date" 
-  defaultValue={selected?.departureDate ?? new Date().toISOString().split("T")[0]} 
-  required 
-  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                <input name="departureDate" type="date"
+                  defaultValue={selected?.departureDate ?? new Date().toISOString().split("T")[0]}
+                  required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
-               <label className="block text-sm font-medium text-gray-700 mb-1">Tarix (son)</label>
-<input name="returnDate" type="date"
-  defaultValue={selected?.returnDate ?? new Date().toISOString().split("T")[0]}
-  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tarix (son)</label>
+                <input name="returnDate" type="date"
+                  defaultValue={selected?.returnDate ?? new Date().toISOString().split("T")[0]}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Turistlər</label>
                 <input name="travelers" type="number" min="1" defaultValue={selected?.travelers ?? 1} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
+
               <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-2">Maliyyə</div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Satış qiyməti (AZN) *</label>
@@ -446,6 +451,7 @@ useEffect(() => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Komissiya (%)</label>
                 <input name="commissionPercent" type="number" step="0.1" min="0" max="100" defaultValue={selected?.commissionPercent ?? 5} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
+
               <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-2">İdarəetmə</div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Menecer</label>
@@ -455,12 +461,12 @@ useEffect(() => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">IATA period</label>
-             <select name="iataPeriod" defaultValue={selected?.iataPeriod ?? "1-7"} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
-  <option value="1-7">1-7</option>
-  <option value="8-15">8-15</option>
-  <option value="16-22">16-22</option>
-  <option value="23-31">23-31</option>
-</select>
+                <select name="iataPeriod" defaultValue={selected?.iataPeriod ?? "1-7"} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
+                  <option value="1-7">1-7</option>
+                  <option value="8-15">8-15</option>
+                  <option value="16-23">16-23</option>
+                  <option value="24-31">24-31</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -486,25 +492,25 @@ useEffect(() => {
                   <input type="number" step="0.01" min="0" value={paidAmount}
                     onChange={e => setPaidAmount(Number(e.target.value))}
                     className="w-full border-2 border-orange-300 bg-orange-50 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                  <p className="text-xs text-orange-600 mt-1">Müştərinin ödədiyi məbləği daxil edin</p>
                 </div>
               )}
+
               <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-2">Referans nömrələri</div>
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">Bilet nömrəsi</label>
-  <input name="ticketNumber" defaultValue={selected?.ticketNumber ?? ""} placeholder="Məs: 157-1234567890"
-    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
-</div>
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">Bron nömrəsi</label>
-  <input name="bookingReference" defaultValue={selected?.bookingReference ?? ""} placeholder="Məs: ABC123"
-    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
-</div>
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">PNR</label>
-  <input name="pnr" defaultValue={selected?.pnr ?? ""} placeholder="Məs: XYZABC"
-    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
-</div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bilet nömrəsi</label>
+                <input name="ticketNumber" defaultValue={selected?.ticketNumber ?? ""} placeholder="Məs: 157-1234567890"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bron nömrəsi</label>
+                <input name="bookingReference" defaultValue={selected?.bookingReference ?? ""} placeholder="Məs: ABC123"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">PNR</label>
+                <input name="pnr" defaultValue={selected?.pnr ?? ""} placeholder="Məs: XYZABC"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+              </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Qeydlər</label>
                 <textarea name="notes" rows={2} defaultValue={selected?.notes} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none" />
@@ -514,17 +520,18 @@ useEffect(() => {
                   className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Ləğv et</button>
                 <button type="submit"
                   className="px-5 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 font-medium">
-                  {modal === "edit" ? "Yadda saxla" : "Yarat"}
+                  {modal === "edit" ? "Yadda saxla" : profile?.role === "menecer" ? "Təsdiqə göndər" : "Yarat"}
                 </button>
               </div>
             </form>
           </div>
         </div>
-        
       )}
     </div>
   )
-  function ClientAutocomplete({ defaultValue, bookings }: { defaultValue: string, bookings: any[] }) {
+}
+
+function ClientAutocomplete({ defaultValue, bookings, ready }: { defaultValue: string, bookings: any[], ready: boolean }) {
   const [value, setValue] = useState(defaultValue)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [show, setShow] = useState(false)
@@ -541,22 +548,18 @@ useEffect(() => {
       setShow(false)
     }
   }
+
   if (!ready) return null
+
   return (
     <div className="relative">
-      <input
-        name="clientName"
-        value={value}
-        onChange={e => handleChange(e.target.value)}
-        onBlur={() => setTimeout(() => setShow(false), 150)}
-        required
-        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-      />
+      <input name="clientName" value={value} onChange={e => handleChange(e.target.value)}
+        onBlur={() => setTimeout(() => setShow(false), 150)} required
+        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
       {show && suggestions.length > 0 && (
         <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-xl shadow-lg mt-1 overflow-hidden">
           {suggestions.map(s => (
-            <button key={s} type="button"
-              onClick={() => { setValue(s); setShow(false) }}
+            <button key={s} type="button" onClick={() => { setValue(s); setShow(false) }}
               className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 hover:text-red-600 transition-colors">
               {s}
             </button>
@@ -565,5 +568,4 @@ useEffect(() => {
       )}
     </div>
   )
-}
 }
