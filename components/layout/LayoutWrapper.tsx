@@ -12,16 +12,15 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
   const isLogin = pathname === "/login"
 
-  if (!mounted) return <>{children}</>
   if (isLogin) return <>{children}</>
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="hidden md:block">
-        <Sidebar />
+        {mounted && <Sidebar />}
       </div>
       <main className="flex-1 overflow-auto bg-gray-50">
-        <MobileNav />
+        {mounted && <MobileNav />}
         {children}
       </main>
     </div>
