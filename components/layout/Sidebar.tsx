@@ -21,6 +21,7 @@ const ALL_MENU = [
   { href: "/assistant", label: "AI Köməkçi", icon: BotMessageSquare, roles:["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/settings", label: "Ayarlar", icon: Settings, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
   { href: "/drafts", label: "Təsdiq", icon: Clock, roles: ["it_admin", "direktor", "muhasib", "menecer"] },
+  { href: "/help", label: "Help", icon: HelpCircle, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
 ]
 const ROLE_LABELS: Record<string, string> = {
   it_admin: "IT Admin",
@@ -119,24 +120,21 @@ export default function Sidebar() {
             )
           })}
         </nav>
-        {profile?.role === "it_admin" && (
-          <>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">General</p>
-            <nav className="space-y-0.5">
-              <Link href="/settings"
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <Settings size={18} />
-                <span>Settings</span>
-              </Link>
-              <Link href="/help"
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <HelpCircle size={18} />
-                <span>Help</span>
-              </Link>
-            </nav>
-          </>
-        )}
-      </div>
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">General</p>
+<nav className="space-y-0.5">
+  {profile?.role === "it_admin" && (
+    <Link href="/settings"
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all">
+      <Settings size={18} />
+      <span>Settings</span>
+    </Link>
+  )}
+  <Link href="/help"
+    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all">
+    <HelpCircle size={18} />
+    <span>Help</span>
+  </Link>
+</nav>
       <div className="px-4 pb-4 space-y-2">
         <div className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-xl">
          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center overflow-hidden">
