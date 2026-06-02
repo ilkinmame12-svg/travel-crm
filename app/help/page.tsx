@@ -109,7 +109,7 @@ export default function HelpPage() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">itstour CRM v1.0 • Powered by EL Art</p>
+       <p className="text-center text-xs text-gray-400 mt-6">itstour CRM v1.0 • Powered by <span className="font-bold">VARK TECHNOLOGIES</span></p>
       </div>
     </div>
   )
