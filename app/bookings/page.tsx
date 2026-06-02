@@ -84,6 +84,7 @@ export default function SifarislerPage() {
     if (filters.status !== "all" && b.status !== filters.status) return false
     if (filters.manager && b.manager !== filters.manager) return false
     if (filters.iataPeriod !== "all" && b.iataPeriod !== filters.iataPeriod) return false
+    if (filters.dateFrom && !b.departureDate.startsWith(filters.dateFrom)) return false
     return true
   }), [bookings, filters, activeTab])
 
@@ -244,6 +245,12 @@ export default function SifarislerPage() {
               <option value="16-23">16-23</option>
               <option value="24-31">24-31</option>
             </select>
+            <input
+  type="month"
+  value={filters.dateFrom}
+  onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+  className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+/>
           </div>
         </div>
 
