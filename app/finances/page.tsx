@@ -21,14 +21,8 @@ export default function FinancesPage() {
   const [modal, setModal] = useState<"expense" | "income" | null>(null)
   const [tab, setTab] = useState<"overview" | "income" | "expense">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
-  const [cashAZN, setCashAZN] = useState(() => {
-    if (typeof window === 'undefined') return 0
-    return parseFloat(localStorage.getItem('cash_azn') ?? '0')
-  })
-  const [cashUSD, setCashUSD] = useState(() => {
-    if (typeof window === 'undefined') return 0
-    return parseFloat(localStorage.getItem('cash_usd') ?? '0')
-  })
+const [cashAZN, setCashAZN] = useState(0)
+const [cashUSD, setCashUSD] = useState(0)
   const [cashModal, setCashModal] = useState(false)
   const [cashInput, setCashInput] = useState("")
   const [cashReason, setCashReason] = useState("")
@@ -36,11 +30,17 @@ export default function FinancesPage() {
   const [cashCurrency, setCashCurrency] = useState<"AZN" | "USD">("AZN")
   const [ready, setReady] = useState(false)
 
-  useEffect(() => {
-    fetchBookings()
-    fetchPayments()
-    setReady(true)
-  }, [])
+ useEffect(() => {
+  fetchBookings()
+  fetchPayments()
+  supabase.from("cash_balance").select("*").then(({ data }) => {
+    if (data) {
+      setCashAZN(data.find(c => c.currency === "AZN")?.amount ?? 0)
+      setCashUSD(data.find(c => c.currency === "USD")?.amount ?? 0)
+    }
+  })
+  setReady(true)
+}, [])
 
   const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
   const totalBookingCost = bookings.reduce((s, b) => s + b.buyPrice, 0)
@@ -384,17 +384,17 @@ export default function FinancesPage() {
               />
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
+                 onClick={async () => {
                     const amount = parseFloat(cashInput)
                     if (!amount || amount <= 0) return
                     if (cashCurrency === "AZN") {
                       const newVal = cashOperation === "add" ? cashAZN + amount : Math.max(0, cashAZN - amount)
                       setCashAZN(newVal)
-                      localStorage.setItem('cash_azn', String(newVal))
+                      await supabase.from("cash_balance").update({ amount: newVal, updated_at: new Date().toISOString() }).eq("currency", "AZN")
                     } else {
                       const newVal = cashOperation === "add" ? cashUSD + amount : Math.max(0, cashUSD - amount)
                       setCashUSD(newVal)
-                      localStorage.setItem('cash_usd', String(newVal))
+                      await supabase.from("cash_balance").update({ amount: newVal, updated_at: new Date().toISOString() }).eq("currency", "USD")
                     }
                     setCashInput("")
                     setCashReason("")
