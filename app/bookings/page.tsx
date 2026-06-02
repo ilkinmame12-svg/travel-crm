@@ -5,8 +5,7 @@ import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { supabase } from "@/lib/supabase"
 import type { Booking, BookingFilters, BookingFormData, BookingType, IATAPeriod } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/calculations"
-import { Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage, Armchair, Star } from "lucide-react"
-
+import { Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage, Armchair, Star, Shield } from "lucide-react"
 const MANAGERS = ["Miraslan Abbasov", "Rehime Qasimli", "Ayxan Elxanli", "Gunes Abdullazade", "Gunay Qurbanova", "Mircemil Abbasov", "Meryem Eliyeva"]
 
 const BOOKING_TYPES = [
@@ -18,6 +17,7 @@ const BOOKING_TYPES = [
   { value: "bagaj", label: "Bagaj", Icon: Luggage, color: "yellow" },
   { value: "yer_secimi", label: "Yer seçimi", Icon: Armchair, color: "pink" },
   { value: "cip", label: "CIP xidmət", Icon: Star, color: "gold" },
+  { value: "sigorta", label: "Sığorta", Icon: Shield, color: "teal" },
 ]
 
 const EMPTY_FILTERS: BookingFilters = {
@@ -127,6 +127,7 @@ export default function SifarislerPage() {
       updated_by: profile?.fullName ?? "Admin",
       updated_by_role: profile?.role ?? "",
     }
+    
 
     if (modal === "edit" && selected) {
       await updateBooking(selected.id, data)
@@ -164,6 +165,7 @@ export default function SifarislerPage() {
     } else {
       await addBooking(data)
     }
+    
     setModal(null)
     setSelected(null)
   }
