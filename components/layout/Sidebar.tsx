@@ -21,7 +21,6 @@ const ALL_MENU = [
   { href: "/assistant", label: "AI Köməkçi", icon: BotMessageSquare, roles:["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/settings", label: "Ayarlar", icon: Settings, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
   { href: "/drafts", label: "Təsdiq", icon: Clock, roles: ["it_admin", "direktor", "muhasib", "menecer"] },
-  { href: "/help", label: "Help", icon: HelpCircle, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
 ]
 const ROLE_LABELS: Record<string, string> = {
   it_admin: "IT Admin",
