@@ -43,6 +43,8 @@ export default function IATAPage() {
       "Qayıdış tarixi": b.returnDate,
       "Turistlər": b.travelers,
       "Menecer": b.manager,
+      "Bilet №": b.ticketNumber ?? "",
+      "PNR": b.pnr ?? "",
       "Satış (AZN)": b.sellPrice,
       "Alış (AZN)": b.buyPrice,
       "Komissiya %": b.commissionPercent,
