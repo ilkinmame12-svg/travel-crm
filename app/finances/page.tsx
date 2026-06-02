@@ -21,26 +21,32 @@ export default function FinancesPage() {
   const [modal, setModal] = useState<"expense" | "income" | null>(null)
   const [tab, setTab] = useState<"overview" | "income" | "expense">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
-const [cashAZN, setCashAZN] = useState(0)
-const [cashUSD, setCashUSD] = useState(0)
+  const [cashAZN, setCashAZN] = useState(0)
+  const [cashUSD, setCashUSD] = useState(0)
   const [cashModal, setCashModal] = useState(false)
   const [cashInput, setCashInput] = useState("")
   const [cashReason, setCashReason] = useState("")
   const [cashOperation, setCashOperation] = useState<"add" | "subtract">("add")
   const [cashCurrency, setCashCurrency] = useState<"AZN" | "USD">("AZN")
+  const [cashHistory, setCashHistory] = useState<any[]>([])
   const [ready, setReady] = useState(false)
 
- useEffect(() => {
-  fetchBookings()
-  fetchPayments()
-  supabase.from("cash_balance").select("*").then(({ data }) => {
-    if (data) {
-      setCashAZN(data.find(c => c.currency === "AZN")?.amount ?? 0)
-      setCashUSD(data.find(c => c.currency === "USD")?.amount ?? 0)
+  async function loadCash() {
+    const { data: balances } = await supabase.from("cash_balance").select("*")
+    if (balances) {
+      setCashAZN(balances.find((c: any) => c.currency === "AZN")?.amount ?? 0)
+      setCashUSD(balances.find((c: any) => c.currency === "USD")?.amount ?? 0)
     }
-  })
-  setReady(true)
-}, [])
+    const { data: history } = await supabase.from("cash_transactions").select("*").order("created_at", { ascending: false }).limit(20)
+    setCashHistory(history ?? [])
+  }
+
+  useEffect(() => {
+    fetchBookings()
+    fetchPayments()
+    loadCash()
+    setReady(true)
+  }, [])
 
   const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
   const totalBookingCost = bookings.reduce((s, b) => s + b.buyPrice, 0)
@@ -332,7 +338,7 @@ const [cashUSD, setCashUSD] = useState(0)
 
       {cashModal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-lg font-semibold">💵 Kassa</h2>
               <button onClick={() => setCashModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -384,20 +390,23 @@ const [cashUSD, setCashUSD] = useState(0)
               />
               <div className="flex gap-2">
                 <button
-                 onClick={async () => {
+                  onClick={async () => {
                     const amount = parseFloat(cashInput)
                     if (!amount || amount <= 0) return
                     if (cashCurrency === "AZN") {
                       const newVal = cashOperation === "add" ? cashAZN + amount : Math.max(0, cashAZN - amount)
                       setCashAZN(newVal)
                       await supabase.from("cash_balance").update({ amount: newVal, updated_at: new Date().toISOString() }).eq("currency", "AZN")
+                      await supabase.from("cash_transactions").insert({ currency: "AZN", operation: cashOperation, amount, reason: cashReason || null, balance_after: newVal })
                     } else {
                       const newVal = cashOperation === "add" ? cashUSD + amount : Math.max(0, cashUSD - amount)
                       setCashUSD(newVal)
                       await supabase.from("cash_balance").update({ amount: newVal, updated_at: new Date().toISOString() }).eq("currency", "USD")
+                      await supabase.from("cash_transactions").insert({ currency: "USD", operation: cashOperation, amount, reason: cashReason || null, balance_after: newVal })
                     }
                     setCashInput("")
                     setCashReason("")
+                    await loadCash()
                     setCashModal(false)
                   }}
                   className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700"
@@ -409,6 +418,28 @@ const [cashUSD, setCashUSD] = useState(0)
                   Ləğv et
                 </button>
               </div>
+
+              {cashHistory.length > 0 && (
+                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2 bg-gray-50">Son əməliyyatlar</p>
+                  <div className="divide-y divide-gray-50 max-h-48 overflow-y-auto">
+                    {cashHistory.map((t: any) => (
+                      <div key={t.id} className="flex items-center justify-between px-3 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-700 truncate">{t.reason || "Səbəb yoxdur"}</p>
+                          <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleDateString("az-AZ")} {new Date(t.created_at).toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" })}</p>
+                        </div>
+                        <div className="text-right ml-3">
+                          <p className={`text-sm font-bold ${t.operation === "add" ? "text-green-600" : "text-red-500"}`}>
+                            {t.operation === "add" ? "+" : "−"}{t.amount} {t.currency}
+                          </p>
+                          <p className="text-xs text-gray-400">Qalıq: {t.balance_after} {t.currency}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
