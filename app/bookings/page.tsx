@@ -451,11 +451,11 @@ export default function SifarislerPage() {
               <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-2">Maliyyə</div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Satış qiyməti (AZN) *</label>
-                <input name="sellPrice" type="number" step="0.01" min="0" defaultValue={selected?.sellPrice ?? 0} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+              <input name="sellPrice" type="number" step="0.01" min="-99999"defaultValue={selected?.sellPrice ?? 0} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Alış qiyməti (AZN) *</label>
-                <input name="buyPrice" type="number" step="0.01" min="0" defaultValue={selected?.buyPrice ?? 0} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                <input name="buyPrice" type="number" step="0.01" min="-99999" defaultValue={selected?.buyPrice ?? 0} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Komissiya (%)</label>
