@@ -70,6 +70,8 @@ export default function IATAPage() {
         "Qayıdış tarixi": b.returnDate,
         "Turistlər": b.travelers,
         "Menecer": b.manager,
+        "Bilet №": b.ticketNumber ?? "",
+        "PNR": b.pnr ?? "",
         "Satış (AZN)": b.sellPrice,
         "Alış (AZN)": b.buyPrice,
         "Komissiya %": b.commissionPercent,
@@ -147,6 +149,12 @@ export default function IATAPage() {
                 </span>
               </div>
               <div className="flex justify-between">
+                <span className={`text-sm ${activePeriod === g.period ? "text-blue-100" : "text-gray-500"}`}>Alış</span>
+                <span className={`text-sm font-semibold ${activePeriod === g.period ? "text-white" : "text-red-500"}`}>
+                  {formatCurrency(g.totalBuy)}
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span className={`text-sm ${activePeriod === g.period ? "text-blue-100" : "text-gray-500"}`}>Komissiya</span>
                 <span className={`text-sm font-semibold ${activePeriod === g.period ? "text-white" : "text-blue-600"}`}>
                   {formatCurrency(g.totalCommission)}
@@ -176,6 +184,7 @@ export default function IATAPage() {
           <div className="flex items-center gap-4">
             <div className="flex gap-4 text-sm">
               <span className="text-gray-500">Satış: <span className="font-semibold text-gray-900">{formatCurrency(active.totalSell)}</span></span>
+              <span className="text-gray-500">Alış: <span className="font-semibold text-red-500">{formatCurrency(active.totalBuy)}</span></span>
               <span className="text-gray-500">Komissiya: <span className="font-semibold text-blue-600">{formatCurrency(active.totalCommission)}</span></span>
               <span className="text-gray-500">Mənfəət: <span className={`font-semibold ${active.totalProfit >= 0 ? "text-green-600" : "text-red-500"}`}>{formatCurrency(active.totalProfit)}</span></span>
             </div>
@@ -197,7 +206,7 @@ export default function IATAPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b">
-                {["Müştəri", "İstiqamət", "Tarix", "Menecer", "Satış", "Alış", "Komissiya", "Mənfəət", "Ödəniş", "Status"].map(h => (
+                {["Müştəri", "İstiqamət", "Tarix", "Menecer", "Bilet №", "Satış", "Alış", "Komissiya", "Mənfəət", "Ödəniş", "Status"].map(h => (
                   <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">{h}</th>
                 ))}
               </tr>
@@ -212,8 +221,9 @@ export default function IATAPage() {
                   <td className="px-4 py-3 text-gray-600">{b.destination}</td>
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(b.departureDate)}</td>
                   <td className="px-4 py-3 text-gray-600">{b.manager}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{b.ticketNumber || "—"}</td>
                   <td className="px-4 py-3 font-semibold text-gray-900">{formatCurrency(b.sellPrice)}</td>
-                  <td className="px-4 py-3 text-gray-500">{formatCurrency(b.buyPrice)}</td>
+                  <td className="px-4 py-3 text-red-500 font-semibold">{formatCurrency(b.buyPrice)}</td>
                   <td className="px-4 py-3 text-blue-600 font-semibold">{formatCurrency(b.commissionAmount)}</td>
                   <td className="px-4 py-3">
                     <span className={b.profit >= 0 ? "text-green-600 font-semibold" : "text-red-500 font-semibold"}>
