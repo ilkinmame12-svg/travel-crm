@@ -21,7 +21,6 @@ const gradients = [
   "linear-gradient(135deg, #b45309, #d97706)",
 ]
 
-// Manager dashboard - shows only their own stats
 function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any }) {
   const myBookings = bookings.filter(b => b.manager === profile?.fullName)
   const myRevenue = myBookings.reduce((s, b) => s + b.sellPrice, 0)
@@ -32,29 +31,21 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any
   const myConfirmed = myBookings.filter(b => b.status === "confirmed").length
   const recent = [...myBookings].slice(0, 6)
 
-  // My top clients
   const clientStats = myBookings.reduce((acc: any, b) => {
     if (!acc[b.clientName]) acc[b.clientName] = { revenue: 0, count: 0 }
-    acc[b.clientName].revenue += b.sellPrice
-    acc[b.clientName].count++
+    acc[b.clientName].revenue += b.sellPrice; acc[b.clientName].count++
     return acc
   }, {})
-  const topClients = Object.entries(clientStats).map(([name, s]: any) => ({ name, ...s })).sort((a, b) => b.revenue - a.revenue).slice(0, 5)
-
-  // My debts
-  const myDebts = myBookings.filter(b => b.paymentStatus !== "paid" && b.sellPrice - (b.paidAmount ?? 0) > 0).map(b => ({ ...b, remaining: b.sellPrice - (b.paidAmount ?? 0) })).sort((a, b) => b.remaining - a.remaining).slice(0, 5)
+  const topClients = Object.entries(clientStats).map(([name, s]: any) => ({ name, ...s })).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 5)
+  const myDebts = myBookings.filter(b => b.paymentStatus !== "paid" && b.sellPrice - (b.paidAmount ?? 0) > 0).map(b => ({ ...b, remaining: b.sellPrice - (b.paidAmount ?? 0) })).sort((a: any, b: any) => b.remaining - a.remaining).slice(0, 5)
 
   return (
     <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}>
-      {/* Header */}
       <div className="mb-7">
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Salam, {profile?.fullName?.split(" ")[0]} 👋</h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
-        {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-        </p>
+        <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>{new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
       </div>
 
-      {/* My KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <div className="col-span-2 lg:col-span-1 p-6 text-white relative overflow-hidden" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: "24px" }}>
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10" style={{ background: "white", transform: "translate(20%, -30%)" }} />
@@ -83,7 +74,6 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any
         ))}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-5">
         {[
           { label: "Gözləyir", value: myPending, icon: Clock, color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
@@ -97,7 +87,6 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any
         ))}
       </div>
 
-      {/* My clients + My debts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         <div style={cardStyle} className="overflow-hidden">
           <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
@@ -106,7 +95,7 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any
           </div>
           <div className="p-4 space-y-3">
             {topClients.length === 0 ? <p className="text-sm text-center py-4" style={{ color: "var(--text-muted)" }}>Hələ müştəri yoxdur</p> :
-              topClients.map((c, i) => (
+              topClients.map((c: any, i: number) => (
                 <div key={c.name} className="flex items-center gap-3">
                   <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: i < 3 ? gradients[i] : "var(--bg-glass)", color: i < 3 ? "white" : "var(--text-secondary)" }}>{i + 1}</div>
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{c.name}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{c.count} sifariş</p></div>
@@ -124,7 +113,7 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any
           </div>
           <div className="p-4 space-y-3">
             {myDebts.length === 0 ? <p className="text-sm text-center py-4" style={{ color: "var(--text-muted)" }}>Borc yoxdur 🎉</p> :
-              myDebts.map((b, i) => (
+              myDebts.map((b: any, i: number) => (
                 <div key={b.id} className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(239,68,68,0.1)" }}><span className="text-red-500 text-sm font-bold">{i + 1}</span></div>
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{b.clientName}</p><p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{b.destination}</p></div>
@@ -136,7 +125,6 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any
         </div>
       </div>
 
-      {/* Recent bookings */}
       <div style={cardStyle} className="overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
           <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Son Sifarişlərim</h2>
@@ -146,7 +134,7 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any
           <table className="w-full text-sm">
             <thead><tr style={{ borderBottom: "1px solid var(--border-color)" }}>{["Müştəri", "İstiqamət", "Tarix", "Ödəniş", "Status"].map(h => <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-6 py-4" style={{ color: "var(--text-muted)" }}>{h}</th>)}</tr></thead>
             <tbody>
-              {recent.map(b => (
+              {recent.map((b: any) => (
                 <tr key={b.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td className="px-6 py-3"><p className="font-semibold" style={{ color: "var(--text-primary)" }}>{b.clientName}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p></td>
                   <td className="px-6 py-3 max-w-xs truncate" style={{ color: "var(--text-secondary)" }}>{b.destination}</td>
@@ -163,8 +151,9 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any
   )
 }
 
-// Admin/Boss/Direktor/Muhasib dashboard
 function AdminDashboard({ bookings, payments, cashHistory }: { bookings: any[], payments: any[], cashHistory: any[] }) {
+  const [managerPeriod, setManagerPeriod] = useState<"week" | "month" | "year">("month")
+
   const totalRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
   const totalCost = bookings.reduce((s, b) => s + b.buyPrice, 0)
   const totalProfit = bookings.reduce((s, b) => s + b.profit, 0)
@@ -173,46 +162,46 @@ function AdminDashboard({ bookings, payments, cashHistory }: { bookings: any[], 
   const unpaid = bookings.filter(b => b.paymentStatus !== "paid").length
   const margin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0
   const recent = [...bookings].slice(0, 6)
-const [managerPeriod, setManagerPeriod] = useState<"week" | "month" | "year">("month")
 
-const now = new Date()
-const filteredByPeriod = bookings.filter(b => {
-  const d = new Date(b.departureDate)
-  if (managerPeriod === "week") {
-    const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7)
-    return d >= weekAgo
-  }
-  if (managerPeriod === "month") {
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  }
-  return d.getFullYear() === now.getFullYear()
-})
-  const managerStats = bookings.reduce((acc: any, b) => {
+  const now = new Date()
+  const filteredByPeriod = bookings.filter(b => {
+    const d = new Date(b.departureDate)
+    if (managerPeriod === "week") {
+      const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7)
+      return d >= weekAgo
+    }
+    if (managerPeriod === "month") {
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    }
+    return d.getFullYear() === now.getFullYear()
+  })
+
+  const managerStats = filteredByPeriod.reduce((acc: any, b) => {
     if (!b.manager) return acc
     if (!acc[b.manager]) acc[b.manager] = { revenue: 0, profit: 0, count: 0 }
     acc[b.manager].revenue += b.sellPrice; acc[b.manager].profit += b.profit; acc[b.manager].count++
     return acc
   }, {})
-  const topManagers = Object.entries(managerStats).map(([name, s]: any) => ({ name, ...s })).sort((a, b) => b.revenue - a.revenue).slice(0, 5)
+  const topManagers = Object.entries(managerStats).map(([name, s]: any) => ({ name, ...s })).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 5)
 
   const clientStats = bookings.reduce((acc: any, b) => {
     if (!acc[b.clientName]) acc[b.clientName] = { revenue: 0, count: 0 }
     acc[b.clientName].revenue += b.sellPrice; acc[b.clientName].count++
     return acc
   }, {})
-  const topClients = Object.entries(clientStats).map(([name, s]: any) => ({ name, ...s })).sort((a, b) => b.revenue - a.revenue).slice(0, 5)
-
-  const topDebts = bookings.filter(b => b.paymentStatus !== "paid" && b.sellPrice - (b.paidAmount ?? 0) > 0).map(b => ({ ...b, remaining: b.sellPrice - (b.paidAmount ?? 0) })).sort((a, b) => b.remaining - a.remaining).slice(0, 5)
+  const topClients = Object.entries(clientStats).map(([name, s]: any) => ({ name, ...s })).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 5)
+  const topDebts = bookings.filter(b => b.paymentStatus !== "paid" && b.sellPrice - (b.paidAmount ?? 0) > 0).map(b => ({ ...b, remaining: b.sellPrice - (b.paidAmount ?? 0) })).sort((a: any, b: any) => b.remaining - a.remaining).slice(0, 5)
 
   return (
     <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}>
       <div className="flex items-center justify-between mb-7">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Dashboard</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>{new Date().toLocaleDateString("az-AZ", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>{new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
         </div>
       </div>
 
+      {/* KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <div className="col-span-2 lg:col-span-1 p-6 text-white relative overflow-hidden" style={{ background: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)", borderRadius: "24px" }}>
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10" style={{ background: "white", transform: "translate(20%, -30%)" }} />
@@ -235,6 +224,7 @@ const filteredByPeriod = bookings.filter(b => {
         ))}
       </div>
 
+      {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-5">
         {[
           { label: "Cəmi sifarişlər", value: bookings.length, icon: Users, color: "#6366f1", bg: "rgba(99,102,241,0.1)" },
@@ -248,64 +238,47 @@ const filteredByPeriod = bookings.filter(b => {
         ))}
       </div>
 
+      {/* Top Managers + Top Clients */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        {/* Top Managers with period filter */}
         <div style={cardStyle} className="overflow-hidden">
-        <div style={cardStyle} className="overflow-hidden">
-  <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
-    <div className="flex items-center gap-2">
-      <Trophy size={16} className="text-amber-500" />
-      <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Top Menecerlər</h2>
-    </div>
-    <div className="flex gap-1">
-      {[
-        { value: "week", label: "Həftə" },
-        { value: "month", label: "Ay" },
-        { value: "year", label: "İl" },
-      ].map(p => (
-        <button key={p.value} onClick={() => setManagerPeriod(p.value as any)}
-          className="px-2.5 py-1 rounded-xl text-xs font-medium transition-all"
-          style={{
-            background: managerPeriod === p.value ? "linear-gradient(135deg, #ef4444, #f97316)" : "var(--bg-glass)",
-            color: managerPeriod === p.value ? "white" : "var(--text-secondary)",
-            border: "1px solid var(--border-color)",
-          }}>
-          {p.label}
-        </button>
-      ))}
-    </div>
-  </div>
-  <div className="p-4 space-y-3">
-    {topManagers.length === 0 ? (
-      <p className="text-sm text-center py-4" style={{ color: "var(--text-muted)" }}>Bu dövrdə sifariş yoxdur</p>
-    ) : topManagers.map((m, i) => (
-      <div key={m.name} className="flex items-center gap-3">
-        <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: i < 3 ? gradients[i] : "var(--bg-glass)", color: i < 3 ? "white" : "var(--text-secondary)" }}>{i + 1}</div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{m.name}</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>{m.count} sifariş</p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{formatCurrency(m.revenue)}</p>
-          <p className="text-xs text-green-500">{formatCurrency(m.profit)}</p>
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
+            <div className="flex items-center gap-2">
+              <Trophy size={16} className="text-amber-500" />
+              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Top Menecerlər</h2>
+            </div>
+            <div className="flex gap-1">
+              {[{ value: "week", label: "Həftə" }, { value: "month", label: "Ay" }, { value: "year", label: "İl" }].map(p => (
+                <button key={p.value} onClick={() => setManagerPeriod(p.value as any)}
+                  className="px-2.5 py-1 rounded-xl text-xs font-medium transition-all"
+                  style={{ background: managerPeriod === p.value ? "linear-gradient(135deg, #ef4444, #f97316)" : "var(--bg-glass)", color: managerPeriod === p.value ? "white" : "var(--text-secondary)", border: "1px solid var(--border-color)" }}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="p-4 space-y-3">
-            {topManagers.map((m, i) => (
-              <div key={m.name} className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: i < 3 ? gradients[i] : "var(--bg-glass)", color: i < 3 ? "white" : "var(--text-secondary)" }}>{i + 1}</div>
-                <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{m.name}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{m.count} sifariş</p></div>
-                <div className="text-right"><p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{formatCurrency(m.revenue)}</p><p className="text-xs text-green-500">{formatCurrency(m.profit)}</p></div>
-              </div>
-            ))}
+            {topManagers.length === 0
+              ? <p className="text-sm text-center py-4" style={{ color: "var(--text-muted)" }}>Bu dövrdə sifariş yoxdur</p>
+              : topManagers.map((m: any, i: number) => (
+                <div key={m.name} className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: i < 3 ? gradients[i] : "var(--bg-glass)", color: i < 3 ? "white" : "var(--text-secondary)" }}>{i + 1}</div>
+                  <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{m.name}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{m.count} sifariş</p></div>
+                  <div className="text-right"><p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{formatCurrency(m.revenue)}</p><p className="text-xs text-green-500">{formatCurrency(m.profit)}</p></div>
+                </div>
+              ))
+            }
           </div>
         </div>
+
+        {/* Top Clients */}
         <div style={cardStyle} className="overflow-hidden">
-          <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}><Users size={16} className="text-blue-500" /><h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Top Müştərilər</h2></div>
+          <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
+            <Users size={16} className="text-blue-500" />
+            <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Top Müştərilər</h2>
+          </div>
           <div className="p-4 space-y-3">
-            {topClients.map((c, i) => (
+            {topClients.map((c: any, i: number) => (
               <div key={c.name} className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: i < 3 ? ["linear-gradient(135deg,#3b82f6,#06b6d4)", "linear-gradient(135deg,#8b5cf6,#6366f1)", "linear-gradient(135deg,#10b981,#34d399)"][i] : "var(--bg-glass)", color: i < 3 ? "white" : "var(--text-secondary)" }}>{i + 1}</div>
                 <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{c.name}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{c.count} sifariş</p></div>
@@ -316,6 +289,7 @@ const filteredByPeriod = bookings.filter(b => {
         </div>
       </div>
 
+      {/* Cash + Debts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         <div style={cardStyle} className="overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
@@ -334,6 +308,7 @@ const filteredByPeriod = bookings.filter(b => {
             }
           </div>
         </div>
+
         <div style={cardStyle} className="overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
             <div className="flex items-center gap-2"><AlertCircle size={16} className="text-red-500" /><h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Ən Böyük Borclar</h2></div>
@@ -341,7 +316,7 @@ const filteredByPeriod = bookings.filter(b => {
           </div>
           <div className="p-4 space-y-3">
             {topDebts.length === 0 ? <p className="text-sm text-center py-4" style={{ color: "var(--text-muted)" }}>Borc yoxdur 🎉</p> :
-              topDebts.map((b, i) => (
+              topDebts.map((b: any, i: number) => (
                 <div key={b.id} className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(239,68,68,0.1)" }}><span className="text-red-500 text-sm font-bold">{i + 1}</span></div>
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{b.clientName}</p><p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{b.destination}</p></div>
@@ -353,6 +328,7 @@ const filteredByPeriod = bookings.filter(b => {
         </div>
       </div>
 
+      {/* Recent bookings */}
       <div style={cardStyle} className="overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
           <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Son Sifarişlər</h2>
@@ -362,7 +338,7 @@ const filteredByPeriod = bookings.filter(b => {
           <table className="w-full text-sm">
             <thead><tr style={{ borderBottom: "1px solid var(--border-color)" }}>{["Müştəri", "İstiqamət", "Satış", "Mənfəət", "Ödəniş", "Status"].map(h => <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-6 py-4" style={{ color: "var(--text-muted)" }}>{h}</th>)}</tr></thead>
             <tbody>
-              {recent.map(b => (
+              {recent.map((b: any) => (
                 <tr key={b.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td className="px-6 py-3"><p className="font-semibold" style={{ color: "var(--text-primary)" }}>{b.clientName}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p></td>
                   <td className="px-6 py-3 max-w-xs truncate" style={{ color: "var(--text-secondary)" }}>{b.destination}</td>
@@ -391,11 +367,12 @@ export default function DashboardPage() {
     fetchPayments()
     supabase.from("cash_transactions").select("*").order("created_at", { ascending: false }).limit(5).then(({ data }) => setCashHistory(data ?? []))
   }, [])
-if (!profile) return null
 
-if (profile?.role === "menecer") {
-  return <ManagerDashboard bookings={bookings} profile={profile} />
-}
+  if (!profile) return null
+
+  if (profile?.role === "menecer") {
+    return <ManagerDashboard bookings={bookings} profile={profile} />
+  }
 
   return <AdminDashboard bookings={bookings} payments={payments} cashHistory={cashHistory} />
 }
