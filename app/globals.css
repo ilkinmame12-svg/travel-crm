@@ -91,3 +91,106 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
+/* Smooth page transitions */
+main {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Smooth card hover */
+.glass-card, [style*="border-radius: 24px"], [style*="borderRadius: 24px"] {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+}
+
+/* Button press effect */
+button, a {
+  transition: all 0.15s ease !important;
+}
+
+button:active, a:active {
+  transform: scale(0.97) !important;
+}
+
+/* Smooth modal */
+.modal-overlay {
+  animation: overlayIn 0.2s ease;
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Sidebar transition */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, width 0.3s ease;
+}
+
+/* Table row hover */
+tr {
+  transition: background 0.15s ease !important;
+}
+
+/* Input focus */
+input:focus, select:focus, textarea:focus {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+/* Page transition */
+main > div {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Button press */
+button:active {
+  transform: scale(0.96) !important;
+}
+
+a:active {
+  transform: scale(0.97) !important;
+}
+
+/* Input focus glow */
+input:focus, select:focus, textarea:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+/* Modal animation */
+.fixed.inset-0 > div {
+  animation: modalIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Table rows */
+tbody tr:hover {
+  background: var(--bg-glass) !important;
+  transition: background 0.15s ease;
+}
+
+/* Cards hover lift */
+.rounded-3xl {
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
