@@ -30,12 +30,16 @@ export default function ChatPage() {
   const [ready, setReady] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const intervalRef = useRef<any>(null)
+  const prevUnread = useRef<Record<string, number>>({})
 
-  useEffect(() => {
-    if (!profile) return
-    loadUsers()
-    setReady(true)
-  }, [profile])
+useEffect(() => {
+  if (!profile) return
+  loadUsers()
+  setReady(true)
+  if (typeof Notification !== "undefined" && Notification.permission === "default") {
+    Notification.requestPermission()
+  }
+}, [profile])
 
   useEffect(() => {
     if (!selectedUser || !profile) return
@@ -69,15 +73,39 @@ export default function ChatPage() {
     setMessages(data ?? [])
   }
 
-  async function loadUnread() {
-    if (!profile) return
-    const { data } = await supabase.from("messages").select("sender_id").eq("receiver_id", profile.id).eq("is_read", false)
-    if (data) {
-      const counts: Record<string, number> = {}
-      data.forEach((m: any) => { counts[m.sender_id] = (counts[m.sender_id] ?? 0) + 1 })
-      setUnread(counts)
+ async function loadUnread() {
+  if (!profile) return
+  const { data } = await supabase.from("messages").select("sender_id").eq("receiver_id", profile.id).eq("is_read", false)
+  if (data) {
+    const counts: Record<string, number> = {}
+    data.forEach((m: any) => { counts[m.sender_id] = (counts[m.sender_id] ?? 0) + 1 })
+    
+    // Check if new messages arrived
+    const hasNew = Object.entries(counts).some(([id, count]) => (prevUnread.current[id] ?? 0) < count)
+    if (hasNew) {
+      // Play sound
+      const ctx = new AudioContext()
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      o.connect(g); g.connect(ctx.destination)
+      o.frequency.setValueAtTime(880, ctx.currentTime)
+      o.frequency.setValueAtTime(660, ctx.currentTime + 0.1)
+      g.gain.setValueAtTime(0.3, ctx.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+      o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.3)
+
+      // Browser notification
+      if (Notification.permission === "granted") {
+        const sender = users.find(u => Object.keys(counts).includes(u.id))
+        new Notification("itstour CRM", { body: `${sender?.full_name ?? "Kimsə"} sizə mesaj göndərdi`, icon: "/logo.png" })
+      }
     }
+    
+    prevUnread.current = counts
+    setUnread(counts)
   }
+}
+  
 
   async function markAsRead() {
     if (!profile || !selectedUser) return
