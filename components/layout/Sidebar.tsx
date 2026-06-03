@@ -136,11 +136,19 @@ export default function Sidebar() {
               <div className="relative"
                 onMouseEnter={() => setFinanceOpen(true)}
                 onMouseLeave={() => setFinanceOpen(false)}>
-                <div className="flex items-center rounded-2xl transition-all cursor-pointer"
-                  style={{ gap: expanded ? "10px" : "0", padding: expanded ? "10px 12px" : "10px 0", justifyContent: expanded ? "flex-start" : "center", background: isFinanceActive ? "linear-gradient(135deg, #ef4444, #f97316)" : financeOpen ? "var(--bg-glass)" : "transparent", color: isFinanceActive ? "white" : "var(--text-secondary)", borderRadius: "16px", whiteSpace: "nowrap" }}>
-                  <Wallet size={17} style={{ flexShrink: 0 }} />
-                  {expanded && <span className="text-sm font-medium">Maliyyə ▾</span>}
-                </div>
+                <Link href="/finances" className="flex items-center rounded-2xl transition-all"
+  style={{
+    gap: expanded ? "10px" : "0",
+    padding: expanded ? "10px 12px" : "10px 0",
+    justifyContent: expanded ? "flex-start" : "center",
+    background: isFinanceActive ? "linear-gradient(135deg, #ef4444, #f97316)" : financeOpen ? "var(--bg-glass)" : "transparent",
+    color: isFinanceActive ? "white" : "var(--text-secondary)",
+    borderRadius: "16px",
+    whiteSpace: "nowrap",
+  }}>
+  <Wallet size={17} style={{ flexShrink: 0 }} />
+  {expanded && <span className="text-sm font-medium">Maliyyə ▾</span>}
+</Link>
 
                 {financeOpen && (
                   <div className="absolute left-full top-0 ml-2 py-2 rounded-2xl z-50 min-w-[170px]"
