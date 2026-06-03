@@ -170,9 +170,7 @@ export default function SifarislerPage() {
     setModal(null)
     setSelected(null)
   }
-
-  if (!ready) return null
-
+if (!ready || !profile) return null
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex items-center justify-between mb-6">
