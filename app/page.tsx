@@ -337,10 +337,11 @@ export default function DashboardPage() {
     fetchPayments()
     supabase.from("cash_transactions").select("*").order("created_at", { ascending: false }).limit(5).then(({ data }) => setCashHistory(data ?? []))
   }, [])
+if (!profile) return null
 
-  if (profile?.role === "menecer") {
-    return <ManagerDashboard bookings={bookings} profile={profile} />
-  }
+if (profile?.role === "menecer") {
+  return <ManagerDashboard bookings={bookings} profile={profile} />
+}
 
   return <AdminDashboard bookings={bookings} payments={payments} cashHistory={cashHistory} />
 }
