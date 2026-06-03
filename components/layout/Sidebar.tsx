@@ -11,19 +11,24 @@ import { ThemeToggle } from "@/components/ThemeProvider"
 const ALL_MENU = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
   { href: "/bookings", label: "Sifarişlər", icon: ClipboardList, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
-  { href: "/finances", label: "Maliyyə", icon: Wallet, roles: ["it_admin", "boss", "direktor", "muhasib"] },
-  { href: "/debts", label: "Borclar", icon: CreditCard, roles: ["it_admin", "boss", "direktor", "muhasib"] },
-  { href: "/creditors", label: "Kreditorlar", icon: Building2, roles: ["it_admin", "boss", "direktor", "muhasib"] },
-  { href: "/balances", label: "Balanslar", icon: Scale, roles: ["it_admin", "boss", "direktor", "muhasib"] },
-  { href: "/iata", label: "IATA", icon: Globe, roles: ["it_admin", "boss", "direktor", "muhasib"] },
-  { href: "/employees", label: "İşçilər", icon: Users, roles: ["it_admin", "boss", "direktor", "muhasib"] },
+  { href: "/drafts", label: "Təsdiq", icon: Clock, roles: ["it_admin", "direktor", "muhasib", "menecer"] },
   { href: "/flights", label: "TK NDC", icon: PlaneTakeoff, roles: ["it_admin", "direktor", "menecer"] },
   { href: "/assistant", label: "AI Köməkçi", icon: BotMessageSquare, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
-  { href: "/drafts", label: "Təsdiq", icon: Clock, roles: ["it_admin", "direktor", "muhasib", "menecer"] },
   { href: "/chat", label: "Mesajlar", icon: MessageCircle, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
+  { href: "/employees", label: "İşçilər", icon: Users, roles: ["it_admin", "boss", "direktor", "muhasib"] },
   { href: "/settings", label: "Ayarlar", icon: Settings, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
   { href: "/help", label: "Help", icon: HelpCircle, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
 ]
+
+const FINANCE_MENU = [
+  { href: "/finances", label: "Maliyyə", icon: Wallet },
+  { href: "/debts", label: "Borclar", icon: CreditCard },
+  { href: "/creditors", label: "Kreditorlar", icon: Building2 },
+  { href: "/balances", label: "Balanslar", icon: Scale },
+  { href: "/iata", label: "IATA", icon: Globe },
+]
+
+const FINANCE_ROLES = ["it_admin", "boss", "direktor", "muhasib"]
 
 const ROLE_LABELS: Record<string, string> = {
   it_admin: "IT Admin", boss: "Boss", direktor: "Direktor", muhasib: "Mühasib", menecer: "Menecer",
@@ -75,6 +80,7 @@ export default function Sidebar() {
   const { profile, loading } = useUserRole()
   const [mounted, setMounted] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [financeOpen, setFinanceOpen] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -104,8 +110,8 @@ export default function Sidebar() {
           {expanded ? (
             <Image src="/logo.png" alt="itstour" width={100} height={34} className="object-contain" />
           ) : (
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm mx-auto"
-              style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>it</div>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-xl mx-auto"
+  style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>✈</div>
           )}
           <button onClick={() => setExpanded(!expanded)} className="w-6 h-6 rounded-lg flex items-center justify-center transition-all"
             style={{ color: "var(--text-muted)", background: "var(--bg-glass)", flexShrink: 0 }}>
@@ -114,6 +120,45 @@ export default function Sidebar() {
         </div>
 
         {/* Menu */}
+        {/* Finance group */}
+{profile && FINANCE_ROLES.includes(profile.role) && (
+  <div className="relative"
+    onMouseEnter={() => setFinanceOpen(true)}
+    onMouseLeave={() => setFinanceOpen(false)}>
+    <div className="flex items-center rounded-2xl transition-all cursor-pointer"
+      style={{
+        gap: expanded ? "10px" : "0",
+        padding: expanded ? "10px 12px" : "10px 0",
+        justifyContent: expanded ? "flex-start" : "center",
+        background: FINANCE_MENU.some(f => pathname === f.href) ? "linear-gradient(135deg, #ef4444, #f97316)" : financeOpen ? "var(--bg-glass)" : "transparent",
+        color: FINANCE_MENU.some(f => pathname === f.href) ? "white" : "var(--text-secondary)",
+        borderRadius: "16px",
+      }}>
+      <Wallet size={17} style={{ flexShrink: 0 }} />
+      {expanded && <span className="text-sm font-medium">Maliyyə</span>}
+    </div>
+
+    {/* Submenu */}
+    {financeOpen && (
+      <div className="absolute left-full top-0 ml-2 py-2 rounded-2xl z-50 min-w-[160px]"
+        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+        {FINANCE_MENU.map(f => {
+          const Icon = f.icon
+          return (
+            <Link key={f.href} href={f.href}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all"
+              style={{ color: pathname === f.href ? "#ef4444" : "var(--text-primary)" }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+              <Icon size={15} />
+              {f.label}
+            </Link>
+          )
+        })}
+      </div>
+    )}
+  </div>
+)}
         <div className="flex-1 py-3 overflow-y-auto overflow-x-hidden">
           <nav className="space-y-1 px-2">
             {MENU.map(item => {
