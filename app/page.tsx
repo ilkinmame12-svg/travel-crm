@@ -50,7 +50,7 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[], profile: any
       <div className="mb-7">
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Salam, {profile?.fullName?.split(" ")[0]} 👋</h1>
         <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
-          {new Date().toLocaleDateString("az-AZ", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+        {new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
 
