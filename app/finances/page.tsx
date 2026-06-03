@@ -6,13 +6,11 @@ import { usePaymentsStore } from "@/lib/store/paymentsStore"
 import { formatCurrency } from "@/lib/calculations"
 import { TrendingUp, TrendingDown, DollarSign, Plus, Trash2 } from "lucide-react"
 
-interface Expense {
-  id: string
-  name: string
-  amount: number
-  category: string
-  date: string
-}
+interface Expense { id: string; name: string; amount: number; category: string; date: string }
+
+const card = { background: "var(--bg-card)", border: "1px solid var(--border-color)", backdropFilter: "blur(20px)", borderRadius: "24px" }
+const modalCard = { background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "24px" }
+const inputStyle = { background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "12px", padding: "10px 16px", fontSize: "14px", outline: "none", width: "100%" }
 
 export default function FinancesPage() {
   const { bookings, fetchBookings } = useBookingsStore()
@@ -33,20 +31,12 @@ export default function FinancesPage() {
 
   async function loadCash() {
     const { data: balances } = await supabase.from("cash_balance").select("*")
-    if (balances) {
-      setCashAZN(balances.find((c: any) => c.currency === "AZN")?.amount ?? 0)
-      setCashUSD(balances.find((c: any) => c.currency === "USD")?.amount ?? 0)
-    }
+    if (balances) { setCashAZN(balances.find((c: any) => c.currency === "AZN")?.amount ?? 0); setCashUSD(balances.find((c: any) => c.currency === "USD")?.amount ?? 0) }
     const { data: history } = await supabase.from("cash_transactions").select("*").order("created_at", { ascending: false }).limit(20)
     setCashHistory(history ?? [])
   }
 
-  useEffect(() => {
-    fetchBookings()
-    fetchPayments()
-    loadCash()
-    setReady(true)
-  }, [])
+  useEffect(() => { fetchBookings(); fetchPayments(); loadCash(); setReady(true) }, [])
 
   const totalBookingRevenue = bookings.reduce((s, b) => s + b.sellPrice, 0)
   const totalBookingCost = bookings.reduce((s, b) => s + b.buyPrice, 0)
@@ -65,188 +55,91 @@ export default function FinancesPage() {
     let remaining = Number(fd.get("amount"))
     const date = fd.get("date") as string
     const description = fd.get("description") as string
-
     if (selectedBookingId) {
       const booking = bookings.find(b => b.id === selectedBookingId)
-      if (booking) {
-        const debt = booking.sellPrice - (booking.paidAmount ?? 0)
-        const toPay = Math.min(remaining, debt)
-        await addPayment({ clientName, amount: toPay, description, date, bookingId: selectedBookingId })
-        remaining -= toPay
-      }
+      if (booking) { const debt = booking.sellPrice - (booking.paidAmount ?? 0); const toPay = Math.min(remaining, debt); await addPayment({ clientName, amount: toPay, description, date, bookingId: selectedBookingId }); remaining -= toPay }
     }
-
     if (remaining > 0) {
-      const unpaid = bookings
-        .filter(b => b.clientName.toLowerCase() === clientName.toLowerCase() && b.paymentStatus !== "paid" && b.id !== selectedBookingId)
-        .sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
-      for (const booking of unpaid) {
-        if (remaining <= 0) break
-        const debt = booking.sellPrice - (booking.paidAmount ?? 0)
-        if (debt <= 0) continue
-        const toPay = Math.min(remaining, debt)
-        await addPayment({ clientName, amount: toPay, description: `Auto: ${description}`, date, bookingId: booking.id })
-        remaining -= toPay
-      }
+      const unpaid = bookings.filter(b => b.clientName.toLowerCase() === clientName.toLowerCase() && b.paymentStatus !== "paid" && b.id !== selectedBookingId).sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
+      for (const booking of unpaid) { if (remaining <= 0) break; const debt = booking.sellPrice - (booking.paidAmount ?? 0); if (debt <= 0) continue; const toPay = Math.min(remaining, debt); await addPayment({ clientName, amount: toPay, description: `Auto: ${description}`, date, bookingId: booking.id }); remaining -= toPay }
     }
-
     if (remaining > 0) {
-      const { data: existingBalance } = await supabase.from("client_balances").select("*").ilike("client_name", clientName).single()
-      if (existingBalance) {
-        await supabase.from("client_balances").update({ balance: existingBalance.balance + remaining }).eq("id", existingBalance.id)
-      } else {
-        await supabase.from("client_balances").insert({ client_name: clientName, balance: remaining })
-      }
+      const { data: eb } = await supabase.from("client_balances").select("*").ilike("client_name", clientName).single()
+      if (eb) await supabase.from("client_balances").update({ balance: eb.balance + remaining }).eq("id", eb.id)
+      else await supabase.from("client_balances").insert({ client_name: clientName, balance: remaining })
       await supabase.from("client_balance_transactions").insert({ client_name: clientName, amount: remaining, type: "credit", description: `Artıq ödəniş: ${description}` })
     }
-
-    await fetchBookings()
-    setSelectedBookingId("")
-    setModal(null)
+    await fetchBookings(); setSelectedBookingId(""); setModal(null)
   }
 
   function handleAddExpense(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    setExpenses(prev => [...prev, {
-      id: Date.now().toString(),
-      name: fd.get("name") as string,
-      amount: Number(fd.get("amount")),
-      category: fd.get("category") as string,
-      date: fd.get("date") as string,
-    }])
+    setExpenses(prev => [...prev, { id: Date.now().toString(), name: fd.get("name") as string, amount: Number(fd.get("amount")), category: fd.get("category") as string, date: fd.get("date") as string }])
     setModal(null)
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}>
+      <div className="flex items-center justify-between mb-7">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Maliyyə</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Maliyyə hesabatı</p>
+          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Maliyyə</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Maliyyə hesabatı</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setModal("income")}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 shadow-sm">
-            <Plus size={16} />
-            Gəlir əlavə et
-          </button>
-          <button onClick={() => setModal("expense")}
-            className="flex items-center gap-2 bg-red-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 shadow-sm">
-            <Plus size={16} />
-            Xərc əlavə et
-          </button>
+        <div className="flex gap-3">
+          <button onClick={() => setModal("income")} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium text-white" style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}><Plus size={16} />Gəlir əlavə et</button>
+          <button onClick={() => setModal("expense")} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium text-white" style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}><Plus size={16} />Xərc əlavə et</button>
         </div>
       </div>
 
       <div className="grid grid-cols-5 gap-4 mb-6">
-        <div className="bg-green-600 rounded-2xl p-5 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm opacity-90">Ümumi gəlir</p>
-            <TrendingUp size={18} className="opacity-70" />
-          </div>
+        <div className="p-6 text-white rounded-3xl col-span-1" style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}>
+          <div className="flex items-center justify-between mb-3"><p className="text-sm opacity-80">Ümumi gəlir</p><TrendingUp size={18} className="opacity-70" /></div>
           <p className="text-2xl font-bold">{formatCurrency(totalBookingRevenue + totalManualIncome)}</p>
           <p className="text-xs opacity-70 mt-1">Sifarişlər + ödənişlər</p>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">Alış xərci</p>
-            <TrendingDown size={18} className="text-red-400" />
+        {[
+          { label: "Alış xərci", value: formatCurrency(totalBookingCost), icon: TrendingDown, color: "#ef4444", bg: "rgba(239,68,68,0.1)", sub: "Bilet və tur" },
+          { label: "Əməliyyat xərcləri", value: formatCurrency(totalExpenses), icon: TrendingDown, color: "#f97316", bg: "rgba(249,115,22,0.1)", sub: `${expenses.length} xərc` },
+          { label: "Xalis mənfəət", value: formatCurrency(totalProfit), icon: DollarSign, color: "#22c55e", bg: "rgba(34,197,94,0.1)", sub: `Marja: ${margin}%` },
+        ].map(({ label, value, icon: Icon, color, bg, sub }) => (
+          <div key={label} className="p-5 rounded-3xl" style={card}>
+            <div className="flex items-center justify-between mb-3"><p className="text-xs" style={{ color: "var(--text-secondary)" }}>{label}</p><div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: bg }}><Icon size={14} style={{ color }} /></div></div>
+            <p className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>{value}</p>
+            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{sub}</p>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalBookingCost)}</p>
-          <p className="text-xs text-gray-400 mt-1">Bilet və tur xərcləri</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">Əməliyyat xərcləri</p>
-            <TrendingDown size={18} className="text-orange-400" />
-          </div>
-          <p className="text-2xl font-bold text-red-500">{formatCurrency(totalExpenses)}</p>
-          <p className="text-xs text-gray-400 mt-1">{expenses.length} xərc qeydi</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">Xalis mənfəət</p>
-            <DollarSign size={18} className="text-green-500" />
-          </div>
-          <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-500"}`}>{formatCurrency(totalProfit)}</p>
-          <p className="text-xs text-gray-400 mt-1">Marja: {margin}%</p>
-        </div>
-        <div className="bg-white rounded-2xl border-2 border-blue-200 p-5 cursor-pointer hover:border-blue-400 transition-colors" onClick={() => setCashModal(true)}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">Kassa (Nağd)</p>
-            <span className="text-lg">💵</span>
-          </div>
-          <p className="text-xl font-bold text-blue-600">{formatCurrency(cashAZN)}</p>
-          <p className="text-sm font-semibold text-green-600">${cashUSD.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-1">Ofisdəki nağd pul</p>
+        ))}
+        <div className="p-5 rounded-3xl cursor-pointer transition-all hover:scale-[1.02]" style={{ ...card, borderColor: "rgba(99,102,241,0.3)" }} onClick={() => setCashModal(true)}>
+          <div className="flex items-center justify-between mb-3"><p className="text-xs" style={{ color: "var(--text-secondary)" }}>Kassa (Nağd)</p><span className="text-lg">💵</span></div>
+          <p className="text-xl font-bold" style={{ color: "#6366f1" }}>{formatCurrency(cashAZN)}</p>
+          <p className="text-sm font-semibold text-green-500">${cashUSD.toFixed(2)}</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100">
-        <div className="flex gap-2 px-6 py-4 border-b border-gray-100">
-          {[
-            { value: "overview", label: "Ümumi baxış" },
-            { value: "income", label: `💚 Gəlirlər (${payments.length})` },
-            { value: "expense", label: `🔴 Xərclər (${expenses.length})` },
-          ].map(t => (
-            <button key={t.value} onClick={() => setTab(t.value as any)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                tab === t.value ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"
-              }`}>
+      <div className="rounded-3xl overflow-hidden" style={card}>
+        <div className="flex gap-2 px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
+          {[{ value: "overview", label: "Ümumi baxış" }, { value: "income", label: `💚 Gəlirlər (${payments.length})` }, { value: "expense", label: `🔴 Xərclər (${expenses.length})` }].map(t => (
+            <button key={t.value} onClick={() => setTab(t.value as any)} className="px-4 py-2 rounded-2xl text-sm font-medium transition-all"
+              style={{ background: tab === t.value ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent", color: tab === t.value ? "white" : "var(--text-secondary)" }}>
               {t.label}
             </button>
           ))}
         </div>
 
         {tab === "overview" && (
-          <div className="grid grid-cols-2 divide-x divide-gray-100">
+          <div className="grid grid-cols-2 divide-x" style={{ borderColor: "var(--border-color)" }}>
             <div className="p-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Son ödənişlər</h3>
-              {payments.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-8">Hələ ödəniş yoxdur</p>
-              ) : (
+              <h3 className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Son ödənişlər</h3>
+              {payments.length === 0 ? <p className="text-sm text-center py-8" style={{ color: "var(--text-muted)" }}>Hələ ödəniş yoxdur</p> : (
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      {["Müştəri", "Açıqlama", "Məbləğ"].map(h => (
-                        <th key={h} className="text-left text-xs font-semibold text-gray-400 pb-2">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {payments.slice(0, 6).map(p => (
-                      <tr key={p.id} className="border-b border-gray-50">
-                        <td className="py-2 text-gray-900 font-medium">{p.clientName}</td>
-                        <td className="py-2 text-gray-500">{p.description}</td>
-                        <td className="py-2 font-bold text-green-600">{formatCurrency(p.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
+                  <tbody>{payments.slice(0, 6).map(p => (<tr key={p.id} className="border-b" style={{ borderColor: "var(--border-color)" }}><td className="py-2 font-medium" style={{ color: "var(--text-primary)" }}>{p.clientName}</td><td className="py-2" style={{ color: "var(--text-secondary)" }}>{p.description}</td><td className="py-2 font-bold text-green-500">{formatCurrency(p.amount)}</td></tr>))}</tbody>
                 </table>
               )}
             </div>
             <div className="p-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Son xərclər</h3>
+              <h3 className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Son xərclər</h3>
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    {["Ad", "Kateqoriya", "Məbləğ"].map(h => (
-                      <th key={h} className="text-left text-xs font-semibold text-gray-400 pb-2">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.slice(0, 6).map(e => (
-                    <tr key={e.id} className="border-b border-gray-50">
-                      <td className="py-2 text-gray-900 font-medium">{e.name}</td>
-                      <td className="py-2">
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{e.category}</span>
-                      </td>
-                      <td className="py-2 font-semibold text-red-500">{formatCurrency(e.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
+                <tbody>{expenses.slice(0, 6).map(e => (<tr key={e.id} className="border-b" style={{ borderColor: "var(--border-color)" }}><td className="py-2 font-medium" style={{ color: "var(--text-primary)" }}>{e.name}</td><td className="py-2"><span className="text-xs px-2 py-0.5 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>{e.category}</span></td><td className="py-2 font-semibold text-red-500">{formatCurrency(e.amount)}</td></tr>))}</tbody>
               </table>
             </div>
           </div>
@@ -254,46 +147,11 @@ export default function FinancesPage() {
 
         {tab === "income" && (
           <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-700">Daxil olan ödənişlər</h3>
-              <p className="text-sm font-bold text-green-600">Cəmi: {formatCurrency(totalManualIncome)}</p>
-            </div>
-            {payments.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <p className="text-sm">Hələ ödəniş qeydi yoxdur</p>
-                <button onClick={() => setModal("income")} className="mt-3 text-green-600 text-sm font-medium hover:underline">
-                  + Gəlir əlavə et
-                </button>
-              </div>
-            ) : (
+            <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Daxil olan ödənişlər</h3><p className="text-sm font-bold text-green-500">Cəmi: {formatCurrency(totalManualIncome)}</p></div>
+            {payments.length === 0 ? <p className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>Hələ ödəniş yoxdur</p> : (
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    {["Müştəri", "Açıqlama", "Tarix", "Məbləğ", "Sifariş", ""].map(h => (
-                      <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map(p => {
-                    const booking = bookings.find(b => b.id === p.bookingId)
-                    return (
-                      <tr key={p.id} className="hover:bg-gray-50 group border-b border-gray-50">
-                        <td className="py-3 font-medium text-gray-900">{p.clientName}</td>
-                        <td className="py-3 text-gray-500">{p.description}</td>
-                        <td className="py-3 text-gray-500">{p.date}</td>
-                        <td className="py-3 font-bold text-green-600">{formatCurrency(p.amount)}</td>
-                        <td className="py-3 text-xs text-gray-400">{booking ? `${booking.destination}` : "—"}</td>
-                        <td className="py-3">
-                          <button onClick={() => deletePayment(p.id)}
-                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
+                <thead><tr style={{ borderBottom: "1px solid var(--border-color)" }}>{["Müştəri", "Açıqlama", "Tarix", "Məbləğ", "Sifariş", ""].map(h => <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider pb-3" style={{ color: "var(--text-muted)" }}>{h}</th>)}</tr></thead>
+                <tbody>{payments.map(p => { const booking = bookings.find(b => b.id === p.bookingId); return (<tr key={p.id} className="group border-b" style={{ borderColor: "var(--border-color)" }}><td className="py-3 font-medium" style={{ color: "var(--text-primary)" }}>{p.clientName}</td><td className="py-3" style={{ color: "var(--text-secondary)" }}>{p.description}</td><td className="py-3" style={{ color: "var(--text-muted)" }}>{p.date}</td><td className="py-3 font-bold text-green-500">{formatCurrency(p.amount)}</td><td className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>{booking ? booking.destination : "—"}</td><td className="py-3"><button onClick={() => deletePayment(p.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><Trash2 size={14} /></button></td></tr>) })}</tbody>
               </table>
             )}
           </div>
@@ -301,196 +159,75 @@ export default function FinancesPage() {
 
         {tab === "expense" && (
           <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-700">Əməliyyat xərcləri</h3>
-              <p className="text-sm font-bold text-red-500">Cəmi: {formatCurrency(totalExpenses)}</p>
-            </div>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Əməliyyat xərcləri</h3><p className="text-sm font-bold text-red-500">Cəmi: {formatCurrency(totalExpenses)}</p></div>
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  {["Ad", "Kateqoriya", "Tarix", "Məbləğ", ""].map(h => (
-                    <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map(e => (
-                  <tr key={e.id} className="hover:bg-gray-50 group border-b border-gray-50">
-                    <td className="py-3 font-medium text-gray-900">{e.name}</td>
-                    <td className="py-3">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md">{e.category}</span>
-                    </td>
-                    <td className="py-3 text-gray-500">{e.date}</td>
-                    <td className="py-3 font-semibold text-red-500">{formatCurrency(e.amount)}</td>
-                    <td className="py-3">
-                      <button onClick={() => setExpenses(prev => prev.filter(x => x.id !== e.id))}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+              <thead><tr style={{ borderBottom: "1px solid var(--border-color)" }}>{["Ad", "Kateqoriya", "Tarix", "Məbləğ", ""].map(h => <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider pb-3" style={{ color: "var(--text-muted)" }}>{h}</th>)}</tr></thead>
+              <tbody>{expenses.map(e => (<tr key={e.id} className="group border-b" style={{ borderColor: "var(--border-color)" }}><td className="py-3 font-medium" style={{ color: "var(--text-primary)" }}>{e.name}</td><td className="py-3"><span className="text-xs px-2 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>{e.category}</span></td><td className="py-3" style={{ color: "var(--text-muted)" }}>{e.date}</td><td className="py-3 font-semibold text-red-500">{formatCurrency(e.amount)}</td><td className="py-3"><button onClick={() => setExpenses(prev => prev.filter(x => x.id !== e.id))} className="opacity-0 group-hover:opacity-100 p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><Trash2 size={14} /></button></td></tr>))}</tbody>
             </table>
           </div>
         )}
       </div>
 
       {cashModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">💵 Kassa</h2>
-              <button onClick={() => setCashModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto" style={modalCard}>
+            <div className="flex items-center justify-between mb-5"><h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>💵 Kassa</h2><button onClick={() => setCashModal(false)} style={{ color: "var(--text-muted)" }} className="text-xl">✕</button></div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="p-3 rounded-2xl text-center" style={{ background: "rgba(99,102,241,0.1)" }}><p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>AZN</p><p className="text-xl font-bold" style={{ color: "#6366f1" }}>{formatCurrency(cashAZN)}</p></div>
+              <div className="p-3 rounded-2xl text-center" style={{ background: "rgba(34,197,94,0.1)" }}><p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>USD</p><p className="text-xl font-bold text-green-500">${cashUSD.toFixed(2)}</p></div>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-blue-50 rounded-xl p-3 text-center">
-                  <p className="text-xs text-gray-500 mb-1">AZN</p>
-                  <p className="text-xl font-bold text-blue-600">{formatCurrency(cashAZN)}</p>
-                </div>
-                <div className="bg-green-50 rounded-xl p-3 text-center">
-                  <p className="text-xs text-gray-500 mb-1">USD</p>
-                  <p className="text-xl font-bold text-green-600">${cashUSD.toFixed(2)}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setCashOperation("add")}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashOperation === "add" ? "bg-green-500 text-white border-green-500" : "border-gray-200 text-gray-600"}`}>
-                  + Gəlir
-                </button>
-                <button onClick={() => setCashOperation("subtract")}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashOperation === "subtract" ? "bg-red-500 text-white border-red-500" : "border-gray-200 text-gray-600"}`}>
-                  − Xərc
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setCashCurrency("AZN")}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashCurrency === "AZN" ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600"}`}>
-                  AZN
-                </button>
-                <button onClick={() => setCashCurrency("USD")}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${cashCurrency === "USD" ? "bg-green-600 text-white border-green-600" : "border-gray-200 text-gray-600"}`}>
-                  USD
-                </button>
-              </div>
-              <input
-                type="number"
-                value={cashInput}
-                onChange={e => setCashInput(e.target.value)}
-                placeholder={`Məbləğ (${cashCurrency})`}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-              <input
-                type="text"
-                value={cashReason}
-                onChange={e => setCashReason(e.target.value)}
-                placeholder="Səbəb (məs: Müştəri ödənişi, Ofis xərci...)"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    const amount = parseFloat(cashInput)
-                    if (!amount || amount <= 0) return
-                    if (cashCurrency === "AZN") {
-                      const newVal = cashOperation === "add" ? cashAZN + amount : Math.max(0, cashAZN - amount)
-                      setCashAZN(newVal)
-                      await supabase.from("cash_balance").update({ amount: newVal, updated_at: new Date().toISOString() }).eq("currency", "AZN")
-                      await supabase.from("cash_transactions").insert({ currency: "AZN", operation: cashOperation, amount, reason: cashReason || null, balance_after: newVal })
-                    } else {
-                      const newVal = cashOperation === "add" ? cashUSD + amount : Math.max(0, cashUSD - amount)
-                      setCashUSD(newVal)
-                      await supabase.from("cash_balance").update({ amount: newVal, updated_at: new Date().toISOString() }).eq("currency", "USD")
-                      await supabase.from("cash_transactions").insert({ currency: "USD", operation: cashOperation, amount, reason: cashReason || null, balance_after: newVal })
-                    }
-                    setCashInput("")
-                    setCashReason("")
-                    await loadCash()
-                    setCashModal(false)
-                  }}
-                  className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700"
-                >
-                  Təsdiq et
-                </button>
-                <button onClick={() => setCashModal(false)}
-                  className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
-                  Ləğv et
-                </button>
-              </div>
-
-              {cashHistory.length > 0 && (
-                <div className="border border-gray-100 rounded-xl overflow-hidden">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2 bg-gray-50">Son əməliyyatlar</p>
-                  <div className="divide-y divide-gray-50 max-h-48 overflow-y-auto">
-                    {cashHistory.map((t: any) => (
-                      <div key={t.id} className="flex items-center justify-between px-3 py-2.5">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-gray-700 truncate">{t.reason || "Səbəb yoxdur"}</p>
-                          <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleDateString("az-AZ")} {new Date(t.created_at).toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" })}</p>
-                        </div>
-                        <div className="text-right ml-3">
-                          <p className={`text-sm font-bold ${t.operation === "add" ? "text-green-600" : "text-red-500"}`}>
-                            {t.operation === "add" ? "+" : "−"}{t.amount} {t.currency}
-                          </p>
-                          <p className="text-xs text-gray-400">Qalıq: {t.balance_after} {t.currency}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="flex gap-2 mb-3">
+              {["add", "subtract"].map(op => <button key={op} onClick={() => setCashOperation(op as any)} className="flex-1 py-2 rounded-2xl text-sm font-medium transition-all" style={{ background: cashOperation === op ? (op === "add" ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)") : "var(--bg-glass)", border: "1px solid var(--border-color)", color: cashOperation === op ? (op === "add" ? "#22c55e" : "#ef4444") : "var(--text-secondary)" }}>{op === "add" ? "+ Gəlir" : "− Xərc"}</button>)}
             </div>
+            <div className="flex gap-2 mb-3">
+              {["AZN", "USD"].map(cur => <button key={cur} onClick={() => setCashCurrency(cur as any)} className="flex-1 py-2 rounded-2xl text-sm font-medium transition-all" style={{ background: cashCurrency === cur ? "rgba(99,102,241,0.2)" : "var(--bg-glass)", border: "1px solid var(--border-color)", color: cashCurrency === cur ? "#6366f1" : "var(--text-secondary)" }}>{cur}</button>)}
+            </div>
+            <input type="number" value={cashInput} onChange={e => setCashInput(e.target.value)} placeholder={`Məbləğ (${cashCurrency})`} style={{ ...inputStyle, marginBottom: "8px" }} />
+            <input type="text" value={cashReason} onChange={e => setCashReason(e.target.value)} placeholder="Səbəb..." style={{ ...inputStyle, marginBottom: "12px" }} />
+            <div className="flex gap-2 mb-4">
+              <button onClick={async () => {
+                const amount = parseFloat(cashInput); if (!amount || amount <= 0) return
+                if (cashCurrency === "AZN") { const nv = cashOperation === "add" ? cashAZN + amount : Math.max(0, cashAZN - amount); setCashAZN(nv); await supabase.from("cash_balance").update({ amount: nv, updated_at: new Date().toISOString() }).eq("currency", "AZN"); await supabase.from("cash_transactions").insert({ currency: "AZN", operation: cashOperation, amount, reason: cashReason || null, balance_after: nv }) }
+                else { const nv = cashOperation === "add" ? cashUSD + amount : Math.max(0, cashUSD - amount); setCashUSD(nv); await supabase.from("cash_balance").update({ amount: nv, updated_at: new Date().toISOString() }).eq("currency", "USD"); await supabase.from("cash_transactions").insert({ currency: "USD", operation: cashOperation, amount, reason: cashReason || null, balance_after: nv }) }
+                setCashInput(""); setCashReason(""); await loadCash(); setCashModal(false)
+              }} className="flex-1 py-2.5 rounded-2xl text-sm font-medium text-white" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>Təsdiq et</button>
+              <button onClick={() => setCashModal(false)} className="flex-1 py-2.5 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>Ləğv et</button>
+            </div>
+            {cashHistory.length > 0 && (
+              <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
+                <p className="text-xs font-semibold uppercase tracking-wider px-3 py-2" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>Son əməliyyatlar</p>
+                <div className="max-h-48 overflow-y-auto divide-y" style={{ borderColor: "var(--border-color)" }}>
+                  {cashHistory.map((t: any) => (
+                    <div key={t.id} className="flex items-center justify-between px-3 py-2.5">
+                      <div className="flex-1 min-w-0"><p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>{t.reason || "Səbəb yoxdur"}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{new Date(t.created_at).toLocaleDateString("az-AZ")}</p></div>
+                      <p className={`text-sm font-bold ml-3 ${t.operation === "add" ? "text-green-500" : "text-red-500"}`}>{t.operation === "add" ? "+" : "−"}{t.amount} {t.currency}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {modal === "income" && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">Yeni ödəniş</h2>
-              <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            <form onSubmit={handleAddIncome} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Müştəri / Şirkət adı *</label>
-                <input name="name" required placeholder="Məs: Leyla Mammadova"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ödəniş sifarişə aiddir? (optional)</label>
-                <select value={selectedBookingId} onChange={e => setSelectedBookingId(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
-                  <option value="">— Seçin (istəyə görə) —</option>
-                  {unpaidBookings.map(b => (
-                    <option key={b.id} value={b.id}>
-                      {b.clientName} — {b.destination} — Qalıq: {formatCurrency(b.sellPrice - (b.paidAmount ?? 0))}
-                    </option>
-                  ))}
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md p-6" style={modalCard}>
+            <div className="flex items-center justify-between mb-5"><h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Yeni ödəniş</h2><button onClick={() => setModal(null)} style={{ color: "var(--text-muted)" }} className="text-xl">✕</button></div>
+            <form onSubmit={handleAddIncome} className="space-y-3">
+              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Müştəri / Şirkət adı *</label><input name="name" required placeholder="Məs: Leyla Mammadova" style={inputStyle} /></div>
+              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ödəniş sifarişə aiddir?</label>
+                <select value={selectedBookingId} onChange={e => setSelectedBookingId(e.target.value)} style={inputStyle}>
+                  <option value="">— Seçin —</option>
+                  {unpaidBookings.map(b => <option key={b.id} value={b.id}>{b.clientName} — {b.destination} — {formatCurrency(b.sellPrice - (b.paidAmount ?? 0))}</option>)}
                 </select>
-                {selectedBookingId && (
-                  <p className="text-xs text-green-600 mt-1">✓ Bu ödəniş seçilmiş sifarişin borcundan çıxılacaq</p>
-                )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Məbləğ (AZN) *</label>
-                <input name="amount" type="number" step="0.01" min="0" required
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Açıqlama</label>
-                <input name="description" placeholder="Məs: Noyabr borcu ödənildi"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tarix</label>
-                <input name="date" type="date" defaultValue={new Date().toISOString().split("T")[0]}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-              </div>
-              <div className="flex justify-end gap-3 pt-2 border-t">
-                <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Ləğv et</button>
-                <button type="submit" className="px-5 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium">Yadda saxla</button>
+              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Məbləğ (AZN) *</label><input name="amount" type="number" step="0.01" min="0" required style={inputStyle} /></div>
+              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Açıqlama</label><input name="description" style={inputStyle} /></div>
+              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Tarix</label><input name="date" type="date" defaultValue={new Date().toISOString().split("T")[0]} style={inputStyle} /></div>
+              <div className="flex gap-3 pt-3 border-t" style={{ borderColor: "var(--border-color)" }}>
+                <button type="button" onClick={() => setModal(null)} className="flex-1 py-2.5 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>Ləğv et</button>
+                <button type="submit" className="flex-1 py-2.5 rounded-2xl text-sm font-medium text-white" style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}>Yadda saxla</button>
               </div>
             </form>
           </div>
@@ -498,38 +235,17 @@ export default function FinancesPage() {
       )}
 
       {modal === "expense" && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">Yeni xərc</h2>
-              <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            <form onSubmit={handleAddExpense} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ad *</label>
-                <input name="name" required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Məbləğ (AZN) *</label>
-                <input name="amount" type="number" step="0.01" min="0" required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kateqoriya</label>
-                <select name="category" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400">
-                  <option>Ofis</option>
-                  <option>Kommunal</option>
-                  <option>Marketing</option>
-                  <option>Maaş</option>
-                  <option>Digər</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tarix</label>
-                <input name="date" type="date" defaultValue={new Date().toISOString().split("T")[0]} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
-              </div>
-              <div className="flex justify-end gap-3 pt-2 border-t">
-                <button type="button" onClick={() => setModal(null)} className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Ləğv et</button>
-                <button type="submit" className="px-5 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 font-medium">Əlavə et</button>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md p-6" style={modalCard}>
+            <div className="flex items-center justify-between mb-5"><h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Yeni xərc</h2><button onClick={() => setModal(null)} style={{ color: "var(--text-muted)" }} className="text-xl">✕</button></div>
+            <form onSubmit={handleAddExpense} className="space-y-3">
+              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ad *</label><input name="name" required style={inputStyle} /></div>
+              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Məbləğ (AZN) *</label><input name="amount" type="number" step="0.01" min="0" required style={inputStyle} /></div>
+              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Kateqoriya</label><select name="category" style={inputStyle}><option>Ofis</option><option>Kommunal</option><option>Marketing</option><option>Maaş</option><option>Digər</option></select></div>
+              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Tarix</label><input name="date" type="date" defaultValue={new Date().toISOString().split("T")[0]} style={inputStyle} /></div>
+              <div className="flex gap-3 pt-3 border-t" style={{ borderColor: "var(--border-color)" }}>
+                <button type="button" onClick={() => setModal(null)} className="flex-1 py-2.5 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>Ləğv et</button>
+                <button type="submit" className="flex-1 py-2.5 rounded-2xl text-sm font-medium text-white" style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>Əlavə et</button>
               </div>
             </form>
           </div>
