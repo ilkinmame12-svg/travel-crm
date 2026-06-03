@@ -15,11 +15,11 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   if (isLogin) return <>{children}</>
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+   <div className="flex min-h-screen" style={{ background: "var(--bg-primary)" }}>
       <div className="hidden md:block">
         {mounted && <Sidebar />}
       </div>
-      <main className="flex-1 overflow-auto bg-gray-50">
+      <main className="flex-1 overflow-auto" style={{ background: "var(--bg-primary)" }}>
         {mounted && <MobileNav />}
         {children}
       </main>
