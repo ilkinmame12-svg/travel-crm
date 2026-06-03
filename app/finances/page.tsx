@@ -17,7 +17,7 @@ export default function FinancesPage() {
   const { payments, fetchPayments, addPayment, deletePayment } = usePaymentsStore()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [modal, setModal] = useState<"expense" | "income" | null>(null)
-  const [tab, setTab] = useState<"overview" | "income" | "expense">("overview")
+  const [tab, setTab] = useState<"overview" | "income" | "expense" | "kassa">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
   const [cashAZN, setCashAZN] = useState(0)
   const [cashUSD, setCashUSD] = useState(0)
@@ -118,7 +118,7 @@ export default function FinancesPage() {
 
       <div className="rounded-3xl overflow-hidden" style={card}>
         <div className="flex gap-2 px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
-          {[{ value: "overview", label: "Ümumi baxış" }, { value: "income", label: `💚 Gəlirlər (${payments.length})` }, { value: "expense", label: `🔴 Xərclər (${expenses.length})` }].map(t => (
+          {[{ value: "overview", label: "Ümumi baxış" }, { value: "income", label: `💚 Gəlirlər (${payments.length})` }, { value: "expense", label: `🔴 Xərclər (${expenses.length})` }, { value: "kassa", label: `💵 Kassa (${cashHistory.length})` }].map(t => (
             <button key={t.value} onClick={() => setTab(t.value as any)} className="px-4 py-2 rounded-2xl text-sm font-medium transition-all"
               style={{ background: tab === t.value ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent", color: tab === t.value ? "white" : "var(--text-secondary)" }}>
               {t.label}
@@ -166,6 +166,42 @@ export default function FinancesPage() {
             </table>
           </div>
         )}
+        {tab === "kassa" && (
+  <div className="p-6">
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Kassa əməliyyatları</h3>
+      <div className="flex gap-4 text-sm">
+        <span style={{ color: "var(--text-secondary)" }}>AZN: <span className="font-bold" style={{ color: "#6366f1" }}>{formatCurrency(cashAZN)}</span></span>
+        <span style={{ color: "var(--text-secondary)" }}>USD: <span className="font-bold text-green-500">${cashUSD.toFixed(2)}</span></span>
+      </div>
+    </div>
+    {cashHistory.length === 0 ? (
+      <p className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>Hələ əməliyyat yoxdur</p>
+    ) : (
+      <table className="w-full text-sm">
+        <thead>
+          <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+            {["Tarix", "Valyuta", "Əməliyyat", "Məbləğ", "Səbəb", "Qalıq"].map(h => (
+              <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider pb-3" style={{ color: "var(--text-muted)" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {cashHistory.map((t: any) => (
+            <tr key={t.id} className="border-b" style={{ borderColor: "var(--border-color)" }}>
+              <td className="py-3" style={{ color: "var(--text-muted)" }}>{new Date(t.created_at).toLocaleDateString("az-AZ")} {new Date(t.created_at).toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" })}</td>
+              <td className="py-3"><span className="text-xs px-2 py-1 rounded-xl font-medium" style={{ background: t.currency === "AZN" ? "rgba(99,102,241,0.1)" : "rgba(34,197,94,0.1)", color: t.currency === "AZN" ? "#6366f1" : "#22c55e" }}>{t.currency}</span></td>
+              <td className="py-3"><span className="text-xs px-2 py-1 rounded-xl font-medium" style={{ background: t.operation === "add" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: t.operation === "add" ? "#22c55e" : "#ef4444" }}>{t.operation === "add" ? "↑ Gəlir" : "↓ Xərc"}</span></td>
+              <td className="py-3 font-bold" style={{ color: t.operation === "add" ? "#22c55e" : "#ef4444" }}>{t.operation === "add" ? "+" : "−"}{t.amount} {t.currency}</td>
+              <td className="py-3" style={{ color: "var(--text-secondary)" }}>{t.reason || "—"}</td>
+              <td className="py-3 font-semibold" style={{ color: "var(--text-primary)" }}>{t.balance_after} {t.currency}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+)}
       </div>
 
       {cashModal && (
