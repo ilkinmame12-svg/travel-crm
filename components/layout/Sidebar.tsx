@@ -146,7 +146,7 @@ export default function Sidebar() {
         </div>
 
         {/* Nav */}
-        <div className="flex-1 py-3 overflow-y-auto" style={{ overflowX: "visible" }}>
+     <div className="flex-1 py-3" style={{ overflowY: "auto", overflowX: "visible" }}>
           <nav className="space-y-1 px-2">
 
             {/* Dashboard + Sifarişlər */}
