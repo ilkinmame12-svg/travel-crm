@@ -8,14 +8,16 @@ import SplashScreen from "@/components/SplashScreen"
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
-  const [showSplash, setShowSplash] = useState(true)
+  const [showSplash, setShowSplash] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    // Show splash only once per session
-    const seen = sessionStorage.getItem("splash_shown")
-    if (seen) setShowSplash(false)
-    else sessionStorage.setItem("splash_shown", "1")
+    const key = `splash_${new Date().toLocaleDateString()}`
+    const count = parseInt(localStorage.getItem(key) ?? "0")
+    if (count < 2) {
+      setShowSplash(true)
+      localStorage.setItem(key, String(count + 1))
+    }
   }, [])
 
   const isLogin = pathname === "/login"
