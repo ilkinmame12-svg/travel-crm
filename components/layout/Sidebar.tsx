@@ -80,15 +80,7 @@ function MenuItem({ item, expanded, pathname }: { item: any, expanded: boolean, 
   return (
     <Link href={item.href} title={!expanded ? item.label : undefined}
       className="flex items-center rounded-2xl transition-all"
-      style={{
-        gap: expanded ? "10px" : "0",
-        padding: expanded ? "10px 12px" : "10px 0",
-        justifyContent: expanded ? "flex-start" : "center",
-        background: active ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent",
-        color: active ? "white" : "var(--text-secondary)",
-        boxShadow: active ? "0 4px 15px rgba(239,68,68,0.3)" : "none",
-        whiteSpace: "nowrap",
-      }}
+      style={{ gap: expanded ? "10px" : "0", padding: expanded ? "10px 12px" : "10px 0", justifyContent: expanded ? "flex-start" : "center", background: active ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent", color: active ? "white" : "var(--text-secondary)", boxShadow: active ? "0 4px 15px rgba(239,68,68,0.3)" : "none", whiteSpace: "nowrap" }}
       onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
       onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}>
       <Icon size={17} style={{ flexShrink: 0 }} />
@@ -104,7 +96,8 @@ export default function Sidebar() {
   const [mounted, setMounted] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [financeOpen, setFinanceOpen] = useState(false)
-  const financeTimer = useState<any>(null)
+  const [financePos, setFinancePos] = useState(0)
+  const timerRef = useState<any>(null)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -114,14 +107,20 @@ export default function Sidebar() {
 
   async function handleLogout() { await supabase.auth.signOut(); router.push("/login"); router.refresh() }
 
-  function openFinance() {
-    if (financeTimer[0]) clearTimeout(financeTimer[0])
+  function openFinance(e: React.MouseEvent) {
+    if (timerRef[0]) clearTimeout(timerRef[0])
+    setFinancePos(e.currentTarget.getBoundingClientRect().top)
     setFinanceOpen(true)
   }
 
   function closeFinance() {
-    const t = setTimeout(() => setFinanceOpen(false), 150)
-    financeTimer[1](t)
+    const t = setTimeout(() => setFinanceOpen(false), 200)
+    timerRef[1](t)
+  }
+
+  function keepFinance() {
+    if (timerRef[0]) clearTimeout(timerRef[0])
+    setFinanceOpen(true)
   }
 
   if (!mounted) return <div style={{ width: "64px", minHeight: "100vh", background: "var(--sidebar-bg)", borderRight: "1px solid var(--sidebar-border)" }} />
@@ -131,7 +130,7 @@ export default function Sidebar() {
       {expanded && <div className="fixed inset-0 z-30" onClick={() => setExpanded(false)} />}
 
       <div className="hidden md:flex flex-col fixed top-0 left-0 h-full z-40 transition-all duration-300"
-        style={{ width: expanded ? "220px" : "64px", background: "var(--sidebar-bg)", borderRight: "1px solid var(--sidebar-border)", backdropFilter: "blur(20px)", overflow: "visible" }}>
+        style={{ width: expanded ? "220px" : "64px", background: "var(--sidebar-bg)", borderRight: "1px solid var(--sidebar-border)", backdropFilter: "blur(20px)", overflow: "hidden" }}>
 
         {/* Logo */}
         <div className="flex items-center px-3 py-4" style={{ borderBottom: "1px solid var(--border-color)", minHeight: "60px", gap: expanded ? "8px" : "0", justifyContent: expanded ? "space-between" : "center" }}>
@@ -146,72 +145,26 @@ export default function Sidebar() {
         </div>
 
         {/* Nav */}
-     <div className="flex-1 py-3" style={{ overflowY: "auto", overflowX: "visible" }}>
+        <div className="flex-1 py-3 overflow-y-auto overflow-x-hidden">
           <nav className="space-y-1 px-2">
-
-            {/* Dashboard + Sifarişlər */}
             {MENU.slice(0, 2).map(item => (
               <MenuItem key={item.href} item={item} expanded={expanded} pathname={pathname} />
             ))}
 
-            {/* Finance submenu */}
             {showFinance && (
-              <div className="relative" onMouseEnter={openFinance} onMouseLeave={closeFinance}>
+              <div onMouseEnter={openFinance} onMouseLeave={closeFinance}>
                 <Link href="/finances" title={!expanded ? "Maliyyə" : undefined}
                   className="flex items-center rounded-2xl transition-all"
-                  style={{
-                    gap: expanded ? "10px" : "0",
-                    padding: expanded ? "10px 12px" : "10px 0",
-                    justifyContent: expanded ? "flex-start" : "center",
-                    background: isFinanceActive ? "linear-gradient(135deg, #ef4444, #f97316)" : financeOpen ? "var(--bg-glass)" : "transparent",
-                    color: isFinanceActive ? "white" : "var(--text-secondary)",
-                    borderRadius: "16px",
-                    whiteSpace: "nowrap",
-                  }}>
+                  style={{ gap: expanded ? "10px" : "0", padding: expanded ? "10px 12px" : "10px 0", justifyContent: expanded ? "flex-start" : "center", background: isFinanceActive ? "linear-gradient(135deg, #ef4444, #f97316)" : financeOpen ? "var(--bg-glass)" : "transparent", color: isFinanceActive ? "white" : "var(--text-secondary)", borderRadius: "16px", whiteSpace: "nowrap" }}>
                   <Wallet size={17} style={{ flexShrink: 0 }} />
                   {expanded && <span className="text-sm font-medium">Maliyyə ▾</span>}
                 </Link>
-
-                {financeOpen && (
-                  <div
-                    className="absolute top-0 py-2 rounded-2xl z-50"
-                    style={{
-                      left: "calc(100% + 8px)",
-                      minWidth: "170px",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-color)",
-                      boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-                    }}
-                    onMouseEnter={openFinance}
-                    onMouseLeave={closeFinance}
-                  >
-                    {/* invisible bridge */}
-                    <div className="absolute right-full top-0 h-full w-3" onMouseEnter={openFinance} />
-                    <p className="text-xs font-semibold uppercase tracking-wider px-4 pb-2 pt-1" style={{ color: "var(--text-muted)" }}>Maliyyə</p>
-                    {FINANCE_MENU.map(f => {
-                      const Icon = f.icon
-                      const active = pathname === f.href
-                      return (
-                        <Link key={f.href} href={f.href}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all"
-                          style={{ color: active ? "#ef4444" : "var(--text-primary)", background: active ? "rgba(239,68,68,0.08)" : "transparent" }}
-                          onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
-                          onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}>
-                          <Icon size={15} />
-                          {f.label}
-                        </Link>
-                      )
-                    })}
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Rest of menu */}
             {MENU.slice(2).map(item => (
               <MenuItem key={item.href} item={item} expanded={expanded} pathname={pathname} />
             ))}
-
           </nav>
         </div>
 
@@ -229,7 +182,6 @@ export default function Sidebar() {
               </div>
             )}
           </div>
-
           <div className="flex gap-1" style={{ flexDirection: expanded ? "row" : "column", alignItems: "center" }}>
             <ThemeToggle />
             <button onClick={handleLogout} title="Çıxış"
@@ -243,6 +195,31 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
+
+      {/* Finance submenu - rendered outside sidebar via portal-like fixed positioning */}
+      {financeOpen && showFinance && (
+        <div className="fixed z-[9999] py-2 rounded-2xl"
+          style={{ top: financePos, left: expanded ? "228px" : "72px", minWidth: "170px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}
+          onMouseEnter={keepFinance}
+          onMouseLeave={closeFinance}>
+          <div className="absolute right-full top-0 h-full w-3" onMouseEnter={keepFinance} />
+          <p className="text-xs font-semibold uppercase tracking-wider px-4 pb-2 pt-1" style={{ color: "var(--text-muted)" }}>Maliyyə</p>
+          {FINANCE_MENU.map(f => {
+            const Icon = f.icon
+            const active = pathname === f.href
+            return (
+              <Link key={f.href} href={f.href}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all"
+                style={{ color: active ? "#ef4444" : "var(--text-primary)", background: active ? "rgba(239,68,68,0.08)" : "transparent" }}
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}>
+                <Icon size={15} />
+                {f.label}
+              </Link>
+            )
+          })}
+        </div>
+      )}
 
       <div className="hidden md:block flex-shrink-0 transition-all duration-300" style={{ width: expanded ? "220px" : "64px" }} />
     </>
