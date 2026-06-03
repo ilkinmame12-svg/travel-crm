@@ -173,7 +173,20 @@ function AdminDashboard({ bookings, payments, cashHistory }: { bookings: any[], 
   const unpaid = bookings.filter(b => b.paymentStatus !== "paid").length
   const margin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0
   const recent = [...bookings].slice(0, 6)
+const [managerPeriod, setManagerPeriod] = useState<"week" | "month" | "year">("month")
 
+const now = new Date()
+const filteredByPeriod = bookings.filter(b => {
+  const d = new Date(b.departureDate)
+  if (managerPeriod === "week") {
+    const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7)
+    return d >= weekAgo
+  }
+  if (managerPeriod === "month") {
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+  }
+  return d.getFullYear() === now.getFullYear()
+})
   const managerStats = bookings.reduce((acc: any, b) => {
     if (!b.manager) return acc
     if (!acc[b.manager]) acc[b.manager] = { revenue: 0, profit: 0, count: 0 }
@@ -237,7 +250,48 @@ function AdminDashboard({ bookings, payments, cashHistory }: { bookings: any[], 
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         <div style={cardStyle} className="overflow-hidden">
-          <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}><Trophy size={16} className="text-amber-500" /><h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Top Menecerlər</h2></div>
+        <div style={cardStyle} className="overflow-hidden">
+  <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
+    <div className="flex items-center gap-2">
+      <Trophy size={16} className="text-amber-500" />
+      <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Top Menecerlər</h2>
+    </div>
+    <div className="flex gap-1">
+      {[
+        { value: "week", label: "Həftə" },
+        { value: "month", label: "Ay" },
+        { value: "year", label: "İl" },
+      ].map(p => (
+        <button key={p.value} onClick={() => setManagerPeriod(p.value as any)}
+          className="px-2.5 py-1 rounded-xl text-xs font-medium transition-all"
+          style={{
+            background: managerPeriod === p.value ? "linear-gradient(135deg, #ef4444, #f97316)" : "var(--bg-glass)",
+            color: managerPeriod === p.value ? "white" : "var(--text-secondary)",
+            border: "1px solid var(--border-color)",
+          }}>
+          {p.label}
+        </button>
+      ))}
+    </div>
+  </div>
+  <div className="p-4 space-y-3">
+    {topManagers.length === 0 ? (
+      <p className="text-sm text-center py-4" style={{ color: "var(--text-muted)" }}>Bu dövrdə sifariş yoxdur</p>
+    ) : topManagers.map((m, i) => (
+      <div key={m.name} className="flex items-center gap-3">
+        <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: i < 3 ? gradients[i] : "var(--bg-glass)", color: i < 3 ? "white" : "var(--text-secondary)" }}>{i + 1}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{m.name}</p>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>{m.count} sifariş</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{formatCurrency(m.revenue)}</p>
+          <p className="text-xs text-green-500">{formatCurrency(m.profit)}</p>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
           <div className="p-4 space-y-3">
             {topManagers.map((m, i) => (
               <div key={m.name} className="flex items-center gap-3">
