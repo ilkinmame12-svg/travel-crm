@@ -51,7 +51,8 @@ export default function AssistantPage() {
     setMessages(prev => [...prev, { role: "user", content: userMsg }])
     setLoading(true)
     try {
-      const response = await fetch("/api/assistant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: buildContext(), messages: [...messages.slice(1).map(m => ({ role: m.role, content: m.content })), { role: "user", content: userMsg }] }) })
+      const response = await fetch("/api/assistant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: buildContext(),role: profile?.role ?? "menecer", 
+        messages: [...messages.slice(1).map(m => ({ role: m.role, content: m.content })), { role: "user", content: userMsg }] }) })
       const data = await response.json()
       const reply = data.content?.[0]?.text ?? "Xəta baş verdi"
       setMessages(prev => [...prev, { role: "assistant", content: reply }])
