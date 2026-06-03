@@ -6,7 +6,7 @@ import { LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe, Settings, He
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import { useUserRole } from "@/lib/hooks/useUserRole"
-
+import { ThemeToggle } from "@/components/ThemeProvider"
 
 const ALL_MENU = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["it_admin", "boss", "direktor", "muhasib", "menecer"] },
@@ -154,6 +154,7 @@ export default function Sidebar() {
             </span>
           </div>
         </div>
+        <ThemeToggle />
         <button onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-500 transition-all w-full">
           <LogOut size={18} />
