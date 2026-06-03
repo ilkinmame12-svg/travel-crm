@@ -1,53 +1,147 @@
 "use client"
 import { useUserRole } from "@/lib/hooks/useUserRole"
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { supabase } from "@/lib/supabase"
 import type { Booking, BookingFilters, BookingFormData, BookingType, IATAPeriod } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/calculations"
-import { Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage, Armchair, Star, Shield } from "lucide-react"
+import {
+  Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage,
+  Armchair, Star, Shield, TrendingUp, TrendingDown, DollarSign,
+  Filter, X, ChevronDown, CheckCircle2, Clock, XCircle, AlertCircle,
+  Edit3, Trash2, MoreHorizontal, SlidersHorizontal, ArrowUpRight
+} from "lucide-react"
 
 const MANAGERS = ["Miraslan Abbasov", "Rehime Qasimli", "Ayxan Elxanli", "Gunes Abdullazade", "Gunay Qurbanova", "Mircemil Abbasov", "Meryem Eliyeva"]
 
 const BOOKING_TYPES = [
-  { value: "bilet", label: "Aviabilet", Icon: Plane, color: "blue" },
-  { value: "otel", label: "Otel", Icon: Hotel, color: "purple" },
-  { value: "tur", label: "Tur paketi", Icon: Palmtree, color: "green" },
-  { value: "kruiz", label: "Kruiz", Icon: Ship, color: "cyan" },
-  { value: "transfer", label: "Transfer", Icon: Car, color: "orange" },
-  { value: "bagaj", label: "Bagaj", Icon: Luggage, color: "yellow" },
-  { value: "yer_secimi", label: "Yer seçimi", Icon: Armchair, color: "pink" },
-  { value: "cip", label: "CIP xidmət", Icon: Star, color: "gold" },
-  { value: "sigorta", label: "Sığorta", Icon: Shield, color: "teal" },
+  { value: "bilet",     label: "Aviabilet", Icon: Plane,    color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+  { value: "otel",      label: "Otel",       Icon: Hotel,    color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
+  { value: "tur",       label: "Tur",        Icon: Palmtree, color: "#10b981", bg: "rgba(16,185,129,0.12)" },
+  { value: "kruiz",     label: "Kruiz",      Icon: Ship,     color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
+  { value: "transfer",  label: "Transfer",   Icon: Car,      color: "#f97316", bg: "rgba(249,115,22,0.12)" },
+  { value: "bagaj",     label: "Bagaj",      Icon: Luggage,  color: "#eab308", bg: "rgba(234,179,8,0.12)" },
+  { value: "yer_secimi",label: "Yer seçimi", Icon: Armchair, color: "#ec4899", bg: "rgba(236,72,153,0.12)" },
+  { value: "cip",       label: "CIP",        Icon: Star,     color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  { value: "sigorta",   label: "Sığorta",    Icon: Shield,   color: "#14b8a6", bg: "rgba(20,184,166,0.12)" },
 ]
 
 const EMPTY_FILTERS: BookingFilters = {
   search: "", status: "all", manager: "", iataPeriod: "all", bookingType: "all", dateFrom: "", dateTo: ""
 }
 
-const TYPE_COLORS: Record<string, { bg: string, color: string }> = {
-  blue:   { bg: "rgba(59,130,246,0.1)",  color: "#3b82f6" },
-  purple: { bg: "rgba(139,92,246,0.1)",  color: "#8b5cf6" },
-  green:  { bg: "rgba(34,197,94,0.1)",   color: "#22c55e" },
-  cyan:   { bg: "rgba(6,182,212,0.1)",   color: "#06b6d4" },
-  orange: { bg: "rgba(249,115,22,0.1)",  color: "#f97316" },
-  yellow: { bg: "rgba(234,179,8,0.1)",   color: "#eab308" },
-  pink:   { bg: "rgba(236,72,153,0.1)",  color: "#ec4899" },
-  gold:   { bg: "rgba(245,158,11,0.1)",  color: "#f59e0b" },
-  teal:   { bg: "rgba(20,184,166,0.1)",  color: "#14b8a6" },
-}
-
 function getTypeInfo(value: string) {
   return BOOKING_TYPES.find(t => t.value === value) ?? BOOKING_TYPES[0]
 }
 
-const card = { background: "var(--bg-card)", border: "1px solid var(--border-color)", backdropFilter: "blur(20px)", borderRadius: "24px" }
-const modalCard = { background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "24px" }
-const inputStyle = { background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)", borderRadius: "12px", padding: "8px 14px", fontSize: "14px", outline: "none", width: "100%" }
+// ─── Skeleton Row ───────────────────────────────────────────────────────────
+function SkeletonRow() {
+  return (
+    <tr className="border-b" style={{ borderColor: "var(--border-color)" }}>
+      {Array.from({ length: 10 }).map((_, i) => (
+        <td key={i} className="px-4 py-4">
+          <div className="h-4 rounded-lg animate-pulse" style={{ background: "var(--bg-glass)", width: `${60 + Math.random() * 40}%` }} />
+        </td>
+      ))}
+    </tr>
+  )
+}
 
+// ─── Status Badge ────────────────────────────────────────────────────────────
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; color: string; bg: string; Icon: any }> = {
+    confirmed: { label: "Təsdiqlənib", color: "#22c55e", bg: "rgba(34,197,94,0.12)", Icon: CheckCircle2 },
+    pending:   { label: "Gözləyir",    color: "#f59e0b", bg: "rgba(245,158,11,0.12)", Icon: Clock },
+    completed: { label: "Tamamlandı",  color: "#6366f1", bg: "rgba(99,102,241,0.12)", Icon: CheckCircle2 },
+    cancelled: { label: "Ləğv edildi", color: "#6b7280", bg: "var(--bg-glass)",        Icon: XCircle },
+  }
+  const s = map[status] ?? map.pending
+  const Icon = s.Icon
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full"
+      style={{ background: s.bg, color: s.color }}>
+      <Icon size={10} />
+      {s.label}
+    </span>
+  )
+}
+
+// ─── Payment Badge ────────────────────────────────────────────────────────────
+function PaymentBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; color: string; bg: string }> = {
+    paid:    { label: "Ödənilib",    color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
+    partial: { label: "Qismən",      color: "#f97316", bg: "rgba(249,115,22,0.12)" },
+    unpaid:  { label: "Ödənilməyib", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+  }
+  const s = map[status] ?? map.unpaid
+  return (
+    <span className="inline-flex text-xs font-medium px-2.5 py-1 rounded-full"
+      style={{ background: s.bg, color: s.color }}>
+      {s.label}
+    </span>
+  )
+}
+
+// ─── Empty State ─────────────────────────────────────────────────────────────
+function EmptyState({ onAdd, isManager }: { onAdd: () => void; isManager: boolean }) {
+  return (
+    <tr>
+      <td colSpan={14}>
+        <div className="flex flex-col items-center justify-center py-24 px-6">
+          <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
+            style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(249,115,22,0.15))" }}>
+            <Plane size={28} style={{ color: "#ef4444" }} />
+          </div>
+          <h3 className="text-base font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Sifariş tapılmadı</h3>
+          <p className="text-sm mb-6 text-center max-w-xs" style={{ color: "var(--text-muted)" }}>
+            Filtrləri dəyişin və ya yeni sifariş əlavə edin
+          </p>
+          <button onClick={onAdd}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95"
+            style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 20px rgba(239,68,68,0.35)" }}>
+            <Plus size={15} />
+            {isManager ? "Sifariş göndər" : "Yeni sifariş"}
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+function KpiCard({ label, value, sub, gradient, icon: Icon, trend }: any) {
+  if (gradient) return (
+    <div className="relative p-5 rounded-3xl text-white overflow-hidden"
+      style={{ background: gradient, boxShadow: "0 8px 32px rgba(239,68,68,0.25)" }}>
+      <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-15" style={{ background: "white" }} />
+      <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full opacity-10" style={{ background: "white" }} />
+      <div className="relative">
+        <p className="text-xs font-medium opacity-75 mb-3 uppercase tracking-wider">{label}</p>
+        <p className="text-2xl font-bold mb-1 tabular-nums">{value}</p>
+        {sub && <p className="text-xs opacity-60">{sub}</p>}
+      </div>
+    </div>
+  )
+  return (
+    <div className="p-5 rounded-3xl transition-all hover:scale-[1.01]"
+      style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", backdropFilter: "blur(20px)" }}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
+        {Icon && <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-glass)" }}>
+          <Icon size={14} style={{ color: "var(--text-secondary)" }} />
+        </div>}
+      </div>
+      <p className="text-xl font-bold tabular-nums" style={{ color: trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "var(--text-primary)" }}>{value}</p>
+      {sub && <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{sub}</p>}
+    </div>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SifarislerPage() {
   const { profile, canDelete } = useUserRole()
   const isReadOnly = profile?.role === "boss"
+  const isManager = profile?.role === "menecer"
   const { bookings, loading, fetchBookings, addBooking, updateBooking, deleteBooking } = useBookingsStore()
   const [modal, setModal] = useState<"create" | "edit" | null>(null)
   const [selected, setSelected] = useState<Booking | null>(null)
@@ -57,6 +151,8 @@ export default function SifarislerPage() {
   const [paidAmount, setPaidAmount] = useState(0)
   const [isIata, setIsIata] = useState(false)
   const [ready, setReady] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [actionMenu, setActionMenu] = useState<string | null>(null)
 
   useEffect(() => { fetchBookings(); setReady(true) }, [])
   useEffect(() => {
@@ -68,26 +164,35 @@ export default function SifarislerPage() {
   }, [modal, selected])
 
   const filtered = useMemo(() => bookings.filter(b => {
-    if (profile?.role === "menecer" && b.manager !== profile.fullName) return false
+    if (isManager && b.manager !== profile?.fullName) return false
     if (activeTab !== "all" && b.bookingType !== activeTab) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
       if (!b.clientName.toLowerCase().includes(q) && !b.destination.toLowerCase().includes(q) &&
         !(b.vendor ?? "").toLowerCase().includes(q) && !(b.ticketNumber ?? "").toLowerCase().includes(q) &&
-        !(b.bookingReference ?? "").toLowerCase().includes(q) && !(b.pnr ?? "").toLowerCase().includes(q) &&
-        !(b.notes ?? "").toLowerCase().includes(q)) return false
+        !(b.pnr ?? "").toLowerCase().includes(q)) return false
     }
     if (filters.status !== "all" && b.status !== filters.status) return false
     if (filters.manager && b.manager !== filters.manager) return false
     if (filters.iataPeriod !== "all" && b.iataPeriod !== filters.iataPeriod) return false
     if (filters.dateFrom && !b.departureDate.startsWith(filters.dateFrom)) return false
     return true
-  }), [bookings, filters, activeTab])
+  }), [bookings, filters, activeTab, isManager, profile])
 
   const totalRevenue = filtered.reduce((s, b) => s + b.sellPrice, 0)
-  const totalProfit = filtered.reduce((s, b) => s + b.profit, 0)
-  const totalCost = filtered.reduce((s, b) => s + b.buyPrice, 0)
-  const typeCounts = BOOKING_TYPES.map(t => ({ ...t, count: bookings.filter(b => b.bookingType === t.value).length }))
+  const totalProfit  = filtered.reduce((s, b) => s + b.profit, 0)
+  const totalCost    = filtered.reduce((s, b) => s + b.buyPrice, 0)
+  const paidCount    = filtered.filter(b => b.paymentStatus === "paid").length
+
+  const typeCounts = BOOKING_TYPES.map(t => ({
+    ...t,
+    count: bookings.filter(b => b.bookingType === t.value && (!isManager || b.manager === profile?.fullName)).length
+  }))
+
+  const activeFiltersCount = [
+    filters.search, filters.status !== "all", filters.manager,
+    filters.iataPeriod !== "all", filters.dateFrom
+  ].filter(Boolean).length
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -114,8 +219,8 @@ export default function SifarislerPage() {
       paidAmount: paid,
       manager: fd.get("manager") as string,
       iataPeriod: fd.get("iataPeriod") as IATAPeriod,
-      status: fd.get("status") as "pending" | "confirmed" | "completed" | "cancelled",
-      paymentStatus: paymentStatus as "unpaid" | "partial" | "paid",
+      status: fd.get("status") as any,
+      paymentStatus: paymentStatus as any,
       notes: fd.get("notes") as string,
       ticketNumber: fd.get("ticketNumber") as string,
       bookingReference: fd.get("bookingReference") as string,
@@ -126,7 +231,7 @@ export default function SifarislerPage() {
 
     if (modal === "edit" && selected) {
       await updateBooking(selected.id, data)
-    } else if (profile?.role === "menecer") {
+    } else if (isManager) {
       await supabase.from("booking_drafts").insert({
         client_name: data.clientName, client_phone: data.clientPhone,
         destination: data.destination, departure_date: data.departureDate,
@@ -149,234 +254,353 @@ export default function SifarislerPage() {
     setModal(null); setSelected(null)
   }
 
-  if (!ready || !profile) return null
+  if (!ready || !profile) return (
+    <div className="min-h-screen p-7" style={{ background: "var(--bg-primary)" }}>
+      <div className="flex items-center justify-between mb-6">
+        <div className="space-y-2">
+          <div className="h-7 w-32 rounded-xl animate-pulse" style={{ background: "var(--bg-glass)" }} />
+          <div className="h-4 w-24 rounded-lg animate-pulse" style={{ background: "var(--bg-glass)" }} />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        {[1,2,3].map(i => <div key={i} className="h-24 rounded-3xl animate-pulse" style={{ background: "var(--bg-glass)" }} />)}
+      </div>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}>
-      {/* Header */}
+    <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}
+      onClick={() => actionMenu && setActionMenu(null)}>
+
+      {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Sifarişlər</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>{filtered.length} / {bookings.length} sifariş</p>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
+            <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{filtered.length}</span>
+            <span> / {bookings.filter(b => !isManager || b.manager === profile.fullName).length} sifariş</span>
+            {activeFiltersCount > 0 && (
+              <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444" }}>
+                {activeFiltersCount} filtr aktiv
+              </span>
+            )}
+          </p>
         </div>
-        {!isReadOnly && (
-          <button onClick={() => { setSelected(null); setModal("create") }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium text-white"
-            style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>
-            <Plus size={16} />
-            {profile?.role === "menecer" ? "Sifariş göndər" : "Yeni sifariş"}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all hover:scale-[1.02] active:scale-95"
+            style={{ background: showFilters ? "rgba(239,68,68,0.1)" : "var(--bg-card)", border: `1px solid ${showFilters ? "rgba(239,68,68,0.3)" : "var(--border-color)"}`, color: showFilters ? "#ef4444" : "var(--text-secondary)" }}>
+            <SlidersHorizontal size={15} />
+            Filtrlər
+            {activeFiltersCount > 0 && (
+              <span className="w-5 h-5 rounded-full text-white text-xs font-bold flex items-center justify-center"
+                style={{ background: "#ef4444" }}>{activeFiltersCount}</span>
+            )}
           </button>
-        )}
-      </div>
-
-      {/* KPI */}
-      <div className="grid grid-cols-3 gap-4 mb-5">
-        <div className="p-5 rounded-3xl text-white" style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>
-          <p className="text-sm opacity-80 mb-2">Ümumi gəlir</p>
-          <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
-        </div>
-        <div className="p-5 rounded-3xl" style={card}>
-          <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>Ümumi xərc</p>
-          <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{formatCurrency(totalCost)}</p>
-        </div>
-        <div className="p-5 rounded-3xl" style={card}>
-          <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>Mənfəət</p>
-          <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-500" : "text-red-500"}`}>{formatCurrency(totalProfit)}</p>
+          {!isReadOnly && (
+            <button
+              onClick={() => { setSelected(null); setModal("create") }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-95"
+              style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 20px rgba(239,68,68,0.3)" }}>
+              <Plus size={15} />
+              {isManager ? "Sifariş göndər" : "Yeni sifariş"}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Table card */}
-      <div className="rounded-3xl overflow-hidden" style={card}>
-        {/* Tabs + Filters */}
-        <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
-          <div className="flex gap-1.5 flex-wrap mb-3">
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <KpiCard label="Ümumi gəlir" value={formatCurrency(totalRevenue)} sub={`${filtered.length} sifariş`}
+          gradient="linear-gradient(135deg, #ef4444 0%, #f97316 100%)" />
+        <KpiCard label="Alış xərci" value={formatCurrency(totalCost)} icon={TrendingDown} />
+        <KpiCard label="Mənfəət" value={formatCurrency(totalProfit)} icon={TrendingUp}
+          trend={totalProfit >= 0 ? "up" : "down"} />
+        <KpiCard label="Ödənilib" value={`${paidCount}/${filtered.length}`}
+          sub={`${filtered.length > 0 ? Math.round((paidCount/filtered.length)*100) : 0}% ödəniş`}
+          icon={DollarSign} />
+      </div>
+
+      {/* ── Main Card ── */}
+      <div className="rounded-3xl overflow-hidden"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", backdropFilter: "blur(20px)" }}>
+
+        {/* Type tabs */}
+        <div className="px-5 pt-4 pb-0" style={{ borderBottom: "1px solid var(--border-color)" }}>
+          <div className="flex gap-1 overflow-x-auto pb-3 scrollbar-hide">
             <button onClick={() => setActiveTab("all")}
-              className="px-3 py-1.5 rounded-2xl text-sm font-medium transition-all"
-              style={{ background: activeTab === "all" ? "linear-gradient(135deg, #ef4444, #f97316)" : "var(--bg-glass)", color: activeTab === "all" ? "white" : "var(--text-secondary)", border: "1px solid var(--border-color)" }}>
-              Hamısı ({bookings.filter(b => profile?.role !== "menecer" || b.manager === profile.fullName).length})
+              className="flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-medium transition-all"
+              style={{
+                background: activeTab === "all" ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent",
+                color: activeTab === "all" ? "white" : "var(--text-secondary)",
+                boxShadow: activeTab === "all" ? "0 4px 12px rgba(239,68,68,0.3)" : "none",
+              }}>
+              Hamısı ({bookings.filter(b => !isManager || b.manager === profile.fullName).length})
             </button>
             {typeCounts.map(t => {
               const Icon = t.Icon
-              const tc = TYPE_COLORS[t.color]
               const active = activeTab === t.value
               return (
                 <button key={t.value} onClick={() => setActiveTab(t.value as BookingType)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-sm font-medium transition-all"
-                  style={{ background: active ? tc.bg : "var(--bg-glass)", color: active ? tc.color : "var(--text-secondary)", border: `1px solid ${active ? tc.color + "40" : "var(--border-color)"}` }}>
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-sm font-medium transition-all"
+                  style={{
+                    background: active ? t.bg : "transparent",
+                    color: active ? t.color : "var(--text-secondary)",
+                    border: active ? `1px solid ${t.color}30` : "1px solid transparent",
+                  }}>
                   <Icon size={13} />
-                  {t.label} ({t.count})
+                  {t.label}
+                  <span className="text-xs opacity-70">({t.count})</span>
                 </button>
               )
             })}
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
-              <input type="text" placeholder="Axtar (ad, bilet №, PNR...)"
-                onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-                className="w-full focus:outline-none text-sm"
-                style={{ ...inputStyle, paddingLeft: "32px" }} />
-            </div>
-            <select value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value as any }))}
-              style={inputStyle} className="focus:outline-none" >
-              <option value="all">Bütün statuslar</option>
-              <option value="pending">Gözləyir</option>
-              <option value="confirmed">Təsdiqlənib</option>
-              <option value="completed">Tamamlandı</option>
-              <option value="cancelled">Ləğv edildi</option>
-            </select>
-            <select value={filters.iataPeriod} onChange={e => setFilters(f => ({ ...f, iataPeriod: e.target.value as any }))}
-              style={inputStyle} className="focus:outline-none">
-              <option value="all">Bütün periodlar</option>
-              <option value="1-7">1-7</option>
-              <option value="8-15">8-15</option>
-              <option value="16-23">16-23</option>
-              <option value="24-31">24-31</option>
-            </select>
-            <input type="month" value={filters.dateFrom}
-              onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
-              style={inputStyle} className="focus:outline-none" />
+        </div>
+
+        {/* Search bar - always visible */}
+        <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border-color)" }}>
+          <div className="relative">
+            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
+            <input
+              type="text"
+              placeholder="Ad, bilet №, PNR, istiqamət axtar..."
+              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+              className="w-full py-2.5 pl-11 pr-4 text-sm rounded-2xl focus:outline-none transition-all"
+              style={{
+                background: "var(--bg-glass)",
+                border: "1px solid var(--border-color)",
+                color: "var(--text-primary)",
+              }}
+            />
+            {filters.search && (
+              <button onClick={() => setFilters(f => ({ ...f, search: "" }))}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg"
+                style={{ color: "var(--text-muted)" }}>
+                <X size={13} />
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Expandable filters */}
+        {showFilters && (
+          <div className="px-5 py-4 flex flex-wrap gap-3" style={{ borderBottom: "1px solid var(--border-color)", background: "var(--bg-glass)" }}>
+            {[
+              {
+                value: filters.status, onChange: (v: string) => setFilters(f => ({ ...f, status: v as any })),
+                options: [{ v: "all", l: "Bütün statuslar" }, { v: "pending", l: "Gözləyir" }, { v: "confirmed", l: "Təsdiqlənib" }, { v: "completed", l: "Tamamlandı" }, { v: "cancelled", l: "Ləğv edildi" }]
+              },
+              {
+                value: filters.iataPeriod, onChange: (v: string) => setFilters(f => ({ ...f, iataPeriod: v as any })),
+                options: [{ v: "all", l: "Bütün periodlar" }, { v: "1-7", l: "1-7" }, { v: "8-15", l: "8-15" }, { v: "16-23", l: "16-23" }, { v: "24-31", l: "24-31" }]
+              },
+            ].map((sel, i) => (
+              <select key={i} value={sel.value} onChange={e => sel.onChange(e.target.value)}
+                className="px-3 py-2 text-sm rounded-xl focus:outline-none"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                {sel.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+              </select>
+            ))}
+            <input type="month" value={filters.dateFrom}
+              onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+              className="px-3 py-2 text-sm rounded-xl focus:outline-none"
+              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+            {activeFiltersCount > 0 && (
+              <button onClick={() => { setFilters(EMPTY_FILTERS); setShowFilters(false) }}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-xl font-medium"
+                style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+                <X size={13} /> Təmizlə
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Table */}
-        {loading ? (
-          <div className="text-center py-16" style={{ color: "var(--text-muted)" }}>Yüklənir...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[1400px]">
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  {["Növ", "Müştəri", "İstiqamət", "Vendor", "Tarixlər", "Menecer", "Satış", "Ödənilib", "Qalıq", "Mənfəət", "Status", "Ödəniş", "IATA", ""].map(h => (
-                    <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-3 py-3"
-                      style={{ color: "var(--text-muted)" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 && (
-                  <tr><td colSpan={14} className="text-center py-16" style={{ color: "var(--text-muted)" }}>Sifariş tapılmadı</td></tr>
-                )}
-                {filtered.map(b => {
-                  const typeInfo = getTypeInfo(b.bookingType)
-                  const Icon = typeInfo.Icon
-                  const tc = TYPE_COLORS[typeInfo.color]
-                  const remaining = b.sellPrice - (b.paidAmount ?? 0)
-                  return (
-                    <tr key={b.id} className="group transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-                      <td className="px-3 py-3">
-                        <div className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-xl font-medium w-fit"
-                          style={{ background: tc.bg, color: tc.color }}>
-                          <Icon size={11} />{typeInfo.label}
-                        </div>
-                        {b.isIata && <span className="text-xs px-1.5 py-0.5 rounded-lg mt-1 block w-fit text-white" style={{ background: "#3b82f6", fontSize: "10px" }}>IATA</span>}
-                      </td>
-                      <td className="px-3 py-3">
-                        <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{b.clientName}</p>
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p>
-                      </td>
-                      <td className="px-3 py-3">
-                        <p style={{ color: "var(--text-primary)" }}>{b.destination}</p>
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.travelers} nəfər</p>
-                      </td>
-                      <td className="px-3 py-3">
-                        {b.vendor
-                          ? <span className="text-xs px-2 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>{b.vendor}</span>
-                          : <span style={{ color: "var(--text-muted)" }}>—</span>}
-                      </td>
-                      <td className="px-3 py-3 whitespace-nowrap">
-                        <p style={{ color: "var(--text-primary)" }}>{formatDate(b.departureDate)}</p>
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>→ {formatDate(b.returnDate)}</p>
-                      </td>
-                      <td className="px-3 py-3 text-xs" style={{ color: "var(--text-secondary)" }}>{b.manager}</td>
-                      <td className="px-3 py-3 text-right font-semibold" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</td>
-                      <td className="px-3 py-3 text-right font-semibold text-green-500">{formatCurrency(b.paidAmount ?? 0)}</td>
-                      <td className="px-3 py-3 text-right">
-                        <span className={remaining > 0 ? "font-semibold text-red-500" : ""} style={remaining <= 0 ? { color: "var(--text-muted)" } : {}}>
-                          {remaining > 0 ? formatCurrency(remaining) : "—"}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[1300px]">
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+                {["Növ", "Müştəri", "İstiqamət", "Vendor", "Tarix", "Menecer", "Satış", "Qalıq", "Mənfəət", "Status", "Ödəniş", ""].map(h => (
+                  <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3.5"
+                    style={{ color: "var(--text-muted)" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
+              {!loading && filtered.length === 0 && (
+                <EmptyState onAdd={() => setModal("create")} isManager={isManager} />
+              )}
+              {!loading && filtered.map(b => {
+                const ti = getTypeInfo(b.bookingType)
+                const Icon = ti.Icon
+                const remaining = b.sellPrice - (b.paidAmount ?? 0)
+                const isActionOpen = actionMenu === b.id
+                return (
+                  <tr key={b.id}
+                    className="group transition-all"
+                    style={{ borderBottom: "1px solid var(--border-color)" }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+
+                    {/* Type */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex flex-col gap-1">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-xl w-fit"
+                          style={{ background: ti.bg, color: ti.color }}>
+                          <Icon size={11} />{ti.label}
                         </span>
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <span className={`font-semibold ${b.profit >= 0 ? "text-green-500" : "text-red-500"}`}>{formatCurrency(b.profit)}</span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className="text-xs px-2.5 py-1 rounded-xl font-medium" style={{
-                          background: b.status === "confirmed" ? "rgba(34,197,94,0.1)" : b.status === "pending" ? "rgba(245,158,11,0.1)" : b.status === "completed" ? "rgba(99,102,241,0.1)" : "var(--bg-glass)",
-                          color: b.status === "confirmed" ? "#22c55e" : b.status === "pending" ? "#f59e0b" : b.status === "completed" ? "#6366f1" : "var(--text-muted)"
-                        }}>
-                          {b.status === "confirmed" ? "Təsdiqlənib" : b.status === "pending" ? "Gözləyir" : b.status === "completed" ? "Tamamlandı" : "Ləğv edildi"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className="text-xs px-2.5 py-1 rounded-xl font-medium" style={{
-                          background: b.paymentStatus === "paid" ? "rgba(34,197,94,0.1)" : b.paymentStatus === "partial" ? "rgba(249,115,22,0.1)" : "rgba(239,68,68,0.1)",
-                          color: b.paymentStatus === "paid" ? "#22c55e" : b.paymentStatus === "partial" ? "#f97316" : "#ef4444"
-                        }}>
-                          {b.paymentStatus === "paid" ? "Ödənilib" : b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className="text-xs font-medium px-2 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>{b.iataPeriod}</span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        {b.isIata && (
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-lg w-fit text-white"
+                            style={{ background: "#3b82f6", fontSize: "10px" }}>IATA</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Client */}
+                    <td className="px-4 py-3.5">
+                      <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{b.clientName}</p>
+                      {b.clientPhone && <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p>}
+                    </td>
+
+                    {/* Destination */}
+                    <td className="px-4 py-3.5">
+                      <p className="font-medium" style={{ color: "var(--text-primary)" }}>{b.destination}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{b.travelers} nəfər</p>
+                    </td>
+
+                    {/* Vendor */}
+                    <td className="px-4 py-3.5">
+                      {b.vendor
+                        ? <span className="text-xs font-medium px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>{b.vendor}</span>
+                        : <span style={{ color: "var(--text-muted)" }}>—</span>}
+                    </td>
+
+                    {/* Date */}
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{formatDate(b.departureDate)}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>→ {formatDate(b.returnDate)}</p>
+                    </td>
+
+                    {/* Manager */}
+                    <td className="px-4 py-3.5">
+                      <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{b.manager?.split(" ")[0]}</p>
+                    </td>
+
+                    {/* Sell */}
+                    <td className="px-4 py-3.5 text-right">
+                      <p className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</p>
+                      <p className="text-xs mt-0.5 tabular-nums text-green-500">{formatCurrency(b.paidAmount ?? 0)}</p>
+                    </td>
+
+                    {/* Remaining */}
+                    <td className="px-4 py-3.5 text-right">
+                      {remaining > 0
+                        ? <span className="font-semibold tabular-nums text-red-500">{formatCurrency(remaining)}</span>
+                        : <span style={{ color: "var(--text-muted)" }}>—</span>}
+                    </td>
+
+                    {/* Profit */}
+                    <td className="px-4 py-3.5 text-right">
+                      <span className={`font-semibold tabular-nums ${b.profit >= 0 ? "text-green-500" : "text-red-500"}`}>
+                        {b.profit >= 0 ? "+" : ""}{formatCurrency(b.profit)}
+                      </span>
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-4 py-3.5"><StatusBadge status={b.status} /></td>
+
+                    {/* Payment */}
+                    <td className="px-4 py-3.5"><PaymentBadge status={b.paymentStatus} /></td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3.5">
+                      <div className="relative">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           {!isReadOnly && (
-                            <button onClick={() => { setSelected(b); setModal("edit") }}
-                              className="p-1.5 rounded-xl text-sm transition-all"
-                              style={{ color: "var(--text-muted)" }}
-                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#6366f1"}
-                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"}>✏️</button>
+                            <button
+                              onClick={() => { setSelected(b); setModal("edit") }}
+                              className="p-2 rounded-xl transition-all hover:scale-110"
+                              style={{ color: "var(--text-muted)", background: "var(--bg-glass)" }}
+                              aria-label="Redaktə et">
+                              <Edit3 size={13} />
+                            </button>
                           )}
                           {canDelete && (
-                            <button onClick={() => { if (confirm("Silinsin?")) deleteBooking(b.id) }}
-                              className="p-1.5 rounded-xl text-sm transition-all"
-                              style={{ color: "var(--text-muted)" }}
-                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#ef4444"}
-                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"}>🗑️</button>
+                            <button
+                              onClick={() => { if (confirm("Silinsin?")) deleteBooking(b.id) }}
+                              className="p-2 rounded-xl transition-all hover:scale-110"
+                              style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}
+                              aria-label="Sil">
+                              <Trash2 size={13} />
+                            </button>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer */}
+        {filtered.length > 0 && (
+          <div className="flex items-center justify-between px-5 py-3" style={{ borderTop: "1px solid var(--border-color)" }}>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {filtered.length} sifariş · Cəmi {formatCurrency(totalRevenue)}
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Mənfəət: <span className={totalProfit >= 0 ? "text-green-500 font-semibold" : "text-red-500 font-semibold"}>{formatCurrency(totalProfit)}</span>
+            </p>
           </div>
         )}
       </div>
 
-      {/* Modal */}
+      {/* ── Modal ── */}
       {modal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center overflow-y-auto p-4 pt-8">
-          <div className="w-full max-w-2xl" style={modalCard}>
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-8"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+          <div className="w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", animation: "modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1)" }}>
+
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
               <div>
-                <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{modal === "edit" ? "Redaktə et" : "Yeni sifariş"}</h2>
-                {profile?.role === "menecer" && modal === "create" && (
-                  <p className="text-xs mt-0.5" style={{ color: "#f59e0b" }}>⏳ Sifariş təsdiq üçün göndəriləcək</p>
+                <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+                  {modal === "edit" ? "Sifarişi redaktə et" : "Yeni sifariş"}
+                </h2>
+                {isManager && modal === "create" && (
+                  <p className="text-xs mt-1 flex items-center gap-1.5" style={{ color: "#f59e0b" }}>
+                    <Clock size={11} /> Sifariş təsdiq üçün göndəriləcək
+                  </p>
                 )}
               </div>
-              <button onClick={() => { setModal(null); setSelected(null) }} style={{ color: "var(--text-muted)" }} className="text-xl">✕</button>
+              <button onClick={() => { setModal(null); setSelected(null) }}
+                className="w-9 h-9 rounded-2xl flex items-center justify-center transition-all hover:scale-110"
+                style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>
+                <X size={16} />
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 grid grid-cols-2 gap-4">
+
+            <form onSubmit={handleSubmit} className="p-7 grid grid-cols-2 gap-5">
+              {/* Booking type */}
               <div className="col-span-2">
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>Sifariş növü *</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Sifariş növü *</label>
                 <div className="grid grid-cols-5 gap-2">
                   {BOOKING_TYPES.map(t => {
                     const Icon = t.Icon
-                    const tc = TYPE_COLORS[t.color]
                     return (
                       <label key={t.value} className="cursor-pointer">
                         <input type="radio" name="bookingType" value={t.value}
                           defaultChecked={selected ? selected.bookingType === t.value : t.value === "bilet"}
                           className="sr-only peer" />
-                        <div className="border-2 rounded-2xl p-3 text-center transition-all peer-checked:border-red-500"
-                          style={{ borderColor: "var(--border-color)", background: "var(--bg-glass)" }}
-                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = tc.color}
-                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"}>
-                          <Icon size={18} className="mx-auto mb-1" style={{ color: tc.color }} />
+                        <div className="border-2 rounded-2xl p-3 text-center transition-all peer-checked:scale-[1.03]"
+                          style={{ borderColor: "var(--border-color)", background: "var(--bg-glass)" }}>
+                          <Icon size={18} className="mx-auto mb-1.5" style={{ color: t.color }} />
                           <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{t.label}</p>
                         </div>
                       </label>
@@ -385,96 +609,79 @@ export default function SifarislerPage() {
                 </div>
               </div>
 
-              <div className="col-span-2 grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Vendor</label>
-                  <input name="vendor" defaultValue={selected?.vendor ?? ""} placeholder="Amadeus, Booking.com..." style={inputStyle} />
-                </div>
-                <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-3 cursor-pointer" onClick={() => setIsIata(!isIata)}>
-                    <div className="w-11 h-6 rounded-full transition-colors relative" style={{ background: isIata ? "#3b82f6" : "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
-                      <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform" style={{ transform: isIata ? "translateX(22px)" : "translateX(2px)" }} />
-                    </div>
-                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>IATA biletidir</span>
-                    {isIata && <span className="text-xs px-2 py-0.5 rounded-lg text-white" style={{ background: "#3b82f6" }}>IATA</span>}
-                  </label>
-                </div>
+              {/* Vendor + IATA */}
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Vendor</label>
+                <input name="vendor" defaultValue={selected?.vendor ?? ""} placeholder="Amadeus, Booking.com..."
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-3 cursor-pointer" onClick={() => setIsIata(!isIata)}>
+                  <div className="relative w-11 h-6 rounded-full transition-all" style={{ background: isIata ? "#3b82f6" : "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
+                    <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform" style={{ transform: isIata ? "translateX(22px)" : "translateX(2px)" }} />
+                  </div>
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>IATA bileti</span>
+                </label>
               </div>
 
-              <div className="col-span-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Müştəri</p></div>
+              {/* Section label */}
+              <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Müştəri məlumatları</p></div>
+
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ad *</label>
-                <ClientAutocomplete defaultValue={selected?.clientName ?? ""} bookings={bookings} ready={ready} inputStyle={inputStyle} />
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Ad *</label>
+                <ClientAutocomplete defaultValue={selected?.clientName ?? ""} bookings={bookings} ready={ready} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Telefon</label>
-                <input name="clientPhone" defaultValue={selected?.clientPhone} style={inputStyle} />
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Telefon</label>
+                <input name="clientPhone" defaultValue={selected?.clientPhone}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Email</label>
-                <input name="clientEmail" type="email" defaultValue={selected?.clientEmail} style={inputStyle} />
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>İstiqamət *</label>
+                <input name="destination" defaultValue={selected?.destination} required
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Başlanğıc tarixi *</label>
+                <input name="departureDate" type="date" required defaultValue={selected?.departureDate ?? new Date().toISOString().split("T")[0]}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Son tarix</label>
+                <input name="returnDate" type="date" defaultValue={selected?.returnDate ?? new Date().toISOString().split("T")[0]}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
 
-              <div className="col-span-2 mt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Səfər</p></div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>İstiqamət *</label>
-                <input name="destination" defaultValue={selected?.destination} required style={inputStyle} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Tarix (başlanğıc) *</label>
-                <input name="departureDate" type="date" defaultValue={selected?.departureDate ?? new Date().toISOString().split("T")[0]} required style={inputStyle} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Tarix (son)</label>
-                <input name="returnDate" type="date" defaultValue={selected?.returnDate ?? new Date().toISOString().split("T")[0]} style={inputStyle} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Turistlər</label>
-                <input name="travelers" type="number" min="1" defaultValue={selected?.travelers ?? 1} style={inputStyle} />
-              </div>
+              <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Maliyyə</p></div>
 
-              <div className="col-span-2 mt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Maliyyə</p></div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Satış qiyməti (AZN) *</label>
-                <input name="sellPrice" type="number" step="0.01" min="-99999" defaultValue={selected?.sellPrice ?? 0} required style={inputStyle} />
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Satış qiyməti (AZN) *</label>
+                <input name="sellPrice" type="number" step="0.01" min="-99999" defaultValue={selected?.sellPrice ?? 0} required
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none font-semibold"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Alış qiyməti (AZN) *</label>
-                <input name="buyPrice" type="number" step="0.01" min="-99999" defaultValue={selected?.buyPrice ?? 0} required style={inputStyle} />
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Alış qiyməti (AZN) *</label>
+                <input name="buyPrice" type="number" step="0.01" min="-99999" defaultValue={selected?.buyPrice ?? 0} required
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Komissiya (%)</label>
-                <input name="commissionPercent" type="number" step="0.1" min="0" max="100" defaultValue={selected?.commissionPercent ?? 5} style={inputStyle} />
-              </div>
-
-              <div className="col-span-2 mt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>İdarəetmə</p></div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Menecer</label>
-                <select name="manager" defaultValue={selected?.manager ?? MANAGERS[0]} style={inputStyle}>
-                  {MANAGERS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Komissiya (%)</label>
+                <input name="commissionPercent" type="number" step="0.1" min="0" max="100" defaultValue={selected?.commissionPercent ?? 5}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>IATA period</label>
-                <select name="iataPeriod" defaultValue={selected?.iataPeriod ?? "1-7"} style={inputStyle}>
-                  <option value="1-7">1-7</option>
-                  <option value="8-15">8-15</option>
-                  <option value="16-23">16-23</option>
-                  <option value="24-31">24-31</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Status</label>
-                <select name="status" defaultValue={selected?.status ?? "pending"} style={inputStyle}>
-                  <option value="pending">Gözləyir</option>
-                  <option value="confirmed">Təsdiqlənib</option>
-                  <option value="completed">Tamamlandı</option>
-                  <option value="cancelled">Ləğv edildi</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ödəniş statusu</label>
-                <select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)} style={inputStyle}>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Ödəniş statusu</label>
+                <select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
                   <option value="unpaid">Ödənilməyib</option>
                   <option value="partial">Qismən ödənilib</option>
                   <option value="paid">Tam ödənilib</option>
@@ -482,40 +689,92 @@ export default function SifarislerPage() {
               </div>
               {paymentStatus === "partial" && (
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ödənilən məbləğ (AZN)</label>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: "#f97316" }}>Ödənilən məbləğ</label>
                   <input type="number" step="0.01" min="0" value={paidAmount} onChange={e => setPaidAmount(Number(e.target.value))}
-                    style={{ ...inputStyle, border: "1px solid #f97316" }} />
+                    className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                    style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.4)", color: "var(--text-primary)" }} />
                 </div>
               )}
 
-              <div className="col-span-2 mt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Referans nömrələri</p></div>
+              <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>İdarəetmə</p></div>
+
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Bilet nömrəsi</label>
-                <input name="ticketNumber" defaultValue={selected?.ticketNumber ?? ""} placeholder="157-1234567890" style={inputStyle} />
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Menecer</label>
+                <select name="manager" defaultValue={selected?.manager ?? MANAGERS[0]}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  {MANAGERS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Bron nömrəsi</label>
-                <input name="bookingReference" defaultValue={selected?.bookingReference ?? ""} placeholder="ABC123" style={inputStyle} />
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>IATA period</label>
+                <select name="iataPeriod" defaultValue={selected?.iataPeriod ?? "1-7"}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  {["1-7","8-15","16-23","24-31"].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>PNR</label>
-                <input name="pnr" defaultValue={selected?.pnr ?? ""} placeholder="XYZABC" style={inputStyle} />
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Status</label>
+                <select name="status" defaultValue={selected?.status ?? "pending"}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                  <option value="pending">Gözləyir</option>
+                  <option value="confirmed">Təsdiqlənib</option>
+                  <option value="completed">Tamamlandı</option>
+                  <option value="cancelled">Ləğv edildi</option>
+                </select>
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Qeydlər</label>
-                <textarea name="notes" rows={2} defaultValue={selected?.notes}
-                  style={{ ...inputStyle, resize: "none" }} />
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Turistlər</label>
+                <input name="travelers" type="number" min="1" defaultValue={selected?.travelers ?? 1}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
 
-              <div className="col-span-2 flex justify-end gap-3 pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
+              <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Referans</p></div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Bilet №</label>
+                <input name="ticketNumber" defaultValue={selected?.ticketNumber ?? ""} placeholder="157-1234567890"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>PNR</label>
+                <input name="pnr" defaultValue={selected?.pnr ?? ""} placeholder="XYZABC"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Bron №</label>
+                <input name="bookingReference" defaultValue={selected?.bookingReference ?? ""} placeholder="ABC123"
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Email</label>
+                <input name="clientEmail" type="email" defaultValue={selected?.clientEmail}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Qeydlər</label>
+                <textarea name="notes" rows={2} defaultValue={selected?.notes}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none resize-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+
+              <div className="col-span-2 flex justify-end gap-3 pt-4" style={{ borderTop: "1px solid var(--border-color)" }}>
                 <button type="button" onClick={() => { setModal(null); setSelected(null) }}
-                  className="px-4 py-2.5 rounded-2xl text-sm"
+                  className="px-5 py-2.5 rounded-2xl text-sm font-medium transition-all hover:scale-[1.02]"
                   style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
                   Ləğv et
                 </button>
-                <button type="submit" className="px-5 py-2.5 rounded-2xl text-sm font-medium text-white"
-                  style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>
-                  {modal === "edit" ? "Yadda saxla" : profile?.role === "menecer" ? "Təsdiqə göndər" : "Yarat"}
+                <button type="submit"
+                  className="px-6 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-95"
+                  style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 16px rgba(239,68,68,0.3)" }}>
+                  {modal === "edit" ? "Yadda saxla" : isManager ? "Təsdiqə göndər" : "Yarat"}
                 </button>
               </div>
             </form>
@@ -526,11 +785,12 @@ export default function SifarislerPage() {
   )
 }
 
-function ClientAutocomplete({ defaultValue, bookings, ready, inputStyle }: { defaultValue: string, bookings: any[], ready: boolean, inputStyle: any }) {
+// ─── Client Autocomplete ──────────────────────────────────────────────────────
+function ClientAutocomplete({ defaultValue, bookings, ready }: { defaultValue: string, bookings: any[], ready: boolean }) {
   const [value, setValue] = useState(defaultValue)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [show, setShow] = useState(false)
-  const uniqueClients = [...new Set(bookings.map(b => b.clientName))].filter(Boolean)
+  const uniqueClients = useMemo(() => [...new Set(bookings.map(b => b.clientName))].filter(Boolean), [bookings])
 
   function handleChange(v: string) {
     setValue(v)
@@ -545,10 +805,12 @@ function ClientAutocomplete({ defaultValue, bookings, ready, inputStyle }: { def
   return (
     <div className="relative">
       <input name="clientName" value={value} onChange={e => handleChange(e.target.value)}
-        onBlur={() => setTimeout(() => setShow(false), 150)} required style={inputStyle} />
+        onBlur={() => setTimeout(() => setShow(false), 150)} required
+        className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+        style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
       {show && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 py-1 rounded-2xl overflow-hidden"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+        <div className="absolute z-50 w-full mt-1.5 py-1 rounded-2xl overflow-hidden"
+          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "0 12px 40px rgba(0,0,0,0.25)" }}>
           {suggestions.map(s => (
             <button key={s} type="button" onClick={() => { setValue(s); setShow(false) }}
               className="w-full text-left px-4 py-2.5 text-sm transition-all"
