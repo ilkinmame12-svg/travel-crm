@@ -47,7 +47,21 @@ export function MobileNav() {
   const router = useRouter()
   const { profile } = useUserRole()
   const [mounted, setMounted] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+
   useEffect(() => { setMounted(true) }, [])
+
+  useEffect(() => {
+    if (!profile?.id) return
+    async function loadUnread() {
+      const { data } = await supabase.from("messages").select("id").eq("receiver_id", profile!.id).eq("is_read", false)
+      setUnreadCount(data?.length ?? 0)
+    }
+    loadUnread()
+    const interval = setInterval(loadUnread, 5000)
+    return () => clearInterval(interval)
+  }, [profile])
+
   const MENU = ALL_MENU.filter(item => !profile || item.roles.includes(profile.role))
   async function handleLogout() { await supabase.auth.signOut(); router.push("/login"); router.refresh() }
   if (!mounted) return <div className="md:hidden h-14" style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)" }} />
@@ -58,10 +72,17 @@ export function MobileNav() {
         {MENU.map(item => {
           const active = pathname === item.href
           const Icon = item.icon
+          const isChat = item.href === "/chat"
           return (
-            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl text-xs font-medium transition-all"
+            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl text-xs font-medium transition-all relative"
               style={{ background: active ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent", color: active ? "white" : "var(--text-secondary)" }}>
               <Icon size={16} />
+              {isChat && unreadCount > 0 && (
+                <div className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
+                  style={{ background: "#22c55e", fontSize: "9px" }}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </div>
+              )}
             </Link>
           )
         })}
@@ -74,17 +95,34 @@ export function MobileNav() {
   )
 }
 
-function MenuItem({ item, expanded, pathname }: { item: any, expanded: boolean, pathname: string }) {
+function MenuItem({ item, expanded, pathname, unreadCount }: { item: any, expanded: boolean, pathname: string, unreadCount?: number }) {
   const active = pathname === item.href
   const Icon = item.icon
+  const isChat = item.href === "/chat"
+  const hasUnread = isChat && (unreadCount ?? 0) > 0
+
   return (
     <Link href={item.href} title={!expanded ? item.label : undefined}
-      className="flex items-center rounded-2xl transition-all"
-      style={{ gap: expanded ? "10px" : "0", padding: expanded ? "10px 12px" : "10px 0", justifyContent: expanded ? "flex-start" : "center", background: active ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent", color: active ? "white" : "var(--text-secondary)", boxShadow: active ? "0 4px 15px rgba(239,68,68,0.3)" : "none", whiteSpace: "nowrap" }}
+      className="flex items-center rounded-2xl transition-all relative"
+      style={{ gap: expanded ? "10px" : "0", padding: expanded ? "10px 12px" : "10px 0", justifyContent: expanded ? "flex-start" : "center", background: active ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent", color: active ? "white" : hasUnread ? "#22c55e" : "var(--text-secondary)", boxShadow: active ? "0 4px 15px rgba(239,68,68,0.3)" : "none", whiteSpace: "nowrap" }}
       onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
       onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}>
-      <Icon size={17} style={{ flexShrink: 0 }} />
-      {expanded && <span className="text-sm font-medium">{item.label}</span>}
+      <div className="relative flex-shrink-0">
+        <Icon size={17} />
+        {hasUnread && !expanded && (
+          <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
+            style={{ background: "#22c55e", fontSize: "9px" }}>
+            {(unreadCount ?? 0) > 9 ? "9+" : unreadCount}
+          </div>
+        )}
+      </div>
+      {expanded && <span className="text-sm font-medium flex-1">{item.label}</span>}
+      {expanded && hasUnread && (
+        <span className="text-xs px-1.5 py-0.5 rounded-full font-bold text-white ml-auto"
+          style={{ background: "#22c55e", fontSize: "10px" }}>
+          {(unreadCount ?? 0) > 9 ? "9+" : unreadCount}
+        </span>
+      )}
     </Link>
   )
 }
@@ -97,9 +135,21 @@ export default function Sidebar() {
   const [expanded, setExpanded] = useState(false)
   const [financeOpen, setFinanceOpen] = useState(false)
   const [financePos, setFinancePos] = useState(0)
+  const [unreadCount, setUnreadCount] = useState(0)
   const timerRef = useState<any>(null)
 
   useEffect(() => { setMounted(true) }, [])
+
+  useEffect(() => {
+    if (!profile?.id) return
+    async function loadUnread() {
+      const { data } = await supabase.from("messages").select("id").eq("receiver_id", profile!.id).eq("is_read", false)
+      setUnreadCount(data?.length ?? 0)
+    }
+    loadUnread()
+    const interval = setInterval(loadUnread, 5000)
+    return () => clearInterval(interval)
+  }, [profile])
 
   const MENU = ALL_MENU.filter(item => !profile || item.roles.includes(profile.role))
   const isFinanceActive = FINANCE_MENU.some(f => pathname === f.href)
@@ -148,7 +198,7 @@ export default function Sidebar() {
         <div className="flex-1 py-3 overflow-y-auto overflow-x-hidden">
           <nav className="space-y-1 px-2">
             {MENU.slice(0, 2).map(item => (
-              <MenuItem key={item.href} item={item} expanded={expanded} pathname={pathname} />
+              <MenuItem key={item.href} item={item} expanded={expanded} pathname={pathname} unreadCount={unreadCount} />
             ))}
 
             {showFinance && (
@@ -163,7 +213,7 @@ export default function Sidebar() {
             )}
 
             {MENU.slice(2).map(item => (
-              <MenuItem key={item.href} item={item} expanded={expanded} pathname={pathname} />
+              <MenuItem key={item.href} item={item} expanded={expanded} pathname={pathname} unreadCount={unreadCount} />
             ))}
           </nav>
         </div>
@@ -196,7 +246,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Finance submenu - rendered outside sidebar via portal-like fixed positioning */}
+      {/* Finance submenu */}
       {financeOpen && showFinance && (
         <div className="fixed z-[9999] py-2 rounded-2xl"
           style={{ top: financePos, left: expanded ? "228px" : "72px", minWidth: "170px", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}
