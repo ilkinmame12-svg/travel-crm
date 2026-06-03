@@ -48,14 +48,14 @@ export function MobileNav() {
   const { profile } = useUserRole()
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
-  const MENU = [...ALL_MENU, ...FINANCE_MENU].filter(item => !profile || !('roles' in item) || (item as any).roles.includes(profile.role))
+  const MENU = ALL_MENU.filter(item => !profile || item.roles.includes(profile.role))
   async function handleLogout() { await supabase.auth.signOut(); router.push("/login"); router.refresh() }
   if (!mounted) return <div className="md:hidden h-14" style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)" }} />
   return (
     <div className="md:hidden px-4 py-3 flex items-center justify-between" style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", backdropFilter: "blur(20px)" }}>
       <Image src="/logo.png" alt="itstour" width={80} height={30} style={{ width: "auto", height: "auto" }} className="object-contain" />
       <div className="flex gap-1 overflow-x-auto">
-        {ALL_MENU.filter(item => !profile || item.roles.includes(profile.role)).map(item => {
+        {MENU.map(item => {
           const active = pathname === item.href
           const Icon = item.icon
           return (
@@ -68,9 +68,32 @@ export function MobileNav() {
       </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <button onClick={handleLogout} style={{ color: "var(--text-secondary)" }} className="p-2 rounded-xl hover:text-red-500"><LogOut size={18} /></button>
+        <button onClick={handleLogout} style={{ color: "var(--text-secondary)" }} className="p-2 rounded-xl"><LogOut size={18} /></button>
       </div>
     </div>
+  )
+}
+
+function MenuItem({ item, expanded, pathname }: { item: any, expanded: boolean, pathname: string }) {
+  const active = pathname === item.href
+  const Icon = item.icon
+  return (
+    <Link href={item.href} title={!expanded ? item.label : undefined}
+      className="flex items-center rounded-2xl transition-all"
+      style={{
+        gap: expanded ? "10px" : "0",
+        padding: expanded ? "10px 12px" : "10px 0",
+        justifyContent: expanded ? "flex-start" : "center",
+        background: active ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent",
+        color: active ? "white" : "var(--text-secondary)",
+        boxShadow: active ? "0 4px 15px rgba(239,68,68,0.3)" : "none",
+        whiteSpace: "nowrap",
+      }}
+      onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
+      onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}>
+      <Icon size={17} style={{ flexShrink: 0 }} />
+      {expanded && <span className="text-sm font-medium">{item.label}</span>}
+    </Link>
   )
 }
 
@@ -81,6 +104,7 @@ export default function Sidebar() {
   const [mounted, setMounted] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [financeOpen, setFinanceOpen] = useState(false)
+  const financeTimer = useState<any>(null)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -90,6 +114,16 @@ export default function Sidebar() {
 
   async function handleLogout() { await supabase.auth.signOut(); router.push("/login"); router.refresh() }
 
+  function openFinance() {
+    if (financeTimer[0]) clearTimeout(financeTimer[0])
+    setFinanceOpen(true)
+  }
+
+  function closeFinance() {
+    const t = setTimeout(() => setFinanceOpen(false), 150)
+    financeTimer[1](t)
+  }
+
   if (!mounted) return <div style={{ width: "64px", minHeight: "100vh", background: "var(--sidebar-bg)", borderRight: "1px solid var(--sidebar-border)" }} />
 
   return (
@@ -97,13 +131,13 @@ export default function Sidebar() {
       {expanded && <div className="fixed inset-0 z-30" onClick={() => setExpanded(false)} />}
 
       <div className="hidden md:flex flex-col fixed top-0 left-0 h-full z-40 transition-all duration-300"
-        style={{ width: expanded ? "220px" : "64px", background: "var(--sidebar-bg)", borderRight: "1px solid var(--sidebar-border)", backdropFilter: "blur(20px)", overflow: "hidden" }}>
+        style={{ width: expanded ? "220px" : "64px", background: "var(--sidebar-bg)", borderRight: "1px solid var(--sidebar-border)", backdropFilter: "blur(20px)", overflow: "visible" }}>
 
         {/* Logo */}
         <div className="flex items-center px-3 py-4" style={{ borderBottom: "1px solid var(--border-color)", minHeight: "60px", gap: expanded ? "8px" : "0", justifyContent: expanded ? "space-between" : "center" }}>
           {expanded
             ? <Image src="/logo.png" alt="itstour" width={100} height={34} className="object-contain" />
-            : <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-xl" style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>✈</div>
+            : <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xl" style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>✈</div>
           }
           <button onClick={() => setExpanded(!expanded)} className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ color: "var(--text-muted)", background: "var(--bg-glass)" }}>
@@ -112,48 +146,48 @@ export default function Sidebar() {
         </div>
 
         {/* Nav */}
-        <div className="flex-1 py-3 overflow-y-auto overflow-x-hidden">
+        <div className="flex-1 py-3 overflow-y-auto" style={{ overflowX: "visible" }}>
           <nav className="space-y-1 px-2">
 
-            {/* Regular menu items */}
-            {MENU.slice(0, 2).map(item => {
-              const active = pathname === item.href
-              const Icon = item.icon
-              return (
-                <Link key={item.href} href={item.href} title={!expanded ? item.label : undefined}
-                  className="flex items-center rounded-2xl transition-all"
-                  style={{ gap: expanded ? "10px" : "0", padding: expanded ? "10px 12px" : "10px 0", justifyContent: expanded ? "flex-start" : "center", background: active ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent", color: active ? "white" : "var(--text-secondary)", boxShadow: active ? "0 4px 15px rgba(239,68,68,0.3)" : "none", whiteSpace: "nowrap" }}
-                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
-                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}>
-                  <Icon size={17} style={{ flexShrink: 0 }} />
-                  {expanded && <span className="text-sm font-medium">{item.label}</span>}
-                </Link>
-              )
-            })}
+            {/* Dashboard + Sifarişlər */}
+            {MENU.slice(0, 2).map(item => (
+              <MenuItem key={item.href} item={item} expanded={expanded} pathname={pathname} />
+            ))}
 
             {/* Finance submenu */}
             {showFinance && (
-              <div className="relative"
-                onMouseEnter={() => setFinanceOpen(true)}
-                onMouseLeave={() => setFinanceOpen(false)}>
-                <Link href="/finances" className="flex items-center rounded-2xl transition-all"
-  style={{
-    gap: expanded ? "10px" : "0",
-    padding: expanded ? "10px 12px" : "10px 0",
-    justifyContent: expanded ? "flex-start" : "center",
-    background: isFinanceActive ? "linear-gradient(135deg, #ef4444, #f97316)" : financeOpen ? "var(--bg-glass)" : "transparent",
-    color: isFinanceActive ? "white" : "var(--text-secondary)",
-    borderRadius: "16px",
-    whiteSpace: "nowrap",
-  }}>
-  <Wallet size={17} style={{ flexShrink: 0 }} />
-  {expanded && <span className="text-sm font-medium">Maliyyə ▾</span>}
-</Link>
+              <div className="relative" onMouseEnter={openFinance} onMouseLeave={closeFinance}>
+                <Link href="/finances" title={!expanded ? "Maliyyə" : undefined}
+                  className="flex items-center rounded-2xl transition-all"
+                  style={{
+                    gap: expanded ? "10px" : "0",
+                    padding: expanded ? "10px 12px" : "10px 0",
+                    justifyContent: expanded ? "flex-start" : "center",
+                    background: isFinanceActive ? "linear-gradient(135deg, #ef4444, #f97316)" : financeOpen ? "var(--bg-glass)" : "transparent",
+                    color: isFinanceActive ? "white" : "var(--text-secondary)",
+                    borderRadius: "16px",
+                    whiteSpace: "nowrap",
+                  }}>
+                  <Wallet size={17} style={{ flexShrink: 0 }} />
+                  {expanded && <span className="text-sm font-medium">Maliyyə ▾</span>}
+                </Link>
 
                 {financeOpen && (
-                  <div className="absolute left-full top-0 ml-2 py-2 rounded-2xl z-50 min-w-[170px]"
-                    style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider px-4 pb-2" style={{ color: "var(--text-muted)" }}>Maliyyə</p>
+                  <div
+                    className="absolute top-0 py-2 rounded-2xl z-50"
+                    style={{
+                      left: "calc(100% + 8px)",
+                      minWidth: "170px",
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border-color)",
+                      boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+                    }}
+                    onMouseEnter={openFinance}
+                    onMouseLeave={closeFinance}
+                  >
+                    {/* invisible bridge */}
+                    <div className="absolute right-full top-0 h-full w-3" onMouseEnter={openFinance} />
+                    <p className="text-xs font-semibold uppercase tracking-wider px-4 pb-2 pt-1" style={{ color: "var(--text-muted)" }}>Maliyyə</p>
                     {FINANCE_MENU.map(f => {
                       const Icon = f.icon
                       const active = pathname === f.href
@@ -162,7 +196,7 @@ export default function Sidebar() {
                           className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all"
                           style={{ color: active ? "#ef4444" : "var(--text-primary)", background: active ? "rgba(239,68,68,0.08)" : "transparent" }}
                           onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
-                          onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = active ? "rgba(239,68,68,0.08)" : "transparent" }}>
+                          onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}>
                           <Icon size={15} />
                           {f.label}
                         </Link>
@@ -174,26 +208,15 @@ export default function Sidebar() {
             )}
 
             {/* Rest of menu */}
-            {MENU.slice(2).map(item => {
-              const active = pathname === item.href
-              const Icon = item.icon
-              return (
-                <Link key={item.href} href={item.href} title={!expanded ? item.label : undefined}
-                  className="flex items-center rounded-2xl transition-all"
-                  style={{ gap: expanded ? "10px" : "0", padding: expanded ? "10px 12px" : "10px 0", justifyContent: expanded ? "flex-start" : "center", background: active ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent", color: active ? "white" : "var(--text-secondary)", boxShadow: active ? "0 4px 15px rgba(239,68,68,0.3)" : "none", whiteSpace: "nowrap" }}
-                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
-                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent" }}>
-                  <Icon size={17} style={{ flexShrink: 0 }} />
-                  {expanded && <span className="text-sm font-medium">{item.label}</span>}
-                </Link>
-              )
-            })}
+            {MENU.slice(2).map(item => (
+              <MenuItem key={item.href} item={item} expanded={expanded} pathname={pathname} />
+            ))}
 
           </nav>
         </div>
 
         {/* Bottom */}
-        <div className="px-2 pb-3 space-y-2">
+        <div className="px-2 pb-3 space-y-2" style={{ borderTop: "1px solid var(--border-color)", paddingTop: "8px" }}>
           <div className="flex items-center rounded-2xl p-2" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", gap: expanded ? "10px" : "0", justifyContent: expanded ? "flex-start" : "center" }}>
             <div className="w-8 h-8 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 text-white font-bold text-sm"
               style={{ background: ROLE_GRADIENTS[profile?.role ?? ""] ?? "linear-gradient(135deg, #6b7280, #9ca3af)" }}>
