@@ -209,14 +209,14 @@ export async function POST(request: NextRequest) {
       submitted_by_role: "menecer",
       review_status: "pending",
       raw_mir: mirText.substring(0, 2000),
-    })
+    }).select("id").single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     return NextResponse.json({
       success: true,
       message: "MIR uğurla işləndi və təsdiq növbəsinə əlavə edildi",
-      draft_id: data?.[0]?.id,
+      draft_id: (data as any)?.id,
       parsed: {
         passenger: parsed.passengerName,
         ticket: parsed.ticketNumber,
