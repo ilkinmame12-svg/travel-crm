@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
+import { useUserRole } from "@/lib/hooks/useUserRole"
 import { supabase } from "@/lib/supabase"
 import { formatCurrency, formatDate } from "@/lib/calculations"
 import { Plus, Trash2, TrendingUp, TrendingDown, CheckCircle, FileText } from "lucide-react"
@@ -23,6 +24,7 @@ function exportToPDF(debts: any[], clientName: string, typeLabel: string) {
 
 export default function DebtsPage() {
   const { bookings, fetchBookings } = useBookingsStore()
+  const { profile } = useUserRole()
   const [payModal, setPayModal] = useState<any>(null)
   const [payAmount, setPayAmount] = useState("")
   const [manualDebts, setManualDebts] = useState<ManualDebt[]>([])
@@ -30,6 +32,8 @@ export default function DebtsPage() {
   const [tab, setTab] = useState<"all" | "bookings" | "manual">("all")
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<string[]>([])
+
+  const canDelete = ["it_admin", "direktor", "muhasib"].includes(profile?.role ?? "")
 
   useEffect(() => { fetchBookings() }, [])
 
@@ -48,6 +52,13 @@ export default function DebtsPage() {
     const newStatus = newPaid >= payModal.sellPrice ? "paid" : "partial"
     await supabase.from("bookings").update({ paid_amount: newPaid, payment_status: newStatus }).eq("id", payModal.id)
     await fetchBookings(); setPayModal(null)
+  }
+
+  async function handleDeleteDebt(bookingId: string, sellPrice: number) {
+    if (!confirm("Bu borcu silmək istəyirsiniz? Sifariş ödənilmiş kimi qeyd ediləcək.")) return
+    await supabase.from("bookings").update({ payment_status: "paid", paid_amount: sellPrice }).eq("id", bookingId)
+    await fetchBookings()
+    setPayModal(null)
   }
 
   function handleAdd(e: React.FormEvent<HTMLFormElement>) {
@@ -98,6 +109,7 @@ export default function DebtsPage() {
 
       {(tab === "all" || tab === "bookings") && bookingDebts.length > 0 && (
         <div className="mb-4">
+          {/* Mobile */}
           <div className="md:hidden space-y-3">
             {bookingDebts.map(b => (
               <div key={b.id} className="p-4 rounded-3xl" style={card}>
@@ -109,14 +121,66 @@ export default function DebtsPage() {
                   <div><p className="text-xs" style={{ color: "var(--text-muted)" }}>{formatDate(b.departureDate)}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.manager}</p></div>
                   <div className="text-right"><p className="text-xl font-bold text-red-500">{formatCurrency(b.remaining)}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>Ödənilib: {formatCurrency(b.paidAmount ?? 0)}</p></div>
                 </div>
-                <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }} className="w-full flex items-center justify-center gap-1.5 text-sm py-2 rounded-2xl font-medium" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}><CheckCircle size={14} />Ödəniş qeyd et</button>
+                <div className="flex gap-2">
+                  <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
+                    className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-2xl font-medium"
+                    style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
+                    <CheckCircle size={14} />Ödə
+                  </button>
+                  {canDelete && (
+                    <button onClick={() => handleDeleteDebt(b.id, b.sellPrice)}
+                      className="flex items-center justify-center gap-1.5 text-sm px-3 py-2 rounded-2xl font-medium"
+                      style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
+
+          {/* Desktop */}
           <div className="hidden md:block rounded-3xl overflow-hidden" style={card}>
             <table className="w-full text-sm">
-              <thead><tr style={{ borderBottom: "1px solid var(--border-color)" }}>{["Müştəri", "İstiqamət", "Növ", "Tarix", "Ümumi", "Ödənilib", "Qalıq", "Menecer", ""].map(h => <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3" style={{ color: "var(--text-muted)" }}>{h}</th>)}</tr></thead>
-              <tbody>{bookingDebts.map(b => (<tr key={b.id} className="border-b" style={{ borderColor: "var(--border-color)" }}><td className="px-4 py-3"><p className="font-medium" style={{ color: "var(--text-primary)" }}>{b.clientName}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p></td><td className="px-4 py-3 max-w-xs truncate" style={{ color: "var(--text-secondary)" }}>{b.destination}</td><td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>{b.bookingType}</span></td><td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{formatDate(b.departureDate)}</td><td className="px-4 py-3 font-semibold" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</td><td className="px-4 py-3 font-semibold text-green-500">{formatCurrency(b.paidAmount ?? 0)}</td><td className="px-4 py-3 font-bold text-red-500">{formatCurrency(b.remaining)}</td><td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{b.manager}</td><td className="px-4 py-3"><button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl font-medium" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}><CheckCircle size={12} />Ödə</button></td></tr>))}</tbody>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  {["Müştəri", "İstiqamət", "Növ", "Tarix", "Ümumi", "Ödənilib", "Qalıq", "Menecer", ""].map(h => (
+                    <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3" style={{ color: "var(--text-muted)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {bookingDebts.map(b => (
+                  <tr key={b.id} className="border-b transition-all" style={{ borderColor: "var(--border-color)" }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                    <td className="px-4 py-3"><p className="font-medium" style={{ color: "var(--text-primary)" }}>{b.clientName}</p><p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p></td>
+                    <td className="px-4 py-3 max-w-xs truncate" style={{ color: "var(--text-secondary)" }}>{b.destination}</td>
+                    <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>{b.bookingType}</span></td>
+                    <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{formatDate(b.departureDate)}</td>
+                    <td className="px-4 py-3 font-semibold" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</td>
+                    <td className="px-4 py-3 font-semibold text-green-500">{formatCurrency(b.paidAmount ?? 0)}</td>
+                    <td className="px-4 py-3 font-bold text-red-500">{formatCurrency(b.remaining)}</td>
+                    <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{b.manager}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl font-medium transition-all hover:scale-105"
+                          style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
+                          <CheckCircle size={12} />Ödə
+                        </button>
+                        {canDelete && (
+                          <button onClick={() => handleDeleteDebt(b.id, b.sellPrice)}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl font-medium transition-all hover:scale-105"
+                            style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+                            <Trash2 size={12} />Sil
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </div>
@@ -130,8 +194,16 @@ export default function DebtsPage() {
               <div className="flex flex-col items-end gap-2 ml-3">
                 <p className={`font-bold ${d.direction === "they_owe" ? "text-green-500" : "text-red-500"}`}>{formatCurrency(d.amount)}</p>
                 <div className="flex gap-1.5">
-                  <button onClick={() => setManualDebts(prev => prev.map(x => x.id === d.id ? { ...x, status: x.status === "pending" ? "paid" : "pending" } : x))} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: d.status === "paid" ? "var(--bg-glass)" : "rgba(245,158,11,0.1)", color: d.status === "paid" ? "var(--text-muted)" : "#f59e0b" }}>{d.status === "paid" ? "Ödənilib" : "Gözləyir"}</button>
-                  <button onClick={() => setManualDebts(prev => prev.filter(x => x.id !== d.id))} className="p-1 rounded-lg" style={{ color: "var(--text-muted)" }}><Trash2 size={13} /></button>
+                  <button onClick={() => setManualDebts(prev => prev.map(x => x.id === d.id ? { ...x, status: x.status === "pending" ? "paid" : "pending" } : x))}
+                    className="text-xs px-2 py-0.5 rounded-full font-medium"
+                    style={{ background: d.status === "paid" ? "var(--bg-glass)" : "rgba(245,158,11,0.1)", color: d.status === "paid" ? "var(--text-muted)" : "#f59e0b" }}>
+                    {d.status === "paid" ? "Ödənilib" : "Gözləyir"}
+                  </button>
+                  <button onClick={() => setManualDebts(prev => prev.filter(x => x.id !== d.id))}
+                    className="p-1 rounded-lg transition-all hover:scale-110"
+                    style={{ color: "#ef4444" }}>
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -140,30 +212,61 @@ export default function DebtsPage() {
       )}
 
       {bookingDebts.length === 0 && manualDebts.length === 0 && (
-        <div className="text-center py-16 rounded-3xl" style={{ ...card, color: "var(--text-muted)" }}><p className="text-sm font-medium">Borc tapılmadı</p></div>
+        <div className="text-center py-16 rounded-3xl" style={{ ...card, color: "var(--text-muted)" }}>
+          <p className="text-sm font-medium">Borc tapılmadı</p>
+        </div>
       )}
 
+      {/* Pay Modal */}
       {payModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4"
+          style={{ backdropFilter: "blur(8px)" }}>
           <div className="w-full max-w-sm p-6" style={modalCard}>
-            <div className="flex items-center justify-between mb-5"><h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Ödəniş qeyd et</h2><button onClick={() => setPayModal(null)} style={{ color: "var(--text-muted)" }} className="text-xl">✕</button></div>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Ödəniş qeyd et</h2>
+              <button onClick={() => setPayModal(null)} style={{ color: "var(--text-muted)" }} className="text-xl">✕</button>
+            </div>
             <div className="space-y-3 mb-4">
               <div><p className="text-xs" style={{ color: "var(--text-muted)" }}>Müştəri</p><p className="font-semibold" style={{ color: "var(--text-primary)" }}>{payModal.clientName}</p></div>
+              <div><p className="text-xs" style={{ color: "var(--text-muted)" }}>İstiqamət</p><p className="text-sm" style={{ color: "var(--text-secondary)" }}>{payModal.destination}</p></div>
               <div><p className="text-xs" style={{ color: "var(--text-muted)" }}>Qalıq borc</p><p className="text-xl font-bold text-red-500">{formatCurrency(payModal.remaining)}</p></div>
-              <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ödəniş məbləği</label><input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} style={inputStyle} /></div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ödəniş məbləği</label>
+                <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} style={inputStyle} />
+              </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={handlePay} className="flex-1 py-3 rounded-2xl text-sm font-medium text-white" style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}>Ödənişi qeyd et</button>
-              <button onClick={() => setPayModal(null)} className="flex-1 py-3 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>Ləğv et</button>
+              <button onClick={handlePay}
+                className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white"
+                style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}>
+                Ödənişi qeyd et
+              </button>
+              <button onClick={() => setPayModal(null)}
+                className="flex-1 py-3 rounded-2xl text-sm"
+                style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                Ləğv et
+              </button>
             </div>
+            {canDelete && (
+              <button onClick={() => handleDeleteDebt(payModal.id, payModal.sellPrice)}
+                className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-medium transition-all"
+                style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>
+                <Trash2 size={14} />Borcu sil
+              </button>
+            )}
           </div>
         </div>
       )}
 
+      {/* Add Manual Debt Modal */}
       {modal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-4"
+          style={{ backdropFilter: "blur(8px)" }}>
           <div className="w-full max-w-md p-6" style={modalCard}>
-            <div className="flex items-center justify-between mb-5"><h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Yeni borc</h2><button onClick={() => setModal(false)} style={{ color: "var(--text-muted)" }} className="text-xl">✕</button></div>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Yeni borc</h2>
+              <button onClick={() => setModal(false)} style={{ color: "var(--text-muted)" }} className="text-xl">✕</button>
+            </div>
             <form onSubmit={handleAdd} className="space-y-3">
               <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Ad *</label><input name="name" required style={inputStyle} /></div>
               <div><label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Məbləğ (AZN) *</label><input name="amount" type="number" step="0.01" min="0" required style={inputStyle} /></div>
