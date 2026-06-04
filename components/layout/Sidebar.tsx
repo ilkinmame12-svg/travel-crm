@@ -6,7 +6,7 @@ import {
   LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe,
   Settings, HelpCircle, LogOut, BotMessageSquare, Users,
   PlaneTakeoff, Building2, Scale, Clock, MessageCircle,
-  ChevronRight, ChevronLeft, Sparkles
+  ChevronRight, ChevronLeft, Sparkles, FileText
 } from "lucide-react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
@@ -18,6 +18,7 @@ const ALL_MENU = [
   { href: "/",          label: "Dashboard",   icon: LayoutDashboard, roles: ["it_admin","boss","direktor","muhasib","menecer"] },
   { href: "/bookings",  label: "Sifarişlər",  icon: ClipboardList,   roles: ["it_admin","boss","direktor","muhasib","menecer"] },
   { href: "/drafts",    label: "Təsdiq",      icon: Clock,           roles: ["it_admin","direktor","muhasib","menecer"] },
+  { href: "/mir", label: "MIR Import", icon: FileText, roles: ["it_admin", "direktor", "menecer"] },
   { href: "/flights",   label: "TK NDC",      icon: PlaneTakeoff,    roles: ["it_admin","direktor","menecer"] },
   { href: "/assistant", label: "AI Köməkçi",  icon: BotMessageSquare,roles: ["it_admin","boss","direktor","muhasib","menecer"] },
   { href: "/chat",      label: "Mesajlar",    icon: MessageCircle,   roles: ["it_admin","boss","direktor","muhasib","menecer"] },
