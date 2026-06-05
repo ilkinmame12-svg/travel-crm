@@ -9,7 +9,7 @@ import {
   Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage,
   Armchair, Star, Shield, TrendingUp, TrendingDown, DollarSign,
   Filter, X, ChevronDown, CheckCircle2, Clock, XCircle, AlertCircle,
-  Edit3, Trash2, MoreHorizontal, SlidersHorizontal, ArrowUpRight
+  Edit3, Trash2, MoreHorizontal, SlidersHorizontal, ArrowUpRight, FileText
 } from "lucide-react"
 
 const MANAGERS = ["Miraslan Abbasov", "Rehime Qasimli", "Ayxan Elxanli", "Gunes Abdullazade", "Gunay Qurbanova", "Mircemil Abbasov", "Meryem Eliyeva"]
@@ -135,6 +135,35 @@ function KpiCard({ label, value, sub, gradient, icon: Icon, trend }: any) {
       {sub && <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{sub}</p>}
     </div>
   )
+}
+
+
+// ─── PDF Export ───────────────────────────────────────────────────────────────
+function exportToPDF(bookings: any[]) {
+  const date = new Date().toLocaleDateString("az-AZ", { day: "numeric", month: "long", year: "numeric" })
+  const total = bookings.reduce((s, b) => s + b.sellPrice, 0)
+  const totalProfit = bookings.reduce((s, b) => s + b.profit, 0)
+  const totalPaid = bookings.reduce((s, b) => s + (b.paidAmount ?? 0), 0)
+  const totalDebt = bookings.reduce((s, b) => s + (b.sellPrice - (b.paidAmount ?? 0)), 0)
+  const typeLabels: Record<string, string> = { bilet:"Aviabilet",otel:"Otel",tur:"Tur",kruiz:"Kruiz",transfer:"Transfer",bagaj:"Bagaj",yer_secimi:"Yer seçimi",cip:"CIP",sigorta:"Sığorta" }
+  const statusColors: Record<string, string> = { paid:"#16a34a",partial:"#ea580c",unpaid:"#dc2626" }
+  const statusLabels: Record<string, string> = { paid:"Ödənilib",partial:"Qismən",unpaid:"Ödənilməyib" }
+  const rows = bookings.map((b, i) => `
+    <tr style="border-bottom:1px solid #f0f0f0;background:${i%2===0?'white':'#fafafa'}">
+      <td style="padding:10px 12px;font-size:12px;color:#6b7280">${i+1}</td>
+      <td style="padding:10px 12px"><div style="font-weight:600;color:#1f2937;font-size:13px">${b.clientName}</div>${b.clientPhone?`<div style="color:#9ca3af;font-size:11px">${b.clientPhone}</div>`:""}</td>
+      <td style="padding:10px 12px;font-size:13px;color:#374151">${b.destination}</td>
+      <td style="padding:10px 12px"><span style="background:#eff6ff;color:#3b82f6;padding:2px 8px;border-radius:6px;font-size:11px">${typeLabels[b.bookingType]??b.bookingType}</span></td>
+      <td style="padding:10px 12px;font-size:12px;color:#374151">${b.departureDate}</td>
+      <td style="padding:10px 12px;font-size:12px;color:#374151">${b.manager?.split(" ")[0]??""}</td>
+      <td style="padding:10px 12px;font-size:13px;font-weight:600;text-align:right;color:#1f2937">${b.sellPrice.toFixed(2)}</td>
+      <td style="padding:10px 12px;font-size:13px;text-align:right;color:#16a34a;font-weight:600">${(b.paidAmount??0).toFixed(2)}</td>
+      <td style="padding:10px 12px;font-size:13px;text-align:right;font-weight:600;color:${(b.sellPrice-(b.paidAmount??0))>0?'#dc2626':'#9ca3af'}">${(b.sellPrice-(b.paidAmount??0))>0?(b.sellPrice-(b.paidAmount??0)).toFixed(2):"—"}</td>
+      <td style="padding:10px 12px"><span style="background:${statusColors[b.paymentStatus]}20;color:${statusColors[b.paymentStatus]};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600">${statusLabels[b.paymentStatus]??b.paymentStatus}</span></td>
+    </tr>
+  `).join("")
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sifarişlər — itstour</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;color:#1f2937;background:white}.page{padding:40px;max-width:1100px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #ef4444}.logo{font-size:30px;font-weight:bold;color:#ef4444}.logo span{color:#1f2937}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}.stat{background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e5e7eb}.stat-label{font-size:11px;color:#9ca3af;text-transform:uppercase;margin-bottom:6px}.stat-value{font-size:20px;font-weight:bold}table{width:100%;border-collapse:collapse}thead tr{background:#1f2937}thead th{padding:11px 12px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase}.footer{margin-top:28px;padding-top:20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}.footer-note{font-size:11px;color:#9ca3af}.total-box{background:#1f2937;border-radius:12px;padding:14px 24px;display:inline-flex;gap:32px}.ti{text-align:right}.ti-l{font-size:11px;color:#9ca3af}.ti-v{font-size:17px;font-weight:bold;color:white}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body><div class="page"><div class="header"><div><div class="logo">its<span>tour</span></div><div style="font-size:11px;color:#9ca3af;margin-top:2px">infinity tourism services</div></div><div style="text-align:right"><div style="font-size:11px;color:#6b7280">Sifarişlər Hesabatı</div><div style="font-size:18px;font-weight:bold;color:#1f2937;margin:4px 0">${date}</div><div style="font-size:12px;color:#9ca3af">${bookings.length} sifariş</div></div></div><div class="stats"><div class="stat"><div class="stat-label">Ümumi gəlir</div><div class="stat-value" style="color:#ef4444">${total.toFixed(2)} AZN</div></div><div class="stat"><div class="stat-label">Ödənilmiş</div><div class="stat-value" style="color:#16a34a">${totalPaid.toFixed(2)} AZN</div></div><div class="stat"><div class="stat-label">Borc</div><div class="stat-value" style="color:#dc2626">${totalDebt.toFixed(2)} AZN</div></div><div class="stat"><div class="stat-label">Mənfəət</div><div class="stat-value" style="color:${totalProfit>=0?'#16a34a':'#dc2626'}">${totalProfit.toFixed(2)} AZN</div></div></div><table><thead><tr><th>#</th><th>Müştəri</th><th>İstiqamət</th><th>Növ</th><th>Tarix</th><th>Menecer</th><th style="text-align:right">Satış</th><th style="text-align:right">Ödənilib</th><th style="text-align:right">Borc</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div class="footer"><div class="footer-note"><p>itstour CRM • infinity tourism services</p><p>${date}</p></div><div class="total-box"><div class="ti"><div class="ti-l">Cəmi gəlir</div><div class="ti-v">${total.toFixed(2)} AZN</div></div><div class="ti"><div class="ti-l">Cəmi mənfəət</div><div class="ti-v" style="color:${totalProfit>=0?'#4ade80':'#f87171'}">${totalProfit.toFixed(2)} AZN</div></div></div></div></div><script>window.onload=()=>window.print()</script></body></html>`
+  const win = window.open("","_blank"); if(win){win.document.write(html);win.document.close()}
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -288,6 +317,13 @@ export default function SifarislerPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportToPDF(filtered)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-95"
+            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 4px 16px rgba(99,102,241,0.3)" }}>
+            <FileText size={15} />
+            PDF
+          </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all hover:scale-[1.02] active:scale-95"
