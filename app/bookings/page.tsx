@@ -34,7 +34,6 @@ function getTypeInfo(value: string) {
   return BOOKING_TYPES.find(t => t.value === value) ?? BOOKING_TYPES[0]
 }
 
-// ─── Skeleton Row ───────────────────────────────────────────────────────────
 function SkeletonRow() {
   return (
     <tr className="border-b" style={{ borderColor: "var(--border-color)" }}>
@@ -47,7 +46,6 @@ function SkeletonRow() {
   )
 }
 
-// ─── Status Badge ────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string; Icon: any }> = {
     confirmed: { label: "Təsdiqlənib", color: "#22c55e", bg: "rgba(34,197,94,0.12)", Icon: CheckCircle2 },
@@ -60,13 +58,11 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full"
       style={{ background: s.bg, color: s.color }}>
-      <Icon size={10} />
-      {s.label}
+      <Icon size={10} />{s.label}
     </span>
   )
 }
 
-// ─── Payment Badge ────────────────────────────────────────────────────────────
 function PaymentBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
     paid:    { label: "Ödənilib",    color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
@@ -76,39 +72,30 @@ function PaymentBadge({ status }: { status: string }) {
   const s = map[status] ?? map.unpaid
   return (
     <span className="inline-flex text-xs font-medium px-2.5 py-1 rounded-full"
-      style={{ background: s.bg, color: s.color }}>
-      {s.label}
-    </span>
+      style={{ background: s.bg, color: s.color }}>{s.label}</span>
   )
 }
 
-// ─── Empty State ─────────────────────────────────────────────────────────────
 function EmptyState({ onAdd, isManager }: { onAdd: () => void; isManager: boolean }) {
   return (
-    <tr>
-      <td colSpan={14}>
-        <div className="flex flex-col items-center justify-center py-24 px-6">
-          <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
-            style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(249,115,22,0.15))" }}>
-            <Plane size={28} style={{ color: "#ef4444" }} />
-          </div>
-          <h3 className="text-base font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Sifariş tapılmadı</h3>
-          <p className="text-sm mb-6 text-center max-w-xs" style={{ color: "var(--text-muted)" }}>
-            Filtrləri dəyişin və ya yeni sifariş əlavə edin
-          </p>
-          <button onClick={onAdd}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95"
-            style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 20px rgba(239,68,68,0.35)" }}>
-            <Plus size={15} />
-            {isManager ? "Sifariş göndər" : "Yeni sifariş"}
-          </button>
+    <tr><td colSpan={14}>
+      <div className="flex flex-col items-center justify-center py-24 px-6">
+        <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
+          style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(249,115,22,0.15))" }}>
+          <Plane size={28} style={{ color: "#ef4444" }} />
         </div>
-      </td>
-    </tr>
+        <h3 className="text-base font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Sifariş tapılmadı</h3>
+        <p className="text-sm mb-6 text-center max-w-xs" style={{ color: "var(--text-muted)" }}>Filtrləri dəyişin və ya yeni sifariş əlavə edin</p>
+        <button onClick={onAdd}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95"
+          style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 20px rgba(239,68,68,0.35)" }}>
+          <Plus size={15} />{isManager ? "Sifariş göndər" : "Yeni sifariş"}
+        </button>
+      </div>
+    </td></tr>
   )
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiCard({ label, value, sub, gradient, icon: Icon, trend }: any) {
   if (gradient) return (
     <div className="relative p-5 rounded-3xl text-white overflow-hidden"
@@ -137,12 +124,9 @@ function KpiCard({ label, value, sub, gradient, icon: Icon, trend }: any) {
   )
 }
 
-
 // ─── PDF Export ───────────────────────────────────────────────────────────────
-function exportToPDF(bookings: any[]) {
+function exportToPDF(bookings: any[], clientBalances: Record<string, number>) {
   const date = new Date().toLocaleDateString("az-AZ", { day: "numeric", month: "long", year: "numeric" })
-  const totalPaid = bookings.reduce((s, b) => s + (b.paidAmount ?? 0), 0)
-  const totalDebt = bookings.reduce((s, b) => s + (b.sellPrice - (b.paidAmount ?? 0)), 0)
 
   const typeLabels: Record<string, string> = {
     bilet:"Aviabilet",otel:"Otel",tur:"Tur",kruiz:"Kruiz",
@@ -151,14 +135,42 @@ function exportToPDF(bookings: any[]) {
   const statusColors: Record<string, string> = { paid:"#16a34a",partial:"#ea580c",unpaid:"#dc2626" }
   const statusLabels: Record<string, string> = { paid:"Ödənilib",partial:"Qismən",unpaid:"Ödənilməyib" }
 
+  // Calculate totals considering balances
+  let totalClientDebt = 0   // client owes us
+  let totalWeOwe = 0        // we owe client (positive balance)
+  let totalSell = 0
+  let totalPaid = 0
+
   const rows = bookings.map((b, i) => {
-    const weOwe = b.sellPrice - (b.paidAmount ?? 0)
+    const clientBalance = clientBalances[b.clientName.toLowerCase()] ?? 0
+    const rawDebt = b.sellPrice - (b.paidAmount ?? 0)
+    // If client has positive balance, it covers their debt
+    const effectiveDebt = Math.max(0, rawDebt - Math.max(0, clientBalance))
+    const weOweClient = clientBalance > rawDebt ? clientBalance - rawDebt : 0
+
+    totalSell += b.sellPrice
+    totalPaid += (b.paidAmount ?? 0)
+    if (effectiveDebt > 0) totalClientDebt += effectiveDebt
+    if (weOweClient > 0) totalWeOwe += weOweClient
+
+    let debtCell = ""
+    if (weOweClient > 0) {
+      debtCell = `<div style="color:#16a34a;font-weight:700;font-size:13px">+${weOweClient.toFixed(2)} AZN</div>
+                  <div style="color:#9ca3af;font-size:10px">Biz borcluq</div>`
+    } else if (effectiveDebt > 0) {
+      debtCell = `<div style="color:#dc2626;font-weight:700;font-size:13px">${effectiveDebt.toFixed(2)} AZN</div>
+                  <div style="color:#9ca3af;font-size:10px">Müştəri borcu</div>`
+    } else {
+      debtCell = `<span style="color:#9ca3af">—</span>`
+    }
+
     return `
     <tr style="border-bottom:1px solid #f0f0f0;background:${i%2===0?'white':'#fafafa'}">
       <td style="padding:10px 12px;font-size:12px;color:#6b7280">${i+1}</td>
       <td style="padding:10px 12px">
         <div style="font-weight:600;color:#1f2937;font-size:13px">${b.clientName}</div>
         ${b.clientPhone?`<div style="color:#9ca3af;font-size:11px">${b.clientPhone}</div>`:""}
+        ${clientBalance > 0 ? `<div style="color:#16a34a;font-size:10px;font-weight:600">✓ Balans: ${clientBalance.toFixed(2)} AZN</div>` : ""}
       </td>
       <td style="padding:10px 12px;font-size:13px;color:#374151">${b.destination}</td>
       <td style="padding:10px 12px">
@@ -167,17 +179,16 @@ function exportToPDF(bookings: any[]) {
         </span>
       </td>
       <td style="padding:10px 12px;font-size:12px;color:#374151">${b.departureDate}</td>
-      <td style="padding:10px 12px;font-size:12px;color:#374151">${b.manager?.split(" ")[0]??""}</td>
-      <td style="padding:10px 12px;font-size:13px;text-align:right;font-weight:600;color:${weOwe>0?'#dc2626':'#9ca3af'}">
-        ${weOwe>0?weOwe.toFixed(2)+" AZN":"—"}
-      </td>
+      <td style="padding:10px 12px;font-size:13px;font-weight:600;text-align:right;color:#1f2937">${b.sellPrice.toFixed(2)} AZN</td>
+      <td style="padding:10px 12px;font-size:13px;text-align:right;color:#16a34a;font-weight:600">${(b.paidAmount??0).toFixed(2)} AZN</td>
+      <td style="padding:10px 12px;text-align:right">${debtCell}</td>
       <td style="padding:10px 12px">
         <span style="background:${statusColors[b.paymentStatus]}20;color:${statusColors[b.paymentStatus]};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600">
           ${statusLabels[b.paymentStatus]??b.paymentStatus}
         </span>
       </td>
-    </tr>
-  `}).join("")
+    </tr>`
+  }).join("")
 
   const html = `<!DOCTYPE html>
 <html>
@@ -187,18 +198,20 @@ function exportToPDF(bookings: any[]) {
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Arial,sans-serif;color:#1f2937;background:white}
-    .page{padding:40px;max-width:1000px;margin:0 auto}
+    .page{padding:40px;max-width:1100px;margin:0 auto}
     .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #ef4444}
-    .logo{font-size:30px;font-weight:bold;color:#ef4444}
-    .logo span{color:#1f2937}
-    .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:28px}
+    .logo{font-size:30px;font-weight:bold;color:#ef4444}.logo span{color:#1f2937}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
     .stat{background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e5e7eb}
     .stat-label{font-size:11px;color:#9ca3af;text-transform:uppercase;margin-bottom:6px}
-    .stat-value{font-size:22px;font-weight:bold}
+    .stat-value{font-size:20px;font-weight:bold}
     table{width:100%;border-collapse:collapse}
     thead tr{background:#1f2937}
     thead th{padding:11px 12px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase}
-    .footer{margin-top:28px;padding-top:20px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af}
+    .legend{margin-top:20px;display:flex;gap:24px;padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e5e7eb}
+    .legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:#374151}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .footer{margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af}
     @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
   </style>
 </head>
@@ -218,12 +231,20 @@ function exportToPDF(bookings: any[]) {
 
   <div class="stats">
     <div class="stat">
+      <div class="stat-label">Ümumi satış</div>
+      <div class="stat-value" style="color:#1f2937">${totalSell.toFixed(2)} AZN</div>
+    </div>
+    <div class="stat">
       <div class="stat-label">Ödənilmiş</div>
       <div class="stat-value" style="color:#16a34a">${totalPaid.toFixed(2)} AZN</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Ödənilməmiş borc</div>
-      <div class="stat-value" style="color:#dc2626">${totalDebt > 0 ? totalDebt.toFixed(2) + " AZN" : "—"}</div>
+      <div class="stat-label">Müştəri borcu</div>
+      <div class="stat-value" style="color:${totalClientDebt>0?'#dc2626':'#9ca3af'}">${totalClientDebt>0?totalClientDebt.toFixed(2)+' AZN':'—'}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Biz borcluq</div>
+      <div class="stat-value" style="color:${totalWeOwe>0?'#16a34a':'#9ca3af'}">${totalWeOwe>0?totalWeOwe.toFixed(2)+' AZN':'—'}</div>
     </div>
   </div>
 
@@ -235,13 +256,20 @@ function exportToPDF(bookings: any[]) {
         <th>İstiqamət</th>
         <th>Növ</th>
         <th>Uçuş tarixi</th>
-        <th>Menecer</th>
-        <th style="text-align:right">Borc</th>
-        <th>Ödəniş statusu</th>
+        <th style="text-align:right">Qiymət</th>
+        <th style="text-align:right">Ödənilib</th>
+        <th style="text-align:right">Balans vəziyyəti</th>
+        <th>Status</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>
+
+  <div class="legend">
+    <div class="legend-item"><div class="dot" style="background:#dc2626"></div>Müştəri bizə borcludur</div>
+    <div class="legend-item"><div class="dot" style="background:#16a34a"></div>Biz müştəriyə borcluq (balans artıqdır)</div>
+    <div class="legend-item"><div class="dot" style="background:#9ca3af"></div>Borc yoxdur</div>
+  </div>
 
   <div class="footer">
     <p>itstour CRM • infinity tourism services • ${date}</p>
@@ -254,6 +282,7 @@ function exportToPDF(bookings: any[]) {
   const win = window.open("","_blank")
   if(win){win.document.write(html);win.document.close()}
 }
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SifarislerPage() {
   const { profile, canDelete } = useUserRole()
@@ -270,8 +299,21 @@ export default function SifarislerPage() {
   const [ready, setReady] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [actionMenu, setActionMenu] = useState<string | null>(null)
+  const [clientBalances, setClientBalances] = useState<Record<string, number>>({})
 
-  useEffect(() => { fetchBookings(); setReady(true) }, [])
+  useEffect(() => {
+    fetchBookings()
+    setReady(true)
+    // Load client balances for PDF
+    supabase.from("client_balances").select("client_name, balance").then(({ data }) => {
+      if (data) {
+        const map: Record<string, number> = {}
+        data.forEach((b: any) => { map[b.client_name.toLowerCase()] = b.balance })
+        setClientBalances(map)
+      }
+    })
+  }, [])
+
   useEffect(() => {
     if (modal) {
       setPaymentStatus(selected?.paymentStatus ?? "unpaid")
@@ -389,7 +431,7 @@ export default function SifarislerPage() {
     <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}
       onClick={() => actionMenu && setActionMenu(null)}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Sifarişlər</h1>
@@ -406,11 +448,11 @@ export default function SifarislerPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => exportToPDF(filtered)}
+            onClick={() => exportToPDF(filtered, clientBalances)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-95"
             style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 4px 16px rgba(99,102,241,0.3)" }}>
             <FileText size={15} />
-            PDF
+            PDF / Çap et
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -435,7 +477,7 @@ export default function SifarislerPage() {
         </div>
       </div>
 
-      {/* ── KPI Cards ── */}
+      {/* KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <KpiCard label="Ümumi gəlir" value={formatCurrency(totalRevenue)} sub={`${filtered.length} sifariş`}
           gradient="linear-gradient(135deg, #ef4444 0%, #f97316 100%)" />
@@ -447,7 +489,7 @@ export default function SifarislerPage() {
           icon={DollarSign} />
       </div>
 
-      {/* ── Main Card ── */}
+      {/* Main Card */}
       <div className="rounded-3xl overflow-hidden"
         style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", backdropFilter: "blur(20px)" }}>
 
@@ -456,11 +498,7 @@ export default function SifarislerPage() {
           <div className="flex gap-1 overflow-x-auto pb-3 scrollbar-hide">
             <button onClick={() => setActiveTab("all")}
               className="flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-medium transition-all"
-              style={{
-                background: activeTab === "all" ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent",
-                color: activeTab === "all" ? "white" : "var(--text-secondary)",
-                boxShadow: activeTab === "all" ? "0 4px 12px rgba(239,68,68,0.3)" : "none",
-              }}>
+              style={{ background: activeTab === "all" ? "linear-gradient(135deg, #ef4444, #f97316)" : "transparent", color: activeTab === "all" ? "white" : "var(--text-secondary)", boxShadow: activeTab === "all" ? "0 4px 12px rgba(239,68,68,0.3)" : "none" }}>
               Hamısı ({bookings.filter(b => !isManager || b.manager === profile.fullName).length})
             </button>
             {typeCounts.map(t => {
@@ -469,57 +507,37 @@ export default function SifarislerPage() {
               return (
                 <button key={t.value} onClick={() => setActiveTab(t.value as BookingType)}
                   className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-sm font-medium transition-all"
-                  style={{
-                    background: active ? t.bg : "transparent",
-                    color: active ? t.color : "var(--text-secondary)",
-                    border: active ? `1px solid ${t.color}30` : "1px solid transparent",
-                  }}>
-                  <Icon size={13} />
-                  {t.label}
-                  <span className="text-xs opacity-70">({t.count})</span>
+                  style={{ background: active ? t.bg : "transparent", color: active ? t.color : "var(--text-secondary)", border: active ? `1px solid ${t.color}30` : "1px solid transparent" }}>
+                  <Icon size={13} />{t.label}<span className="text-xs opacity-70">({t.count})</span>
                 </button>
               )
             })}
           </div>
         </div>
 
-        {/* Search bar - always visible */}
+        {/* Search */}
         <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border-color)" }}>
           <div className="relative">
             <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
-            <input
-              type="text"
-              placeholder="Ad, bilet №, PNR, istiqamət axtar..."
+            <input type="text" placeholder="Ad, bilet №, PNR, istiqamət axtar..."
               onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
               className="w-full py-2.5 pl-11 pr-4 text-sm rounded-2xl focus:outline-none transition-all"
-              style={{
-                background: "var(--bg-glass)",
-                border: "1px solid var(--border-color)",
-                color: "var(--text-primary)",
-              }}
-            />
+              style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
             {filters.search && (
               <button onClick={() => setFilters(f => ({ ...f, search: "" }))}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg"
-                style={{ color: "var(--text-muted)" }}>
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg" style={{ color: "var(--text-muted)" }}>
                 <X size={13} />
               </button>
             )}
           </div>
         </div>
 
-        {/* Expandable filters */}
+        {/* Filters */}
         {showFilters && (
           <div className="px-5 py-4 flex flex-wrap gap-3" style={{ borderBottom: "1px solid var(--border-color)", background: "var(--bg-glass)" }}>
             {[
-              {
-                value: filters.status, onChange: (v: string) => setFilters(f => ({ ...f, status: v as any })),
-                options: [{ v: "all", l: "Bütün statuslar" }, { v: "pending", l: "Gözləyir" }, { v: "confirmed", l: "Təsdiqlənib" }, { v: "completed", l: "Tamamlandı" }, { v: "cancelled", l: "Ləğv edildi" }]
-              },
-              {
-                value: filters.iataPeriod, onChange: (v: string) => setFilters(f => ({ ...f, iataPeriod: v as any })),
-                options: [{ v: "all", l: "Bütün periodlar" }, { v: "1-7", l: "1-7" }, { v: "8-15", l: "8-15" }, { v: "16-23", l: "16-23" }, { v: "24-31", l: "24-31" }]
-              },
+              { value: filters.status, onChange: (v: string) => setFilters(f => ({ ...f, status: v as any })), options: [{ v: "all", l: "Bütün statuslar" }, { v: "pending", l: "Gözləyir" }, { v: "confirmed", l: "Təsdiqlənib" }, { v: "completed", l: "Tamamlandı" }, { v: "cancelled", l: "Ləğv edildi" }] },
+              { value: filters.iataPeriod, onChange: (v: string) => setFilters(f => ({ ...f, iataPeriod: v as any })), options: [{ v: "all", l: "Bütün periodlar" }, { v: "1-7", l: "1-7" }, { v: "8-15", l: "8-15" }, { v: "16-23", l: "16-23" }, { v: "24-31", l: "24-31" }] },
             ].map((sel, i) => (
               <select key={i} value={sel.value} onChange={e => sel.onChange(e.target.value)}
                 className="px-3 py-2 text-sm rounded-xl focus:outline-none"
@@ -527,8 +545,7 @@ export default function SifarislerPage() {
                 {sel.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
               </select>
             ))}
-            <input type="month" value={filters.dateFrom}
-              onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+            <input type="month" value={filters.dateFrom} onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
               className="px-3 py-2 text-sm rounded-xl focus:outline-none"
               style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
             {activeFiltersCount > 0 && (
@@ -554,114 +571,73 @@ export default function SifarislerPage() {
             </thead>
             <tbody>
               {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
-              {!loading && filtered.length === 0 && (
-                <EmptyState onAdd={() => setModal("create")} isManager={isManager} />
-              )}
+              {!loading && filtered.length === 0 && <EmptyState onAdd={() => setModal("create")} isManager={isManager} />}
               {!loading && filtered.map(b => {
                 const ti = getTypeInfo(b.bookingType)
                 const Icon = ti.Icon
                 const remaining = b.sellPrice - (b.paidAmount ?? 0)
-                const isActionOpen = actionMenu === b.id
                 return (
-                  <tr key={b.id}
-                    className="group transition-all"
-                    style={{ borderBottom: "1px solid var(--border-color)" }}
+                  <tr key={b.id} className="group transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-
-                    {/* Type */}
                     <td className="px-4 py-3.5">
                       <div className="flex flex-col gap-1">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-xl w-fit"
-                          style={{ background: ti.bg, color: ti.color }}>
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-xl w-fit" style={{ background: ti.bg, color: ti.color }}>
                           <Icon size={11} />{ti.label}
                         </span>
-                        {b.isIata && (
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-lg w-fit text-white"
-                            style={{ background: "#3b82f6", fontSize: "10px" }}>IATA</span>
-                        )}
+                        {b.isIata && <span className="text-xs font-bold px-2 py-0.5 rounded-lg w-fit text-white" style={{ background: "#3b82f6", fontSize: "10px" }}>IATA</span>}
                       </div>
                     </td>
-
-                    {/* Client */}
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{b.clientName}</p>
                       {b.clientPhone && <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p>}
                     </td>
-
-                    {/* Destination */}
                     <td className="px-4 py-3.5">
                       <p className="font-medium" style={{ color: "var(--text-primary)" }}>{b.destination}</p>
                       <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{b.travelers} nəfər</p>
                     </td>
-
-                    {/* Vendor */}
                     <td className="px-4 py-3.5">
-                      {b.vendor
-                        ? <span className="text-xs font-medium px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>{b.vendor}</span>
+                      {b.vendor ? <span className="text-xs font-medium px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>{b.vendor}</span>
                         : <span style={{ color: "var(--text-muted)" }}>—</span>}
                     </td>
-
-                    {/* Date */}
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{formatDate(b.departureDate)}</p>
                       <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>→ {formatDate(b.returnDate)}</p>
                     </td>
-
-                    {/* Manager */}
                     <td className="px-4 py-3.5">
                       <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{b.manager?.split(" ")[0]}</p>
                     </td>
-
-                    {/* Sell */}
                     <td className="px-4 py-3.5 text-right">
                       <p className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</p>
                       <p className="text-xs mt-0.5 tabular-nums text-green-500">{formatCurrency(b.paidAmount ?? 0)}</p>
                     </td>
-
-                    {/* Remaining */}
                     <td className="px-4 py-3.5 text-right">
-                      {remaining > 0
-                        ? <span className="font-semibold tabular-nums text-red-500">{formatCurrency(remaining)}</span>
+                      {remaining > 0 ? <span className="font-semibold tabular-nums text-red-500">{formatCurrency(remaining)}</span>
                         : <span style={{ color: "var(--text-muted)" }}>—</span>}
                     </td>
-
-                    {/* Profit */}
                     <td className="px-4 py-3.5 text-right">
                       <span className={`font-semibold tabular-nums ${b.profit >= 0 ? "text-green-500" : "text-red-500"}`}>
                         {b.profit >= 0 ? "+" : ""}{formatCurrency(b.profit)}
                       </span>
                     </td>
-
-                    {/* Status */}
                     <td className="px-4 py-3.5"><StatusBadge status={b.status} /></td>
-
-                    {/* Payment */}
                     <td className="px-4 py-3.5"><PaymentBadge status={b.paymentStatus} /></td>
-
-                    {/* Actions */}
                     <td className="px-4 py-3.5">
-                      <div className="relative">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          {!isReadOnly && (
-                            <button
-                              onClick={() => { setSelected(b); setModal("edit") }}
-                              className="p-2 rounded-xl transition-all hover:scale-110"
-                              style={{ color: "var(--text-muted)", background: "var(--bg-glass)" }}
-                              aria-label="Redaktə et">
-                              <Edit3 size={13} />
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button
-                              onClick={() => { if (confirm("Silinsin?")) deleteBooking(b.id) }}
-                              className="p-2 rounded-xl transition-all hover:scale-110"
-                              style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}
-                              aria-label="Sil">
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        {!isReadOnly && (
+                          <button onClick={() => { setSelected(b); setModal("edit") }}
+                            className="p-2 rounded-xl transition-all hover:scale-110"
+                            style={{ color: "var(--text-muted)", background: "var(--bg-glass)" }}>
+                            <Edit3 size={13} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => { if (confirm("Silinsin?")) deleteBooking(b.id) }}
+                            className="p-2 rounded-xl transition-all hover:scale-110"
+                            style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}>
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -671,12 +647,9 @@ export default function SifarislerPage() {
           </table>
         </div>
 
-        {/* Footer */}
         {filtered.length > 0 && (
           <div className="flex items-center justify-between px-5 py-3" style={{ borderTop: "1px solid var(--border-color)" }}>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {filtered.length} sifariş · Cəmi {formatCurrency(totalRevenue)}
-            </p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{filtered.length} sifariş · Cəmi {formatCurrency(totalRevenue)}</p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
               Mənfəət: <span className={totalProfit >= 0 ? "text-green-500 font-semibold" : "text-red-500 font-semibold"}>{formatCurrency(totalProfit)}</span>
             </p>
@@ -684,14 +657,12 @@ export default function SifarislerPage() {
         )}
       </div>
 
-      {/* ── Modal ── */}
+      {/* Modal */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-8"
           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
           <div className="w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl"
             style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", animation: "modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1)" }}>
-
-            {/* Modal header */}
             <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
               <div>
                 <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
@@ -709,9 +680,7 @@ export default function SifarislerPage() {
                 <X size={16} />
               </button>
             </div>
-
             <form onSubmit={handleSubmit} className="p-7 grid grid-cols-2 gap-5">
-              {/* Booking type */}
               <div className="col-span-2">
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Sifariş növü *</label>
                 <div className="grid grid-cols-5 gap-2">
@@ -732,8 +701,6 @@ export default function SifarislerPage() {
                   })}
                 </div>
               </div>
-
-              {/* Vendor + IATA */}
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Vendor</label>
                 <input name="vendor" defaultValue={selected?.vendor ?? ""} placeholder="Amadeus, Booking.com..."
@@ -748,10 +715,7 @@ export default function SifarislerPage() {
                   <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>IATA bileti</span>
                 </label>
               </div>
-
-              {/* Section label */}
               <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Müştəri məlumatları</p></div>
-
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Ad *</label>
                 <ClientAutocomplete defaultValue={selected?.clientName ?? ""} bookings={bookings} ready={ready} />
@@ -780,9 +744,7 @@ export default function SifarislerPage() {
                   className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
                   style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
-
               <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Maliyyə</p></div>
-
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Satış qiyməti (AZN) *</label>
                 <input name="sellPrice" type="number" step="0.01" min="-99999" defaultValue={selected?.sellPrice ?? 0} required
@@ -819,9 +781,7 @@ export default function SifarislerPage() {
                     style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.4)", color: "var(--text-primary)" }} />
                 </div>
               )}
-
               <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>İdarəetmə</p></div>
-
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Menecer</label>
                 <select name="manager" defaultValue={selected?.manager ?? MANAGERS[0]}
@@ -855,9 +815,7 @@ export default function SifarislerPage() {
                   className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
                   style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
-
               <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Referans</p></div>
-
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Bilet №</label>
                 <input name="ticketNumber" defaultValue={selected?.ticketNumber ?? ""} placeholder="157-1234567890"
@@ -888,7 +846,6 @@ export default function SifarislerPage() {
                   className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none resize-none"
                   style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
-
               <div className="col-span-2 flex justify-end gap-3 pt-4" style={{ borderTop: "1px solid var(--border-color)" }}>
                 <button type="button" onClick={() => { setModal(null); setSelected(null) }}
                   className="px-5 py-2.5 rounded-2xl text-sm font-medium transition-all hover:scale-[1.02]"
@@ -909,7 +866,6 @@ export default function SifarislerPage() {
   )
 }
 
-// ─── Client Autocomplete ──────────────────────────────────────────────────────
 function ClientAutocomplete({ defaultValue, bookings, ready }: { defaultValue: string, bookings: any[], ready: boolean }) {
   const [value, setValue] = useState(defaultValue)
   const [suggestions, setSuggestions] = useState<string[]>([])
