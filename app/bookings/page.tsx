@@ -127,91 +127,85 @@ function KpiCard({ label, value, sub, gradient, icon: Icon, trend }: any) {
 // ─── PDF Export ───────────────────────────────────────────────────────────────
 function exportToPDF(bookings: any[], clientBalances: Record<string, number>) {
   const date = new Date().toLocaleDateString("az-AZ", { day: "numeric", month: "long", year: "numeric" })
-
   const typeLabels: Record<string, string> = {
     bilet:"Aviabilet",otel:"Otel",tur:"Tur",kruiz:"Kruiz",
     transfer:"Transfer",bagaj:"Bagaj",yer_secimi:"Yer seçimi",cip:"CIP",sigorta:"Sığorta"
   }
-  const statusColors: Record<string, string> = { paid:"#16a34a",partial:"#ea580c",unpaid:"#dc2626" }
-  const statusLabels: Record<string, string> = { paid:"Ödənilib",partial:"Qismən",unpaid:"Ödənilməyib" }
 
-  // Calculate totals considering balances
-  let totalClientDebt = 0   // client owes us
-  let totalWeOwe = 0        // we owe client (positive balance)
-  let totalSell = 0
-  let totalPaid = 0
+  const uniqueClients = [...new Set(bookings.map((b: any) => b.clientName))]
 
-  const rows = bookings.map((b, i) => {
-    const clientBalance = clientBalances[b.clientName.toLowerCase()] ?? 0
-    const rawDebt = b.sellPrice - (b.paidAmount ?? 0)
-    // If client has positive balance, it covers their debt
-    const effectiveDebt = Math.max(0, rawDebt - Math.max(0, clientBalance))
-    const weOweClient = clientBalance > rawDebt ? clientBalance - rawDebt : 0
+  const clientSections = uniqueClients.map((clientName: any) => {
+    const cb = bookings.filter((b: any) => b.clientName === clientName)
+    const balance = clientBalances[clientName.toLowerCase()] ?? 0
+    const totalSell = cb.reduce((s: number, b: any) => s + b.sellPrice, 0)
+    const totalPaid = cb.reduce((s: number, b: any) => s + (b.paidAmount ?? 0), 0)
+    const debt = totalSell - totalPaid
+    // finalBalance: positive = we owe client, negative = client owes us
+    const finalBalance = balance - debt
+    const balanceColor = finalBalance >= 0 ? "#16a34a" : "#dc2626"
+    const balanceLabel = finalBalance >= 0
+      ? `+${finalBalance.toFixed(2)} AZN — Biz borcluq`
+      : `${finalBalance.toFixed(2)} AZN — Müştəri borcu`
 
-    totalSell += b.sellPrice
-    totalPaid += (b.paidAmount ?? 0)
-    if (effectiveDebt > 0) totalClientDebt += effectiveDebt
-    if (weOweClient > 0) totalWeOwe += weOweClient
-
-    let debtCell = ""
-    if (weOweClient > 0) {
-      debtCell = `<div style="color:#16a34a;font-weight:700;font-size:13px">+${weOweClient.toFixed(2)} AZN</div>
-                  <div style="color:#9ca3af;font-size:10px">Biz borcluq</div>`
-    } else if (effectiveDebt > 0) {
-      debtCell = `<div style="color:#dc2626;font-weight:700;font-size:13px">${effectiveDebt.toFixed(2)} AZN</div>
-                  <div style="color:#9ca3af;font-size:10px">Müştəri borcu</div>`
-    } else {
-      debtCell = `<span style="color:#9ca3af">—</span>`
-    }
+    const rows = cb.map((b: any, i: number) => `
+      <tr style="border-bottom:1px solid #f0f0f0;background:${i%2===0?'white':'#fafafa'}">
+        <td style="padding:10px 14px;font-size:13px;color:#374151">${b.destination}</td>
+        <td style="padding:10px 14px">
+          <span style="background:#eff6ff;color:#3b82f6;padding:2px 8px;border-radius:6px;font-size:11px">
+            ${typeLabels[b.bookingType]??b.bookingType}
+          </span>
+        </td>
+        <td style="padding:10px 14px;font-size:12px;color:#6b7280">${b.departureDate}</td>
+        <td style="padding:10px 14px;font-size:14px;font-weight:700;text-align:right;color:#1f2937">
+          ${b.sellPrice.toFixed(2)} AZN
+        </td>
+      </tr>`).join("")
 
     return `
-    <tr style="border-bottom:1px solid #f0f0f0;background:${i%2===0?'white':'#fafafa'}">
-      <td style="padding:10px 12px;font-size:12px;color:#6b7280">${i+1}</td>
-      <td style="padding:10px 12px">
-        <div style="font-weight:600;color:#1f2937;font-size:13px">${b.clientName}</div>
-        ${b.clientPhone?`<div style="color:#9ca3af;font-size:11px">${b.clientPhone}</div>`:""}
-        ${clientBalance > 0 ? `<div style="color:#16a34a;font-size:10px;font-weight:600">✓ Balans: ${clientBalance.toFixed(2)} AZN</div>` : ""}
-      </td>
-      <td style="padding:10px 12px;font-size:13px;color:#374151">${b.destination}</td>
-      <td style="padding:10px 12px">
-        <span style="background:#eff6ff;color:#3b82f6;padding:2px 8px;border-radius:6px;font-size:11px">
-          ${typeLabels[b.bookingType]??b.bookingType}
-        </span>
-      </td>
-      <td style="padding:10px 12px;font-size:12px;color:#374151">${b.departureDate}</td>
-      <td style="padding:10px 12px;font-size:13px;font-weight:600;text-align:right;color:#1f2937">${b.sellPrice.toFixed(2)} AZN</td>
-      <td style="padding:10px 12px;font-size:13px;text-align:right;color:#16a34a;font-weight:600">${(b.paidAmount??0).toFixed(2)} AZN</td>
-      <td style="padding:10px 12px;text-align:right">${debtCell}</td>
-      <td style="padding:10px 12px">
-        <span style="background:${statusColors[b.paymentStatus]}20;color:${statusColors[b.paymentStatus]};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600">
-          ${statusLabels[b.paymentStatus]??b.paymentStatus}
-        </span>
-      </td>
-    </tr>`
+      <div style="margin-bottom:28px;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;page-break-inside:avoid">
+        <div style="background:#f8fafc;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e5e7eb">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#1f2937">${clientName}</div>
+            ${cb[0]?.clientPhone ? `<div style="font-size:12px;color:#9ca3af;margin-top:2px">${cb[0].clientPhone}</div>` : ""}
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Balans</div>
+            <div style="font-size:20px;font-weight:800;color:${balanceColor}">${balanceLabel}</div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:#1f2937">
+              <th style="padding:10px 14px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Xidmət / İstiqamət</th>
+              <th style="padding:10px 14px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Növ</th>
+              <th style="padding:10px 14px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Tarix</th>
+              <th style="padding:10px 14px;text-align:right;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Qiymət</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr style="background:#f8fafc;border-top:2px solid #e5e7eb">
+              <td colspan="3" style="padding:12px 14px;font-size:13px;font-weight:600;color:#374151">Cəmi</td>
+              <td style="padding:12px 14px;text-align:right;font-size:15px;font-weight:800;color:#1f2937">${totalSell.toFixed(2)} AZN</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>`
   }).join("")
 
   const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Sifarişlər — itstour</title>
+  <title>Hesabat — itstour</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Arial,sans-serif;color:#1f2937;background:white}
-    .page{padding:40px;max-width:1100px;margin:0 auto}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:24px;border-bottom:3px solid #ef4444}
-    .logo{font-size:30px;font-weight:bold;color:#ef4444}.logo span{color:#1f2937}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
-    .stat{background:#f8fafc;border-radius:12px;padding:16px;border:1px solid #e5e7eb}
-    .stat-label{font-size:11px;color:#9ca3af;text-transform:uppercase;margin-bottom:6px}
-    .stat-value{font-size:20px;font-weight:bold}
-    table{width:100%;border-collapse:collapse}
-    thead tr{background:#1f2937}
-    thead th{padding:11px 12px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase}
-    .legend{margin-top:20px;display:flex;gap:24px;padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e5e7eb}
-    .legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:#374151}
-    .dot{width:10px;height:10px;border-radius:50%}
-    .footer{margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af}
+    .page{padding:40px;max-width:900px;margin:0 auto}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;padding-bottom:24px;border-bottom:3px solid #ef4444}
+    .logo{font-size:32px;font-weight:bold;color:#ef4444}
+    .logo span{color:#1f2937}
+    .footer{margin-top:32px;padding-top:20px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af}
     @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
   </style>
 </head>
@@ -220,56 +214,16 @@ function exportToPDF(bookings: any[], clientBalances: Record<string, number>) {
   <div class="header">
     <div>
       <div class="logo">its<span>tour</span></div>
-      <div style="font-size:11px;color:#9ca3af;margin-top:2px">infinity tourism services</div>
+      <div style="font-size:11px;color:#9ca3af;margin-top:3px">infinity tourism services</div>
     </div>
     <div style="text-align:right">
-      <div style="font-size:11px;color:#6b7280">Sifarişlər Hesabatı</div>
+      <div style="font-size:13px;color:#6b7280">Xidmətlər Hesabatı</div>
       <div style="font-size:20px;font-weight:bold;color:#1f2937;margin:4px 0">${date}</div>
-      <div style="font-size:12px;color:#9ca3af">${bookings.length} sifariş</div>
+      <div style="font-size:12px;color:#9ca3af">${bookings.length} sifariş · ${uniqueClients.length} müştəri</div>
     </div>
   </div>
 
-  <div class="stats">
-    <div class="stat">
-      <div class="stat-label">Ümumi satış</div>
-      <div class="stat-value" style="color:#1f2937">${totalSell.toFixed(2)} AZN</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Ödənilmiş</div>
-      <div class="stat-value" style="color:#16a34a">${totalPaid.toFixed(2)} AZN</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Müştəri borcu</div>
-      <div class="stat-value" style="color:${totalClientDebt>0?'#dc2626':'#9ca3af'}">${totalClientDebt>0?totalClientDebt.toFixed(2)+' AZN':'—'}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Biz borcluq</div>
-      <div class="stat-value" style="color:${totalWeOwe>0?'#16a34a':'#9ca3af'}">${totalWeOwe>0?totalWeOwe.toFixed(2)+' AZN':'—'}</div>
-    </div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th style="width:36px">#</th>
-        <th>Müştəri</th>
-        <th>İstiqamət</th>
-        <th>Növ</th>
-        <th>Uçuş tarixi</th>
-        <th style="text-align:right">Qiymət</th>
-        <th style="text-align:right">Ödənilib</th>
-        <th style="text-align:right">Balans vəziyyəti</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
-
-  <div class="legend">
-    <div class="legend-item"><div class="dot" style="background:#dc2626"></div>Müştəri bizə borcludur</div>
-    <div class="legend-item"><div class="dot" style="background:#16a34a"></div>Biz müştəriyə borcluq (balans artıqdır)</div>
-    <div class="legend-item"><div class="dot" style="background:#9ca3af"></div>Borc yoxdur</div>
-  </div>
+  ${clientSections}
 
   <div class="footer">
     <p>itstour CRM • infinity tourism services • ${date}</p>
