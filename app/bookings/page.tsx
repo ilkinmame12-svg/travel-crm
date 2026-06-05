@@ -137,11 +137,8 @@ function exportToPDF(bookings: any[], clientBalances: Record<string, number>) {
   const clientSections = uniqueClients.map((clientName: any) => {
     const cb = bookings.filter((b: any) => b.clientName === clientName)
     const balance = clientBalances[clientName.toLowerCase()] ?? 0
-    const totalSell = cb.reduce((s: number, b: any) => s + b.sellPrice, 0)
-    const totalPaid = cb.reduce((s: number, b: any) => s + (b.paidAmount ?? 0), 0)
-    const debt = totalSell - totalPaid
-    // finalBalance: positive = we owe client, negative = client owes us
-    const finalBalance = balance - debt
+   const totalSell = cb.reduce((s: number, b: any) => s + b.sellPrice, 0)
+const finalBalance = balance
     const balanceColor = finalBalance >= 0 ? "#16a34a" : "#dc2626"
     const balanceLabel = finalBalance >= 0
       ? `+${finalBalance.toFixed(2)} AZN — Biz borcluq`
