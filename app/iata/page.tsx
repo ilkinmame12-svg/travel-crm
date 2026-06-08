@@ -41,7 +41,7 @@ export default function IATAPage() {
       totalProfit: items.reduce((s, b) => s + b.profit, 0),
       totalCommission: items.reduce((s, b) => s + b.commissionAmount, 0),
       unpaidCount: unpaidItems.length,
-      unpaidAmount: unpaidItems.reduce((s, b) => s + (b.sellPrice - (b.paidAmount ?? 0)), 0),
+      unpaidAmount: unpaidItems.reduce((s, b) => s + b.buyPrice, 0),
     }
   }), [bookings, selectedMonth])
 
