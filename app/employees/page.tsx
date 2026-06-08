@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase"
 import {
   Plus, Trash2, Users, TrendingUp, DollarSign, Award,
   CheckCircle2, Clock, X, ChevronLeft, ChevronRight,
-  Edit3, Banknote, Gift, AlertCircle
+  Edit3, Gift
 } from "lucide-react"
 
 interface Employee {
@@ -58,6 +58,15 @@ function nextMonth(month: string) {
   return `${y}-${String(m+1).padStart(2,"0")}`
 }
 
+function mapPayment(p: any): EmployeePayment {
+  return {
+    id: p.id, employeeId: p.employee_id, employeeName: p.employee_name, month: p.month,
+    salaryAmount: p.salary_amount ?? 0, salaryPaid: p.salary_paid ?? false, salaryPaidAt: p.salary_paid_at,
+    bonusAmount: p.bonus_amount ?? 0, bonusPaid: p.bonus_paid ?? false, bonusPaidAt: p.bonus_paid_at,
+    notes: p.notes ?? ""
+  }
+}
+
 export default function EmployeesPage() {
   const { bookings, fetchBookings } = useBookingsStore()
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -70,29 +79,39 @@ export default function EmployeesPage() {
   const [ready, setReady] = useState(false)
   const [activeTab, setActiveTab] = useState<"salary" | "employees">("salary")
 
-  useEffect(() => { fetchBookings(); fetchEmployees(); setReady(true) }, [])
-  useEffect(() => { if (employees.length > 0) fetchPayments() }, [employees, selectedMonth])
+  useEffect(() => {
+    fetchBookings()
+    fetchEmployees()
+    setReady(true)
+  }, [])
 
-  async function fetchEmployees() {
-    const { data } = await supabase.from("employees").select("*").order("created_at", { ascending: false })
-    if (data) setEmployees(data.map((e: any) => ({
-      id: e.id, name: e.name, position: e.position ?? "",
-      baseSalary: e.base_salary ?? 0, commissionPercent: e.commission_percent ?? 5,
-      phone: e.phone ?? "", email: e.email ?? "", status: e.status ?? "active"
-    })))
-    setLoading(false)
-  }
+  useEffect(() => {
+    if (employees.length > 0) fetchPayments()
+  }, [selectedMonth])
 
-  async function fetchPayments() {
+  async function fetchPayments(empList?: Employee[]) {
+    const list = empList ?? employees
+    if (list.length === 0) return
+
     const { data } = await supabase.from("employee_payments").select("*").eq("month", selectedMonth)
     const existing = data ?? []
-    // Auto-create missing payment records for active employees
-    const missing = employees.filter(e => e.status === "active" && !existing.find(p => p.employee_id === e.id))
+
+    const missing = list.filter(e =>
+      e.status === "active" && !existing.find((p: any) => p.employee_id === e.id)
+    )
+
     if (missing.length > 0) {
       const inserts = missing.map(e => ({
-        employee_id: e.id, employee_name: e.name, month: selectedMonth,
-        salary_amount: e.baseSalary, salary_paid: false, salary_paid_at: null,
-        bonus_amount: 0, bonus_paid: false, bonus_paid_at: null, notes: ""
+        employee_id: e.id,
+        employee_name: e.name,
+        month: selectedMonth,
+        salary_amount: e.baseSalary,
+        salary_paid: false,
+        salary_paid_at: null,
+        bonus_amount: 0,
+        bonus_paid: false,
+        bonus_paid_at: null,
+        notes: ""
       }))
       await supabase.from("employee_payments").insert(inserts)
       const { data: fresh } = await supabase.from("employee_payments").select("*").eq("month", selectedMonth)
@@ -102,13 +121,18 @@ export default function EmployeesPage() {
     }
   }
 
-  function mapPayment(p: any): EmployeePayment {
-    return {
-      id: p.id, employeeId: p.employee_id, employeeName: p.employee_name, month: p.month,
-      salaryAmount: p.salary_amount ?? 0, salaryPaid: p.salary_paid ?? false, salaryPaidAt: p.salary_paid_at,
-      bonusAmount: p.bonus_amount ?? 0, bonusPaid: p.bonus_paid ?? false, bonusPaidAt: p.bonus_paid_at,
-      notes: p.notes ?? ""
+  async function fetchEmployees() {
+    const { data } = await supabase.from("employees").select("*").order("created_at", { ascending: false })
+    if (data) {
+      const list: Employee[] = data.map((e: any) => ({
+        id: e.id, name: e.name, position: e.position ?? "",
+        baseSalary: e.base_salary ?? 0, commissionPercent: e.commission_percent ?? 5,
+        phone: e.phone ?? "", email: e.email ?? "", status: e.status ?? "active"
+      }))
+      setEmployees(list)
+      await fetchPayments(list)
     }
+    setLoading(false)
   }
 
   function getStats(name: string) {
@@ -165,7 +189,10 @@ export default function EmployeesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (confirm("Silinsin?")) { await supabase.from("employees").delete().eq("id", id); await fetchEmployees() }
+    if (confirm("Silinsin?")) {
+      await supabase.from("employees").delete().eq("id", id)
+      await fetchEmployees()
+    }
   }
 
   if (!ready) return null
@@ -174,7 +201,6 @@ export default function EmployeesPage() {
   const totalBaseSalary = activeEmps.reduce((s, e) => s + e.baseSalary, 0)
   const totalCommissions = employees.reduce((s, e) => s + getStats(e.name).totalCommission, 0)
   const totalBonus = payments.reduce((s, p) => s + (p.bonusAmount ?? 0), 0)
-
   const salariesPaid = payments.filter(p => p.salaryPaid).length
   const bonusesPaid = payments.filter(p => p.bonusPaid && p.bonusAmount > 0).length
   const salariesUnpaid = payments.filter(p => !p.salaryPaid).length
@@ -278,129 +304,123 @@ export default function EmployeesPage() {
           </div>
 
           {/* Salary cards */}
-          <div className="space-y-3">
-            {activeEmps.map((emp, idx) => {
-              const payment = getPayment(emp.id)
-              if (!payment) return null
-              const stats = getStats(emp.name)
-              const totalDue = payment.salaryAmount + payment.bonusAmount
-
-              return (
-                <div key={emp.id} className="p-5 rounded-3xl transition-all" style={card}>
-                  <div className="flex items-center gap-4">
-                    {/* Avatar */}
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-                      style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>
-                      {emp.name[0]}
-                    </div>
-
-                    {/* Name + position */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{emp.name}</p>
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{emp.position}</p>
-                    </div>
-
-                    {/* Salary amount */}
-                    <div className="text-right flex-shrink-0 hidden md:block">
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Maaş</p>
-                      <p className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>{formatCurrency(payment.salaryAmount)}</p>
-                    </div>
-
-                    {/* Bonus amount */}
-                    <div className="text-right flex-shrink-0 hidden md:block">
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Bonus</p>
-                      <p className="font-bold text-sm" style={{ color: payment.bonusAmount > 0 ? "#f59e0b" : "var(--text-muted)" }}>
-                        {payment.bonusAmount > 0 ? formatCurrency(payment.bonusAmount) : "—"}
-                      </p>
-                    </div>
-
-                    {/* Total */}
-                    <div className="text-right flex-shrink-0 hidden md:block">
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Cəmi</p>
-                      <p className="font-bold" style={{ color: "#6366f1" }}>{formatCurrency(totalDue)}</p>
-                    </div>
-
-                    {/* Salary toggle */}
-                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Maaş</p>
-                      <button
-                        onClick={() => handleTogglePay(payment, "salary")}
-                        className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all hover:scale-110"
-                        style={{
-                          background: payment.salaryPaid ? "rgba(34,197,94,0.15)" : "rgba(245,158,11,0.12)",
-                          color: payment.salaryPaid ? "#22c55e" : "#f59e0b",
-                          border: `1px solid ${payment.salaryPaid ? "rgba(34,197,94,0.3)" : "rgba(245,158,11,0.3)"}`
-                        }}
-                        title={payment.salaryPaid ? "Ödənilib — klikləyin ləğv etmək üçün" : "Ödənilməyib — klikləyin ödənildi işarələmək üçün"}>
-                        {payment.salaryPaid ? <CheckCircle2 size={18} /> : <Clock size={18} />}
-                      </button>
-                    </div>
-
-                    {/* Bonus toggle */}
-                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Bonus</p>
-                      <button
-                        onClick={() => handleTogglePay(payment, "bonus")}
-                        className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all hover:scale-110"
-                        style={{
-                          background: payment.bonusPaid ? "rgba(99,102,241,0.15)" : payment.bonusAmount > 0 ? "rgba(245,158,11,0.12)" : "var(--bg-glass)",
-                          color: payment.bonusPaid ? "#6366f1" : payment.bonusAmount > 0 ? "#f59e0b" : "var(--text-muted)",
-                          border: `1px solid ${payment.bonusPaid ? "rgba(99,102,241,0.3)" : "var(--border-color)"}`
-                        }}>
-                        {payment.bonusPaid ? <CheckCircle2 size={18} /> : <Gift size={18} />}
-                      </button>
-                    </div>
-
-                    {/* Edit button */}
-                    <button
-                      onClick={() => setPayModal({ emp, payment })}
-                      className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all hover:scale-110 flex-shrink-0"
-                      style={{ background: "var(--bg-glass)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}
-                      title="Məbləği redaktə et">
-                      <Edit3 size={15} />
-                    </button>
+          {loading ? (
+            <div className="space-y-3">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-20 rounded-3xl animate-pulse" style={{ background: "var(--bg-glass)" }} />
+              ))}
+            </div>
+          ) : activeEmps.length === 0 ? (
+            <div className="p-8 text-center rounded-3xl" style={{ ...card, color: "var(--text-muted)" }}>
+              <Users size={32} className="mx-auto mb-3 opacity-40" />
+              <p>Aktiv işçi yoxdur</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {activeEmps.map((emp, idx) => {
+                const payment = getPayment(emp.id)
+                if (!payment) return (
+                  <div key={emp.id} className="p-4 rounded-3xl" style={card}>
+                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>{emp.name} — yüklənir...</p>
                   </div>
+                )
+                const totalDue = payment.salaryAmount + payment.bonusAmount
 
-                  {/* Mobile amounts */}
-                  <div className="flex gap-3 mt-3 md:hidden">
-                    {[
-                      { label: "Maaş", value: formatCurrency(payment.salaryAmount), color: "var(--text-primary)" },
-                      { label: "Bonus", value: payment.bonusAmount > 0 ? formatCurrency(payment.bonusAmount) : "—", color: payment.bonusAmount > 0 ? "#f59e0b" : "var(--text-muted)" },
-                      { label: "Cəmi", value: formatCurrency(totalDue), color: "#6366f1" },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className="flex-1 p-2.5 rounded-xl text-center" style={{ background: "var(--bg-glass)" }}>
-                        <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>{label}</p>
-                        <p className="text-sm font-bold" style={{ color }}>{value}</p>
+                return (
+                  <div key={emp.id} className="p-5 rounded-3xl" style={card}>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {/* Avatar */}
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-bold text-base flex-shrink-0"
+                        style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>
+                        {emp.name[0]}
                       </div>
-                    ))}
-                  </div>
 
-                  {/* Paid dates */}
-                  {(payment.salaryPaid || payment.bonusPaid) && (
-                    <div className="flex gap-2 mt-3 flex-wrap">
-                      {payment.salaryPaid && payment.salaryPaidAt && (
-                        <span className="text-xs px-2.5 py-1 rounded-xl" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
-                          ✓ Maaş: {new Date(payment.salaryPaidAt).toLocaleDateString("az-AZ")}
-                        </span>
-                      )}
-                      {payment.bonusPaid && payment.bonusPaidAt && (
-                        <span className="text-xs px-2.5 py-1 rounded-xl" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
-                          ✓ Bonus: {new Date(payment.bonusPaidAt).toLocaleDateString("az-AZ")}
-                        </span>
-                      )}
+                      {/* Name */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{emp.name}</p>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{emp.position}</p>
+                      </div>
+
+                      {/* Amounts */}
+                      <div className="flex gap-3 flex-wrap">
+                        {[
+                          { label: "Maaş", value: formatCurrency(payment.salaryAmount), color: "var(--text-primary)" },
+                          { label: "Bonus", value: payment.bonusAmount > 0 ? formatCurrency(payment.bonusAmount) : "—", color: payment.bonusAmount > 0 ? "#f59e0b" : "var(--text-muted)" },
+                          { label: "Cəmi", value: formatCurrency(totalDue), color: "#6366f1" },
+                        ].map(({ label, value, color }) => (
+                          <div key={label} className="text-center px-3 py-2 rounded-xl" style={{ background: "var(--bg-glass)" }}>
+                            <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>{label}</p>
+                            <p className="text-sm font-bold tabular-nums" style={{ color }}>{value}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Salary toggle */}
+                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Maaş</p>
+                        <button
+                          onClick={() => handleTogglePay(payment, "salary")}
+                          className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                          style={{
+                            background: payment.salaryPaid ? "rgba(34,197,94,0.15)" : "rgba(245,158,11,0.12)",
+                            color: payment.salaryPaid ? "#22c55e" : "#f59e0b",
+                            border: `2px solid ${payment.salaryPaid ? "rgba(34,197,94,0.4)" : "rgba(245,158,11,0.4)"}`,
+                          }}>
+                          {payment.salaryPaid ? <CheckCircle2 size={20} /> : <Clock size={20} />}
+                        </button>
+                      </div>
+
+                      {/* Bonus toggle */}
+                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Bonus</p>
+                        <button
+                          onClick={() => handleTogglePay(payment, "bonus")}
+                          className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                          style={{
+                            background: payment.bonusPaid ? "rgba(99,102,241,0.15)" : payment.bonusAmount > 0 ? "rgba(245,158,11,0.12)" : "var(--bg-glass)",
+                            color: payment.bonusPaid ? "#6366f1" : payment.bonusAmount > 0 ? "#f59e0b" : "var(--text-muted)",
+                            border: `2px solid ${payment.bonusPaid ? "rgba(99,102,241,0.4)" : payment.bonusAmount > 0 ? "rgba(245,158,11,0.3)" : "var(--border-color)"}`,
+                          }}>
+                          {payment.bonusPaid ? <CheckCircle2 size={20} /> : <Gift size={20} />}
+                        </button>
+                      </div>
+
+                      {/* Edit */}
+                      <button
+                        onClick={() => setPayModal({ emp, payment })}
+                        className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-110 flex-shrink-0"
+                        style={{ background: "var(--bg-glass)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}>
+                        <Edit3 size={15} />
+                      </button>
                     </div>
-                  )}
 
-                  {/* Notes */}
-                  {payment.notes && (
-                    <p className="text-xs mt-2 px-3 py-2 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
-                      📝 {payment.notes}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                    {/* Paid dates */}
+                    {(payment.salaryPaid || payment.bonusPaid) && (
+                      <div className="flex gap-2 mt-3 flex-wrap">
+                        {payment.salaryPaid && payment.salaryPaidAt && (
+                          <span className="text-xs px-2.5 py-1 rounded-xl" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
+                            ✓ Maaş ödənilib: {new Date(payment.salaryPaidAt).toLocaleDateString("az-AZ")}
+                          </span>
+                        )}
+                        {payment.bonusPaid && payment.bonusPaidAt && (
+                          <span className="text-xs px-2.5 py-1 rounded-xl" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
+                            ✓ Bonus ödənilib: {new Date(payment.bonusPaidAt).toLocaleDateString("az-AZ")}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {payment.notes && (
+                      <p className="text-xs mt-2 px-3 py-2 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
+                        📝 {payment.notes}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -468,7 +488,8 @@ export default function EmployeesPage() {
 
       {/* ── Pay Edit Modal ── */}
       {payModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
           <div className="w-full max-w-sm" style={modalCard}>
             <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
               <div>
@@ -482,27 +503,16 @@ export default function EmployeesPage() {
             </div>
             <form onSubmit={handleSavePayment} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
-                  Maaş məbləği (AZN)
-                </label>
-                <input name="salaryAmount" type="number" step="0.01" min="0"
-                  defaultValue={payModal.payment.salaryAmount}
-                  style={inp} />
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Maaş məbləği (AZN)</label>
+                <input name="salaryAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.salaryAmount} style={inp} />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
-                  Bonus məbləği (AZN)
-                </label>
-                <input name="bonusAmount" type="number" step="0.01" min="0"
-                  defaultValue={payModal.payment.bonusAmount}
-                  style={inp} />
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Bonus məbləği (AZN)</label>
+                <input name="bonusAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.bonusAmount} style={inp} />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>
-                  Qeyd
-                </label>
-                <input name="notes" defaultValue={payModal.payment.notes} placeholder="Məs: Aprel maaşı..."
-                  style={inp} />
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Qeyd</label>
+                <input name="notes" defaultValue={payModal.payment.notes} placeholder="Məs: Aprel maaşı..." style={inp} />
               </div>
               <div className="flex gap-2 pt-2" style={{ borderTop: "1px solid var(--border-color)" }}>
                 <button type="button" onClick={() => setPayModal(null)}
@@ -523,7 +533,8 @@ export default function EmployeesPage() {
 
       {/* ── Employee Modal ── */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
           <div className="w-full max-w-md" style={modalCard}>
             <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
               <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>{selected ? "İşçini redaktə et" : "Yeni işçi"}</h2>
