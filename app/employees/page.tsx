@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { formatCurrency } from "@/lib/calculations"
 import { supabase } from "@/lib/supabase"
 import {
   Plus, Trash2, Users, TrendingUp, DollarSign, Award,
   CheckCircle2, Clock, X, ChevronLeft, ChevronRight,
-  Edit3, Gift
+  Edit3, Gift, AlertCircle
 } from "lucide-react"
 
 interface Employee {
@@ -17,8 +17,9 @@ interface Employee {
 
 interface EmployeePayment {
   id: string; employeeId: string; employeeName: string; month: string
-  salaryAmount: number; salaryPaid: boolean; salaryPaidAt: string | null
-  bonusAmount: number; bonusPaid: boolean; bonusPaidAt: string | null; notes: string
+  salaryAmount: number; salaryPaidAmount: number; salaryPaid: boolean; salaryPaidAt: string | null
+  bonusAmount: number; bonusPaidAmount: number; bonusPaid: boolean; bonusPaidAt: string | null
+  notes: string
 }
 
 const card = { background: "var(--bg-card)", border: "1px solid var(--border-color)", backdropFilter: "blur(24px)", borderRadius: "24px" }
@@ -61,10 +62,29 @@ function nextMonth(month: string) {
 function mapPayment(p: any): EmployeePayment {
   return {
     id: p.id, employeeId: p.employee_id, employeeName: p.employee_name, month: p.month,
-    salaryAmount: p.salary_amount ?? 0, salaryPaid: p.salary_paid ?? false, salaryPaidAt: p.salary_paid_at,
-    bonusAmount: p.bonus_amount ?? 0, bonusPaid: p.bonus_paid ?? false, bonusPaidAt: p.bonus_paid_at,
+    salaryAmount: p.salary_amount ?? 0,
+    salaryPaidAmount: p.salary_paid_amount ?? (p.salary_paid ? (p.salary_amount ?? 0) : 0),
+    salaryPaid: p.salary_paid ?? false, salaryPaidAt: p.salary_paid_at,
+    bonusAmount: p.bonus_amount ?? 0,
+    bonusPaidAmount: p.bonus_paid_amount ?? (p.bonus_paid ? (p.bonus_amount ?? 0) : 0),
+    bonusPaid: p.bonus_paid ?? false, bonusPaidAt: p.bonus_paid_at,
     notes: p.notes ?? ""
   }
+}
+
+function getSalaryStatus(payment: EmployeePayment) {
+  const remaining = payment.salaryAmount - payment.salaryPaidAmount
+  if (payment.salaryPaidAmount === 0) return "unpaid"
+  if (remaining <= 0) return "paid"
+  return "partial"
+}
+
+function getBonusStatus(payment: EmployeePayment) {
+  if (payment.bonusAmount === 0) return "none"
+  const remaining = payment.bonusAmount - payment.bonusPaidAmount
+  if (payment.bonusPaidAmount === 0) return "unpaid"
+  if (remaining <= 0) return "paid"
+  return "partial"
 }
 
 export default function EmployeesPage() {
@@ -79,41 +99,21 @@ export default function EmployeesPage() {
   const [ready, setReady] = useState(false)
   const [activeTab, setActiveTab] = useState<"salary" | "employees">("salary")
 
-  useEffect(() => {
-    fetchBookings()
-    fetchEmployees()
-    setReady(true)
-  }, [])
-
-  useEffect(() => {
-    if (employees.length > 0) fetchPayments()
-  }, [selectedMonth])
+  useEffect(() => { fetchBookings(); fetchEmployees(); setReady(true) }, [])
+  useEffect(() => { if (employees.length > 0) fetchPayments() }, [selectedMonth])
 
   async function fetchPayments(empList?: Employee[]) {
     const list = empList ?? employees
     if (list.length === 0) return
-
     const { data } = await supabase.from("employee_payments").select("*").eq("month", selectedMonth)
     const existing = data ?? []
-
-    const missing = list.filter(e =>
-      e.status === "active" && !existing.find((p: any) => p.employee_id === e.id)
-    )
-
+    const missing = list.filter(e => e.status === "active" && !existing.find((p: any) => p.employee_id === e.id))
     if (missing.length > 0) {
-      const inserts = missing.map(e => ({
-        employee_id: e.id,
-        employee_name: e.name,
-        month: selectedMonth,
-        salary_amount: e.baseSalary,
-        salary_paid: false,
-        salary_paid_at: null,
-        bonus_amount: 0,
-        bonus_paid: false,
-        bonus_paid_at: null,
-        notes: ""
-      }))
-      await supabase.from("employee_payments").insert(inserts)
+      await supabase.from("employee_payments").insert(missing.map(e => ({
+        employee_id: e.id, employee_name: e.name, month: selectedMonth,
+        salary_amount: e.baseSalary, salary_paid_amount: 0, salary_paid: false, salary_paid_at: null,
+        bonus_amount: 0, bonus_paid_amount: 0, bonus_paid: false, bonus_paid_at: null, notes: ""
+      })))
       const { data: fresh } = await supabase.from("employee_payments").select("*").eq("month", selectedMonth)
       setPayments((fresh ?? []).map(mapPayment))
     } else {
@@ -139,7 +139,6 @@ export default function EmployeesPage() {
     const eb = bookings.filter(b => b.manager === name)
     return {
       totalRevenue: eb.reduce((s, b) => s + b.sellPrice, 0),
-      totalProfit: eb.reduce((s, b) => s + b.profit, 0),
       totalCommission: eb.reduce((s, b) => s + b.commissionAmount, 0),
       bookingsCount: eb.length
     }
@@ -149,21 +148,25 @@ export default function EmployeesPage() {
     return payments.find(p => p.employeeId === empId)
   }
 
-  async function handleTogglePay(payment: EmployeePayment, type: "salary" | "bonus") {
-    const update = type === "salary"
-      ? { salary_paid: !payment.salaryPaid, salary_paid_at: !payment.salaryPaid ? new Date().toISOString() : null }
-      : { bonus_paid: !payment.bonusPaid, bonus_paid_at: !payment.bonusPaid ? new Date().toISOString() : null }
-    await supabase.from("employee_payments").update(update).eq("id", payment.id)
-    await fetchPayments()
-  }
-
   async function handleSavePayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!payModal) return
     const fd = new FormData(e.currentTarget)
+    const salaryAmount = Number(fd.get("salaryAmount"))
+    const salaryPaidAmount = Number(fd.get("salaryPaidAmount"))
+    const bonusAmount = Number(fd.get("bonusAmount"))
+    const bonusPaidAmount = Number(fd.get("bonusPaidAmount"))
+    const now = new Date().toISOString()
+
     await supabase.from("employee_payments").update({
-      salary_amount: Number(fd.get("salaryAmount")),
-      bonus_amount: Number(fd.get("bonusAmount")),
+      salary_amount: salaryAmount,
+      salary_paid_amount: salaryPaidAmount,
+      salary_paid: salaryPaidAmount >= salaryAmount && salaryAmount > 0,
+      salary_paid_at: salaryPaidAmount >= salaryAmount && salaryAmount > 0 ? now : null,
+      bonus_amount: bonusAmount,
+      bonus_paid_amount: bonusPaidAmount,
+      bonus_paid: bonusPaidAmount >= bonusAmount && bonusAmount > 0,
+      bonus_paid_at: bonusPaidAmount >= bonusAmount && bonusAmount > 0 ? now : null,
       notes: fd.get("notes") as string,
     }).eq("id", payModal.payment.id)
     await fetchPayments()
@@ -174,36 +177,36 @@ export default function EmployeesPage() {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const data = {
-      name: fd.get("name") as string,
-      position: fd.get("position") as string,
-      base_salary: Number(fd.get("baseSalary")),
-      commission_percent: Number(fd.get("commissionPercent")),
-      phone: fd.get("phone") as string,
-      email: fd.get("email") as string,
-      status: fd.get("status") as string
+      name: fd.get("name") as string, position: fd.get("position") as string,
+      base_salary: Number(fd.get("baseSalary")), commission_percent: Number(fd.get("commissionPercent")),
+      phone: fd.get("phone") as string, email: fd.get("email") as string, status: fd.get("status") as string
     }
     if (selected) await supabase.from("employees").update(data).eq("id", selected.id)
     else await supabase.from("employees").insert(data)
-    await fetchEmployees()
-    setModal(false); setSelected(null)
+    await fetchEmployees(); setModal(false); setSelected(null)
   }
 
   async function handleDelete(id: string) {
-    if (confirm("Silinsin?")) {
-      await supabase.from("employees").delete().eq("id", id)
-      await fetchEmployees()
-    }
+    if (confirm("Silinsin?")) { await supabase.from("employees").delete().eq("id", id); await fetchEmployees() }
   }
 
   if (!ready) return null
 
   const activeEmps = employees.filter(e => e.status === "active")
   const totalBaseSalary = activeEmps.reduce((s, e) => s + e.baseSalary, 0)
-  const totalCommissions = employees.reduce((s, e) => s + getStats(e.name).totalCommission, 0)
-  const totalBonus = payments.reduce((s, p) => s + (p.bonusAmount ?? 0), 0)
-  const salariesPaid = payments.filter(p => p.salaryPaid).length
-  const bonusesPaid = payments.filter(p => p.bonusPaid && p.bonusAmount > 0).length
-  const salariesUnpaid = payments.filter(p => !p.salaryPaid).length
+  const totalBonus = payments.reduce((s, p) => s + p.bonusAmount, 0)
+  const totalPaidOut = payments.reduce((s, p) => s + p.salaryPaidAmount + p.bonusPaidAmount, 0)
+
+  const paidFull = payments.filter(p => getSalaryStatus(p) === "paid").length
+  const paidPartial = payments.filter(p => getSalaryStatus(p) === "partial").length
+  const unpaid = payments.filter(p => getSalaryStatus(p) === "unpaid").length
+
+  const STATUS_CONFIG = {
+    paid:    { label: "Tam ödənilib",    color: "#22c55e", bg: "rgba(34,197,94,0.12)",   Icon: CheckCircle2 },
+    partial: { label: "Qismən ödənilib", color: "#f97316", bg: "rgba(249,115,22,0.12)", Icon: AlertCircle },
+    unpaid:  { label: "Ödənilməyib",     color: "#ef4444", bg: "rgba(239,68,68,0.12)",  Icon: Clock },
+    none:    { label: "Bonus yoxdur",    color: "#9ca3af", bg: "var(--bg-glass)",         Icon: Gift },
+  }
 
   return (
     <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}>
@@ -226,16 +229,14 @@ export default function EmployeesPage() {
         <div className="p-6 text-white rounded-3xl relative overflow-hidden"
           style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 8px 24px rgba(239,68,68,0.25)" }}>
           <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-15" style={{ background: "white" }} />
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm opacity-80">Aktiv işçilər</p><Users size={18} className="opacity-70" />
-          </div>
+          <div className="flex items-center justify-between mb-3"><p className="text-sm opacity-80">Aktiv işçilər</p><Users size={18} className="opacity-70" /></div>
           <p className="text-3xl font-bold">{activeEmps.length}</p>
           <p className="text-xs opacity-60 mt-1">{employees.length} cəmi</p>
         </div>
         {[
           { label: "Maaş fondu", value: formatCurrency(totalBaseSalary), icon: DollarSign, color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
           { label: "Bu ay bonus", value: formatCurrency(totalBonus), icon: Gift, color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-          { label: "Cəmi ödəniş", value: formatCurrency(totalBaseSalary + totalBonus), icon: Award, color: "#6366f1", bg: "rgba(99,102,241,0.1)" },
+          { label: "Ödənilmiş", value: formatCurrency(totalPaidOut), icon: Award, color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="p-5 rounded-3xl transition-all hover:scale-[1.01]" style={card}>
             <div className="flex items-center justify-between mb-3">
@@ -254,12 +255,7 @@ export default function EmployeesPage() {
         {[{ v: "salary", l: "💰 Maaş & Bonus" }, { v: "employees", l: "👥 İşçilər" }].map(t => (
           <button key={t.v} onClick={() => setActiveTab(t.v as any)}
             className="px-4 py-2.5 rounded-2xl text-sm font-medium transition-all"
-            style={{
-              background: activeTab === t.v ? "linear-gradient(135deg,#ef4444,#f97316)" : "var(--bg-card)",
-              color: activeTab === t.v ? "white" : "var(--text-secondary)",
-              border: "1px solid var(--border-color)",
-              boxShadow: activeTab === t.v ? "0 4px 12px rgba(239,68,68,0.3)" : "none"
-            }}>
+            style={{ background: activeTab === t.v ? "linear-gradient(135deg,#ef4444,#f97316)" : "var(--bg-card)", color: activeTab === t.v ? "white" : "var(--text-secondary)", border: "1px solid var(--border-color)", boxShadow: activeTab === t.v ? "0 4px 12px rgba(239,68,68,0.3)" : "none" }}>
             {t.l}
           </button>
         ))}
@@ -277,10 +273,11 @@ export default function EmployeesPage() {
             </button>
             <div className="text-center">
               <p className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>{getMonthLabel(selectedMonth)}</p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                {salariesPaid}/{activeEmps.length} maaş ödənilib
-                {salariesUnpaid > 0 && <span className="ml-2 text-red-500 font-semibold">· {salariesUnpaid} ödənilməyib</span>}
-              </p>
+              <div className="flex items-center justify-center gap-3 mt-1">
+                <span className="text-xs font-medium" style={{ color: "#22c55e" }}>✓ {paidFull} tam</span>
+                {paidPartial > 0 && <span className="text-xs font-medium" style={{ color: "#f97316" }}>◑ {paidPartial} qismən</span>}
+                {unpaid > 0 && <span className="text-xs font-medium" style={{ color: "#ef4444" }}>✗ {unpaid} ödənilməyib</span>}
+              </div>
             </div>
             <button onClick={() => setSelectedMonth(nextMonth(selectedMonth))}
               className="w-9 h-9 rounded-2xl flex items-center justify-center transition-all hover:scale-110"
@@ -289,42 +286,31 @@ export default function EmployeesPage() {
             </button>
           </div>
 
-          {/* Summary badges */}
-          <div className="flex gap-3 mb-5 flex-wrap">
-            {[
-              { label: `${salariesPaid} maaş ödənilib`, color: "#22c55e", bg: "rgba(34,197,94,0.1)", Icon: CheckCircle2 },
-              { label: `${salariesUnpaid} maaş gözləyir`, color: "#f59e0b", bg: "rgba(245,158,11,0.1)", Icon: Clock },
-              { label: `${bonusesPaid} bonus ödənilib`, color: "#6366f1", bg: "rgba(99,102,241,0.1)", Icon: Gift },
-            ].map(({ label, color, bg, Icon }) => (
-              <div key={label} className="flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-medium"
-                style={{ background: bg, color }}>
-                <Icon size={13} />{label}
-              </div>
-            ))}
-          </div>
-
           {/* Salary cards */}
           {loading ? (
-            <div className="space-y-3">
-              {[1,2,3].map(i => (
-                <div key={i} className="h-20 rounded-3xl animate-pulse" style={{ background: "var(--bg-glass)" }} />
-              ))}
-            </div>
+            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 rounded-3xl animate-pulse" style={{ background: "var(--bg-glass)" }} />)}</div>
           ) : activeEmps.length === 0 ? (
             <div className="p-8 text-center rounded-3xl" style={{ ...card, color: "var(--text-muted)" }}>
-              <Users size={32} className="mx-auto mb-3 opacity-40" />
-              <p>Aktiv işçi yoxdur</p>
+              <Users size={32} className="mx-auto mb-3 opacity-40" /><p>Aktiv işçi yoxdur</p>
             </div>
           ) : (
             <div className="space-y-3">
               {activeEmps.map((emp, idx) => {
                 const payment = getPayment(emp.id)
                 if (!payment) return (
-                  <div key={emp.id} className="p-4 rounded-3xl" style={card}>
-                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>{emp.name} — yüklənir...</p>
+                  <div key={emp.id} className="p-4 rounded-3xl animate-pulse" style={{ ...card, color: "var(--text-muted)" }}>
+                    <p className="text-sm">{emp.name} — yüklənir...</p>
                   </div>
                 )
-                const totalDue = payment.salaryAmount + payment.bonusAmount
+
+                const salaryStatus = getSalaryStatus(payment)
+                const bonusStatus = getBonusStatus(payment)
+                const salaryCfg = STATUS_CONFIG[salaryStatus]
+                const bonusCfg = STATUS_CONFIG[bonusStatus]
+                const SalaryIcon = salaryCfg.Icon
+                const BonusIcon = bonusCfg.Icon
+                const salaryRemaining = payment.salaryAmount - payment.salaryPaidAmount
+                const bonusRemaining = payment.bonusAmount - payment.bonusPaidAmount
 
                 return (
                   <div key={emp.id} className="p-5 rounded-3xl" style={card}>
@@ -336,81 +322,90 @@ export default function EmployeesPage() {
                       </div>
 
                       {/* Name */}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-[120px]">
                         <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{emp.name}</p>
                         <p className="text-xs" style={{ color: "var(--text-muted)" }}>{emp.position}</p>
                       </div>
 
-                      {/* Amounts */}
-                      <div className="flex gap-3 flex-wrap">
-                        {[
-                          { label: "Maaş", value: formatCurrency(payment.salaryAmount), color: "var(--text-primary)" },
-                          { label: "Bonus", value: payment.bonusAmount > 0 ? formatCurrency(payment.bonusAmount) : "—", color: payment.bonusAmount > 0 ? "#f59e0b" : "var(--text-muted)" },
-                          { label: "Cəmi", value: formatCurrency(totalDue), color: "#6366f1" },
-                        ].map(({ label, value, color }) => (
-                          <div key={label} className="text-center px-3 py-2 rounded-xl" style={{ background: "var(--bg-glass)" }}>
-                            <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>{label}</p>
-                            <p className="text-sm font-bold tabular-nums" style={{ color }}>{value}</p>
-                          </div>
-                        ))}
+                      {/* Salary info */}
+                      <div className="px-3 py-2 rounded-2xl" style={{ background: "var(--bg-glass)" }}>
+                        <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Maaş</p>
+                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                          {formatCurrency(payment.salaryAmount)}
+                        </p>
+                        {salaryStatus === "partial" && (
+                          <p className="text-xs tabular-nums" style={{ color: "#f97316" }}>
+                            Ödənilib: {formatCurrency(payment.salaryPaidAmount)}
+                          </p>
+                        )}
+                        {salaryStatus === "partial" && (
+                          <p className="text-xs tabular-nums" style={{ color: "#ef4444" }}>
+                            Qalıq: {formatCurrency(salaryRemaining)}
+                          </p>
+                        )}
                       </div>
 
-                      {/* Salary toggle */}
+                      {/* Bonus info */}
+                      <div className="px-3 py-2 rounded-2xl" style={{ background: "var(--bg-glass)" }}>
+                        <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Bonus</p>
+                        <p className="text-sm font-bold tabular-nums" style={{ color: payment.bonusAmount > 0 ? "#f59e0b" : "var(--text-muted)" }}>
+                          {payment.bonusAmount > 0 ? formatCurrency(payment.bonusAmount) : "—"}
+                        </p>
+                        {bonusStatus === "partial" && (
+                          <p className="text-xs tabular-nums" style={{ color: "#f97316" }}>
+                            Qalıq: {formatCurrency(bonusRemaining)}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Salary status badge */}
                       <div className="flex flex-col items-center gap-1 flex-shrink-0">
                         <p className="text-xs" style={{ color: "var(--text-muted)" }}>Maaş</p>
-                        <button
-                          onClick={() => handleTogglePay(payment, "salary")}
-                          className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-                          style={{
-                            background: payment.salaryPaid ? "rgba(34,197,94,0.15)" : "rgba(245,158,11,0.12)",
-                            color: payment.salaryPaid ? "#22c55e" : "#f59e0b",
-                            border: `2px solid ${payment.salaryPaid ? "rgba(34,197,94,0.4)" : "rgba(245,158,11,0.4)"}`,
-                          }}>
-                          {payment.salaryPaid ? <CheckCircle2 size={20} /> : <Clock size={20} />}
-                        </button>
+                        <div className="px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold"
+                          style={{ background: salaryCfg.bg, color: salaryCfg.color }}>
+                          <SalaryIcon size={13} />
+                          {salaryCfg.label}
+                        </div>
                       </div>
 
-                      {/* Bonus toggle */}
-                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Bonus</p>
-                        <button
-                          onClick={() => handleTogglePay(payment, "bonus")}
-                          className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-                          style={{
-                            background: payment.bonusPaid ? "rgba(99,102,241,0.15)" : payment.bonusAmount > 0 ? "rgba(245,158,11,0.12)" : "var(--bg-glass)",
-                            color: payment.bonusPaid ? "#6366f1" : payment.bonusAmount > 0 ? "#f59e0b" : "var(--text-muted)",
-                            border: `2px solid ${payment.bonusPaid ? "rgba(99,102,241,0.4)" : payment.bonusAmount > 0 ? "rgba(245,158,11,0.3)" : "var(--border-color)"}`,
-                          }}>
-                          {payment.bonusPaid ? <CheckCircle2 size={20} /> : <Gift size={20} />}
-                        </button>
-                      </div>
+                      {/* Bonus status badge */}
+                      {bonusStatus !== "none" && (
+                        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Bonus</p>
+                          <div className="px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold"
+                            style={{ background: bonusCfg.bg, color: bonusCfg.color }}>
+                            <BonusIcon size={13} />
+                            {bonusCfg.label}
+                          </div>
+                        </div>
+                      )}
 
-                      {/* Edit */}
+                      {/* Edit button */}
                       <button
                         onClick={() => setPayModal({ emp, payment })}
-                        className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-110 flex-shrink-0"
-                        style={{ background: "var(--bg-glass)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}>
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all hover:scale-110 flex-shrink-0"
+                        style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", color: "white", boxShadow: "0 4px 12px rgba(99,102,241,0.3)" }}
+                        title="Ödəniş məlumatlarını redaktə et">
                         <Edit3 size={15} />
                       </button>
                     </div>
 
                     {/* Paid dates */}
-                    {(payment.salaryPaid || payment.bonusPaid) && (
+                    {(payment.salaryPaidAt || payment.bonusPaidAt) && (
                       <div className="flex gap-2 mt-3 flex-wrap">
-                        {payment.salaryPaid && payment.salaryPaidAt && (
+                        {payment.salaryPaidAt && (
                           <span className="text-xs px-2.5 py-1 rounded-xl" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
-                            ✓ Maaş ödənilib: {new Date(payment.salaryPaidAt).toLocaleDateString("az-AZ")}
+                            ✓ Maaş: {new Date(payment.salaryPaidAt).toLocaleDateString("az-AZ")}
                           </span>
                         )}
-                        {payment.bonusPaid && payment.bonusPaidAt && (
+                        {payment.bonusPaidAt && (
                           <span className="text-xs px-2.5 py-1 rounded-xl" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
-                            ✓ Bonus ödənilib: {new Date(payment.bonusPaidAt).toLocaleDateString("az-AZ")}
+                            ✓ Bonus: {new Date(payment.bonusPaidAt).toLocaleDateString("az-AZ")}
                           </span>
                         )}
                       </div>
                     )}
 
-                    {/* Notes */}
                     {payment.notes && (
                       <p className="text-xs mt-2 px-3 py-2 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
                         📝 {payment.notes}
@@ -440,9 +435,7 @@ export default function EmployeesPage() {
                 <div className="flex items-start justify-between mb-5">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl"
-                      style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>
-                      {emp.name[0]}
-                    </div>
+                      style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>{emp.name[0]}</div>
                     <div>
                       <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>{emp.name}</h3>
                       <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{emp.position}</p>
@@ -453,16 +446,8 @@ export default function EmployeesPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => { setSelected(emp); setModal(true) }}
-                      className="p-2 rounded-xl transition-all hover:scale-110"
-                      style={{ color: "var(--text-muted)", background: "var(--bg-glass)" }}>
-                      <Edit3 size={14} />
-                    </button>
-                    <button onClick={() => handleDelete(emp.id)}
-                      className="p-2 rounded-xl transition-all hover:scale-110"
-                      style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}>
-                      <Trash2 size={14} />
-                    </button>
+                    <button onClick={() => { setSelected(emp); setModal(true) }} className="p-2 rounded-xl transition-all hover:scale-110" style={{ color: "var(--text-muted)", background: "var(--bg-glass)" }}><Edit3 size={14} /></button>
+                    <button onClick={() => handleDelete(emp.id)} className="p-2 rounded-xl transition-all hover:scale-110" style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}><Trash2 size={14} /></button>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
@@ -486,34 +471,56 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* ── Pay Edit Modal ── */}
+      {/* ── Pay Modal ── */}
       {payModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
           <div className="w-full max-w-sm" style={modalCard}>
             <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
               <div>
-                <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>Maaş / Bonus redaktə</h2>
+                <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>Ödəniş redaktəsi</h2>
                 <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{payModal.emp.name} · {getMonthLabel(selectedMonth)}</p>
               </div>
-              <button onClick={() => setPayModal(null)} className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
+              <button onClick={() => setPayModal(null)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
                 <X size={15} />
               </button>
             </div>
             <form onSubmit={handleSavePayment} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Maaş məbləği (AZN)</label>
-                <input name="salaryAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.salaryAmount} style={inp} />
+              {/* Salary section */}
+              <div className="p-4 rounded-2xl space-y-3" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)" }}>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#ef4444" }}>💰 Maaş</p>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Maaş məbləği (AZN)</label>
+                  <input name="salaryAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.salaryAmount} style={inp} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Ödənilən məbləğ (AZN)</label>
+                  <input name="salaryPaidAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.salaryPaidAmount}
+                    style={{ ...inp, borderColor: "rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.04)" }} />
+                  <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                    Tam ödənilsə maaşla eyni məbləği yazın
+                  </p>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Bonus məbləği (AZN)</label>
-                <input name="bonusAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.bonusAmount} style={inp} />
+
+              {/* Bonus section */}
+              <div className="p-4 rounded-2xl space-y-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#f59e0b" }}>🎁 Bonus</p>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Bonus məbləği (AZN)</label>
+                  <input name="bonusAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.bonusAmount} style={inp} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Ödənilən bonus (AZN)</label>
+                  <input name="bonusPaidAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.bonusPaidAmount}
+                    style={{ ...inp, borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.04)" }} />
+                </div>
               </div>
+
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Qeyd</label>
-                <input name="notes" defaultValue={payModal.payment.notes} placeholder="Məs: Aprel maaşı..." style={inp} />
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Qeyd</label>
+                <input name="notes" defaultValue={payModal.payment.notes} placeholder="Məs: Aprel maaşı qismən ödənilib..." style={inp} />
               </div>
+
               <div className="flex gap-2 pt-2" style={{ borderTop: "1px solid var(--border-color)" }}>
                 <button type="button" onClick={() => setPayModal(null)}
                   className="flex-1 py-2.5 rounded-2xl text-sm"
@@ -533,61 +540,27 @@ export default function EmployeesPage() {
 
       {/* ── Employee Modal ── */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
           <div className="w-full max-w-md" style={modalCard}>
             <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
               <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>{selected ? "İşçini redaktə et" : "Yeni işçi"}</h2>
-              <button onClick={() => { setModal(false); setSelected(null) }} className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
+              <button onClick={() => { setModal(false); setSelected(null) }} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
                 <X size={15} />
               </button>
             </div>
             <form onSubmit={handleSubmitEmployee} className="p-6 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Ad Soyad *</label>
-                  <input name="name" defaultValue={selected?.name} required style={inp} />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Vəzifə</label>
-                  <input name="position" defaultValue={selected?.position} style={inp} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Maaş (AZN)</label>
-                  <input name="baseSalary" type="number" min="0" defaultValue={selected?.baseSalary ?? 0} style={inp} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Komissiya (%)</label>
-                  <input name="commissionPercent" type="number" min="0" max="100" step="0.1" defaultValue={selected?.commissionPercent ?? 5} style={inp} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Telefon</label>
-                  <input name="phone" defaultValue={selected?.phone} style={inp} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Email</label>
-                  <input name="email" type="email" defaultValue={selected?.email} style={inp} />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Status</label>
-                  <select name="status" defaultValue={selected?.status ?? "active"} style={inp}>
-                    <option value="active">Aktiv</option>
-                    <option value="inactive">Deaktiv</option>
-                  </select>
-                </div>
+                <div className="col-span-2"><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Ad Soyad *</label><input name="name" defaultValue={selected?.name} required style={inp} /></div>
+                <div className="col-span-2"><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Vəzifə</label><input name="position" defaultValue={selected?.position} style={inp} /></div>
+                <div><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Maaş (AZN)</label><input name="baseSalary" type="number" min="0" defaultValue={selected?.baseSalary ?? 0} style={inp} /></div>
+                <div><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Komissiya (%)</label><input name="commissionPercent" type="number" min="0" max="100" step="0.1" defaultValue={selected?.commissionPercent ?? 5} style={inp} /></div>
+                <div><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Telefon</label><input name="phone" defaultValue={selected?.phone} style={inp} /></div>
+                <div><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Email</label><input name="email" type="email" defaultValue={selected?.email} style={inp} /></div>
+                <div className="col-span-2"><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Status</label><select name="status" defaultValue={selected?.status ?? "active"} style={inp}><option value="active">Aktiv</option><option value="inactive">Deaktiv</option></select></div>
               </div>
               <div className="flex gap-3 pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
-                <button type="button" onClick={() => { setModal(false); setSelected(null) }}
-                  className="flex-1 py-2.5 rounded-2xl text-sm"
-                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
-                  Ləğv et
-                </button>
-                <button type="submit"
-                  className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>
-                  {selected ? "Yadda saxla" : "Əlavə et"}
-                </button>
+                <button type="button" onClick={() => { setModal(false); setSelected(null) }} className="flex-1 py-2.5 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>Ləğv et</button>
+                <button type="submit" className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>{selected ? "Yadda saxla" : "Əlavə et"}</button>
               </div>
             </form>
           </div>
