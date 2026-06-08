@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { formatCurrency, formatDate } from "@/lib/calculations"
-import { Download, ChevronDown } from "lucide-react"
+import { Download } from "lucide-react"
 import * as XLSX from "xlsx"
 
 const PERIODS = ["1-7", "8-15", "16-23", "24-31"] as const
@@ -32,6 +32,7 @@ export default function IATAPage() {
     const items = bookings.filter(b =>
       b.iataPeriod === period && b.isIata === true && b.departureDate.startsWith(selectedMonth)
     )
+    const unpaidItems = items.filter(b => b.paymentStatus !== "paid")
     return {
       period,
       items,
@@ -39,6 +40,8 @@ export default function IATAPage() {
       totalBuy: items.reduce((s, b) => s + b.buyPrice, 0),
       totalProfit: items.reduce((s, b) => s + b.profit, 0),
       totalCommission: items.reduce((s, b) => s + b.commissionAmount, 0),
+      unpaidCount: unpaidItems.length,
+      unpaidAmount: unpaidItems.reduce((s, b) => s + (b.sellPrice - (b.paidAmount ?? 0)), 0),
     }
   }), [bookings, selectedMonth])
 
@@ -78,11 +81,13 @@ export default function IATAPage() {
   if (!ready) return null
 
   const totalBiletsThisMonth = bookings.filter(b => b.isIata && b.departureDate.startsWith(selectedMonth)).length
+  const totalUnpaidAll = grouped.reduce((s, g) => s + g.unpaidAmount, 0)
+  const totalUnpaidCount = grouped.reduce((s, g) => s + g.unpaidCount, 0)
 
   return (
     <div className="min-h-screen p-4 md:p-7" style={{ background: "var(--bg-primary)" }}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-3">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>IATA</h1>
@@ -96,8 +101,8 @@ export default function IATAPage() {
         </button>
       </div>
 
-      {/* ── Month picker ── */}
-      <div className="flex items-center gap-3 p-4 rounded-3xl mb-6" style={card}>
+      {/* Month picker */}
+      <div className="flex items-center gap-3 p-4 rounded-3xl mb-4" style={card}>
         <div className="flex items-center gap-2 flex-1">
           <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Ay:</span>
           <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
@@ -110,7 +115,23 @@ export default function IATAPage() {
         </span>
       </div>
 
-      {/* ── Period cards — horizontal scroll on mobile ── */}
+      {/* Global unpaid warning */}
+      {totalUnpaidCount > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 rounded-2xl mb-5"
+          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+          <div className="flex items-center gap-2">
+            <span className="text-base">⚠️</span>
+            <span className="text-sm font-semibold" style={{ color: "#ef4444" }}>
+              {totalUnpaidCount} ödənilməmiş bron
+            </span>
+          </div>
+          <span className="text-sm font-bold tabular-nums" style={{ color: "#ef4444" }}>
+            {formatCurrency(totalUnpaidAll)}
+          </span>
+        </div>
+      )}
+
+      {/* Period cards */}
       <div className="flex gap-3 overflow-x-auto pb-2 mb-6 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-4 scrollbar-hide">
         {grouped.map((g, i) => {
           const c = PERIOD_COLORS[i]
@@ -119,7 +140,7 @@ export default function IATAPage() {
             <button
               key={g.period}
               onClick={() => setActivePeriod(g.period)}
-              className="flex-shrink-0 w-44 md:w-auto text-left p-4 md:p-5 rounded-3xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="flex-shrink-0 w-48 md:w-auto text-left p-4 md:p-5 rounded-3xl transition-all hover:scale-[1.02] active:scale-[0.98]"
               style={{
                 background: isActive ? `linear-gradient(135deg, ${c.from}, ${c.to})` : "var(--bg-card)",
                 border: isActive ? "none" : "1px solid var(--border-color)",
@@ -135,6 +156,7 @@ export default function IATAPage() {
                   {g.items.length}
                 </span>
               </div>
+
               <div className="space-y-1.5">
                 {[
                   { label: "Satış", value: formatCurrency(g.totalSell) },
@@ -146,21 +168,41 @@ export default function IATAPage() {
                     <span className="text-xs font-semibold tabular-nums" style={{ color: isActive ? "white" : "var(--text-primary)" }}>{value}</span>
                   </div>
                 ))}
-                <div className="flex justify-between items-center pt-1.5" style={{ borderTop: `1px solid ${isActive ? "rgba(255,255,255,0.2)" : "var(--border-color)"}` }}>
+
+                {/* Mənfəət */}
+                <div className="flex justify-between items-center pt-1.5"
+                  style={{ borderTop: `1px solid ${isActive ? "rgba(255,255,255,0.2)" : "var(--border-color)"}` }}>
                   <span className="text-xs font-semibold" style={{ color: isActive ? "rgba(255,255,255,0.75)" : "var(--text-secondary)" }}>Mənfəət</span>
                   <span className="text-sm font-bold tabular-nums" style={{ color: isActive ? "white" : g.totalProfit >= 0 ? "#22c55e" : "#ef4444" }}>
                     {formatCurrency(g.totalProfit)}
                   </span>
                 </div>
+
+                {/* Unpaid */}
+                {g.unpaidCount > 0 && (
+                  <div className="flex justify-between items-center pt-1.5"
+                    style={{ borderTop: `1px solid ${isActive ? "rgba(255,255,255,0.2)" : "var(--border-color)"}` }}>
+                    <span className="text-xs font-semibold" style={{ color: isActive ? "rgba(255,255,255,0.85)" : "#ef4444" }}>
+                      ⚠ Ödənilməyib
+                    </span>
+                    <div className="text-right">
+                      <p className="text-xs font-bold tabular-nums" style={{ color: isActive ? "white" : "#ef4444" }}>
+                        {formatCurrency(g.unpaidAmount)}
+                      </p>
+                      <p className="text-xs" style={{ color: isActive ? "rgba(255,255,255,0.6)" : "var(--text-muted)" }}>
+                        {g.unpaidCount} bron
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </button>
           )
         })}
       </div>
 
-      {/* ── Active period detail ── */}
+      {/* Active period detail */}
       <div className="rounded-3xl overflow-hidden" style={card}>
-        {/* Header */}
         <div className="px-4 md:px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
@@ -168,14 +210,19 @@ export default function IATAPage() {
               <span className="text-xs px-2 py-0.5 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
                 {active.items.length} bron
               </span>
+              {active.unpaidCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-xl font-semibold"
+                  style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+                  ⚠ {active.unpaidCount} ödənilməyib · {formatCurrency(active.unpaidAmount)}
+                </span>
+              )}
             </div>
             <button onClick={exportToExcel}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white flex-shrink-0 transition-all hover:scale-[1.02]"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white flex-shrink-0"
               style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}>
               <Download size={13} />Excel
             </button>
           </div>
-          {/* Summary row — wraps on mobile */}
           <div className="flex flex-wrap gap-2">
             {[
               { label: "Satış", value: active.totalSell, color: "var(--text-primary)" },
@@ -221,7 +268,7 @@ export default function IATAPage() {
                       <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{b.destination}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm" style={{ color: "var(--text-secondary)" }}>{formatDate(b.departureDate)}</td>
                       <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{b.manager?.split(" ")[0]}</td>
-                      <td className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)" }}>{b.ticketNumber || "—"}</td>
+                      <td className="px-4 py-3 text-xs font-mono" style={{ color: "var(--text-muted)" }}>{b.ticketNumber || "—"}</td>
                       <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</td>
                       <td className="px-4 py-3 font-semibold tabular-nums text-red-500">{formatCurrency(b.buyPrice)}</td>
                       <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: "#6366f1" }}>{formatCurrency(b.commissionAmount)}</td>
@@ -255,28 +302,24 @@ export default function IATAPage() {
                       <p className="font-semibold text-sm truncate" style={{ color: "var(--text-primary)" }}>{b.clientName}</p>
                       <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{b.destination}</p>
                     </div>
-                    <div className="flex gap-1.5 flex-shrink-0">
-                      <span className="text-xs px-2 py-1 rounded-xl font-medium"
-                        style={{ background: b.paymentStatus === "paid" ? "rgba(34,197,94,0.1)" : b.paymentStatus === "partial" ? "rgba(249,115,22,0.1)" : "rgba(239,68,68,0.1)", color: b.paymentStatus === "paid" ? "#22c55e" : b.paymentStatus === "partial" ? "#f97316" : "#ef4444" }}>
-                        {b.paymentStatus === "paid" ? "Ödənilib" : b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib"}
-                      </span>
-                    </div>
+                    <span className="text-xs px-2 py-1 rounded-xl font-medium flex-shrink-0"
+                      style={{ background: b.paymentStatus === "paid" ? "rgba(34,197,94,0.1)" : b.paymentStatus === "partial" ? "rgba(249,115,22,0.1)" : "rgba(239,68,68,0.1)", color: b.paymentStatus === "paid" ? "#22c55e" : b.paymentStatus === "partial" ? "#f97316" : "#ef4444" }}>
+                      {b.paymentStatus === "paid" ? "Ödənilib" : b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib"}
+                    </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-2">
-                    <div className="p-2 rounded-xl" style={{ background: "var(--bg-glass)" }}>
-                      <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Satış</p>
-                      <p className="text-sm font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</p>
-                    </div>
-                    <div className="p-2 rounded-xl" style={{ background: "var(--bg-glass)" }}>
-                      <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Alış</p>
-                      <p className="text-sm font-bold tabular-nums text-red-500">{formatCurrency(b.buyPrice)}</p>
-                    </div>
-                    <div className="p-2 rounded-xl" style={{ background: "var(--bg-glass)" }}>
-                      <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Mənfəət</p>
-                      <p className={`text-sm font-bold tabular-nums ${b.profit >= 0 ? "text-green-500" : "text-red-500"}`}>{formatCurrency(b.profit)}</p>
-                    </div>
+                    {[
+                      { label: "Satış", value: formatCurrency(b.sellPrice), color: "var(--text-primary)" },
+                      { label: "Alış", value: formatCurrency(b.buyPrice), color: "#ef4444" },
+                      { label: "Mənfəət", value: formatCurrency(b.profit), color: b.profit >= 0 ? "#22c55e" : "#ef4444" },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="p-2 rounded-xl" style={{ background: "var(--bg-glass)" }}>
+                        <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>{label}</p>
+                        <p className="text-sm font-bold tabular-nums" style={{ color }}>{value}</p>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-3 mt-2">
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>{formatDate(b.departureDate)}</span>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>·</span>
                     <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{b.manager?.split(" ")[0]}</span>
