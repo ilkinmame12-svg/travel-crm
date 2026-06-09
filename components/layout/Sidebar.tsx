@@ -6,7 +6,7 @@ import {
   LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe,
   Settings, HelpCircle, LogOut, BotMessageSquare, Users,
   PlaneTakeoff, Building2, Scale, Clock, MessageCircle,
-  ChevronRight, ChevronLeft, Sparkles, FileText
+  ChevronRight, ChevronLeft, Sparkles, FileText,User
 } from "lucide-react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
@@ -25,6 +25,7 @@ const ALL_MENU = [
   { href: "/employees", label: "İşçilər",     icon: Users,           roles: ["it_admin","boss","direktor","muhasib"] },
   { href: "/settings",  label: "Ayarlar",     icon: Settings,        roles: ["it_admin","boss","direktor","muhasib","menecer"] },
   { href: "/help",      label: "Help",        icon: HelpCircle,      roles: ["it_admin","boss","direktor","muhasib","menecer"] },
+  { href: "/founder", label: "Əsasçı", icon: User, roles: ["it_admin", "direktor", "boss", "muhasib"] },
 ]
 
 const FINANCE_MENU = [
