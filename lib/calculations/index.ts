@@ -6,7 +6,7 @@ export function calcCommissionAmount(sellPrice: number, commissionPercent: numbe
 }
 
 export function calcProfit(sellPrice: number, buyPrice: number, commissionAmount: number): number {
-  return Math.round((sellPrice - buyPrice - commissionAmount) * 100) / 100
+  return Math.round((sellPrice - buyPrice) * 100) / 100
 }
 
 export function applyCalculations(data: BookingFormData): Omit<Booking, 'id' | 'createdAt' | 'updatedAt'> {
