@@ -9,7 +9,7 @@ import {
   Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage,
   Armchair, Star, Shield, TrendingUp, TrendingDown, DollarSign,
   Filter, X, ChevronDown, CheckCircle2, Clock, XCircle, AlertCircle,
-  Edit3, Trash2, MoreHorizontal, SlidersHorizontal, ArrowUpRight, FileText
+  Edit3, Trash2, MoreHorizontal, SlidersHorizontal, ArrowUpRight, FileText, Eye, Calendar, User, Phone, Mail, MapPin, CreditCard, Hash
 } from "lucide-react"
 
 const MANAGERS = ["Miraslan Abbasov", "Rehime Qasimli", "Ayxan Elxanli", "Gunes Abdullazade", "Gunay Qurbanova", "Mircemil Abbasov", "Meryem Eliyeva"]
@@ -251,6 +251,7 @@ export default function SifarislerPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [actionMenu, setActionMenu] = useState<string | null>(null)
   const [clientBalances, setClientBalances] = useState<Record<string, number>>({})
+  const [viewModal, setViewModal] = useState<Booking | null>(null)
 
   useEffect(() => {
     fetchBookings()
@@ -335,6 +336,7 @@ export default function SifarislerPage() {
       ticketNumber: fd.get("ticketNumber") as string,
       bookingReference: fd.get("bookingReference") as string,
       pnr: fd.get("pnr") as string,
+      orderDate: fd.get("orderDate") as string,
       updated_by: profile?.fullName ?? "Admin",
       updated_by_role: profile?.role ?? "",
     }
@@ -575,6 +577,11 @@ export default function SifarislerPage() {
                     <td className="px-4 py-3.5"><PaymentBadge status={b.paymentStatus} /></td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => setViewModal(b)}
+                          className="p-2 rounded-xl transition-all hover:scale-110"
+                          style={{ color: "#6366f1", background: "rgba(99,102,241,0.1)" }}>
+                          <Eye size={13} />
+                        </button>
                         {!isReadOnly && (
                           <button onClick={() => { setSelected(b); setModal("edit") }}
                             className="p-2 rounded-xl transition-all hover:scale-110"
@@ -692,6 +699,12 @@ export default function SifarislerPage() {
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Son tarix</label>
                 <input name="returnDate" type="date" defaultValue={selected?.returnDate ?? new Date().toISOString().split("T")[0]}
+                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Sifariş tarixi (müştəri gəldi)</label>
+                <input name="orderDate" type="date" defaultValue={(selected as any)?.orderDate ?? new Date().toISOString().split("T")[0]}
                   className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
                   style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
@@ -814,6 +827,130 @@ export default function SifarislerPage() {
         </div>
       )}
     </div>
+
+      {/* ── View Modal ── */}
+      {viewModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-8"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
+          onClick={e => { if (e.target === e.currentTarget) setViewModal(null) }}>
+          <div className="w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl mb-8"
+            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5"
+              style={{ borderBottom: "1px solid var(--border-color)", background: `linear-gradient(135deg, ${getTypeInfo(viewModal.bookingType).bg}, transparent)` }}>
+              <div className="flex items-center gap-3">
+                {(() => { const ti = getTypeInfo(viewModal.bookingType); const Icon = ti.Icon; return <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: ti.bg }}><Icon size={18} style={{ color: ti.color }} /></div> })()}
+                <div>
+                  <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>{viewModal.clientName}</h2>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{viewModal.destination}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {!isReadOnly && (
+                  <button onClick={() => { setSelected(viewModal); setViewModal(null); setModal("edit") }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all hover:scale-105"
+                    style={{ background: "var(--bg-glass)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}>
+                    <Edit3 size={13} />Redaktə
+                  </button>
+                )}
+                <button onClick={() => setViewModal(null)}
+                  className="w-9 h-9 rounded-2xl flex items-center justify-center"
+                  style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Status badges */}
+              <div className="flex gap-2 flex-wrap">
+                <StatusBadge status={viewModal.status} />
+                <PaymentBadge status={viewModal.paymentStatus} />
+                {viewModal.isIata && <span className="text-xs font-bold px-2.5 py-1 rounded-full text-white" style={{ background: "#3b82f6" }}>IATA</span>}
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { icon: Calendar, label: "Sifariş tarixi", value: (viewModal as any).orderDate ? formatDate((viewModal as any).orderDate) : formatDate(viewModal.createdAt?.slice(0,10) ?? "") },
+                  { icon: Calendar, label: "Uçuş tarixi", value: formatDate(viewModal.departureDate) },
+                  { icon: Calendar, label: "Qayıdış tarixi", value: formatDate(viewModal.returnDate) },
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="p-3 rounded-2xl" style={{ background: "var(--bg-glass)" }}>
+                    <div className="flex items-center gap-1.5 mb-1"><Icon size={12} style={{ color: "var(--text-muted)" }} /><p className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</p></div>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{value || "—"}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Client info */}
+              <div className="p-4 rounded-2xl space-y-3" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Müştəri məlumatları</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { icon: User, label: "Ad", value: viewModal.clientName },
+                    { icon: Phone, label: "Telefon", value: viewModal.clientPhone || "—" },
+                    { icon: Mail, label: "Email", value: viewModal.clientEmail || "—" },
+                    { icon: MapPin, label: "İstiqamət", value: viewModal.destination },
+                    { icon: User, label: "Menecer", value: viewModal.manager },
+                    { icon: User, label: "Vendor", value: viewModal.vendor || "—" },
+                  ].map(({ icon: Icon, label, value }) => (
+                    <div key={label} className="flex items-start gap-2">
+                      <Icon size={13} className="mt-0.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                      <div><p className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</p><p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{value}</p></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Financial info */}
+              <div className="p-4 rounded-2xl" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
+                <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Maliyyə</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: "Satış", value: formatCurrency(viewModal.sellPrice), color: "var(--text-primary)" },
+                    { label: "Alış", value: formatCurrency(viewModal.buyPrice), color: "#ef4444" },
+                    { label: "Ödənilib", value: formatCurrency(viewModal.paidAmount ?? 0), color: "#22c55e" },
+                    { label: "Mənfəət", value: formatCurrency(viewModal.profit), color: viewModal.profit >= 0 ? "#22c55e" : "#ef4444" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="p-3 rounded-xl text-center" style={{ background: "var(--bg-secondary)" }}>
+                      <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>{label}</p>
+                      <p className="text-sm font-bold tabular-nums" style={{ color }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reference info */}
+              {(viewModal.ticketNumber || viewModal.pnr || viewModal.bookingReference) && (
+                <div className="p-4 rounded-2xl" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
+                  <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Referans</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: "Bilet №", value: viewModal.ticketNumber },
+                      { label: "PNR", value: viewModal.pnr },
+                      { label: "Bron №", value: viewModal.bookingReference },
+                    ].filter(r => r.value).map(({ label, value }) => (
+                      <div key={label}>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</p>
+                        <p className="text-sm font-mono font-semibold" style={{ color: "var(--text-primary)" }}>{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {viewModal.notes && (
+                <div className="p-4 rounded-2xl" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
+                  <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Qeydlər</p>
+                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{viewModal.notes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
   )
 }
 
