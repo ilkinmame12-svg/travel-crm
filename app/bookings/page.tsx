@@ -826,7 +826,6 @@ export default function SifarislerPage() {
           </div>
         </div>
       )}
-    </div>
 
       {/* ── View Modal ── */}
       {viewModal && (
@@ -951,6 +950,7 @@ export default function SifarislerPage() {
           </div>
         </div>
       )}
+    </div>
   )
 }
 

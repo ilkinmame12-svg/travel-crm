@@ -24,6 +24,7 @@ function toBooking(row: any): Booking {
     destination: row.destination,
     departureDate: row.departure_date ? String(row.departure_date).slice(0, 10) : '',
     returnDate: row.return_date ? String(row.return_date).slice(0, 10) : '',
+    orderDate: row.order_date ? String(row.order_date).slice(0, 10) : '',
     travelers: row.travelers,
     description: row.description,
     vendor: row.vendor ?? '',
@@ -55,6 +56,7 @@ function toRow(data: any) {
     destination: data.destination,
     departure_date: data.departureDate || today,
     return_date: data.returnDate || today,
+    order_date: data.orderDate || today,
     travelers: data.travelers,
     description: data.description,
     vendor: data.vendor ?? '',
@@ -79,27 +81,14 @@ function toRow(data: any) {
   }
 }
 
-// ─── Auto-create creditor if vendor is set ────────────────────────────────
 async function autoCreateCreditor(vendorName: string) {
   if (!vendorName?.trim()) return
-
-  // Check if creditor already exists
   const { data: existing } = await supabase
-    .from("creditors")
-    .select("id")
-    .ilike("name", vendorName.trim())
-    .limit(1)
-
-  if (existing && existing.length > 0) return // already exists
-
-  // Create new creditor automatically
+    .from("creditors").select("id").ilike("name", vendorName.trim()).limit(1)
+  if (existing && existing.length > 0) return
   await supabase.from("creditors").insert({
-    name: vendorName.trim(),
-    contact: "",
-    phone: "",
-    email: "",
-    notes: "Avtomatik yaradıldı",
-    status: "active",
+    name: vendorName.trim(), contact: "", phone: "", email: "",
+    notes: "Avtomatik yaradıldı", status: "active",
   })
 }
 
@@ -110,70 +99,38 @@ export const useBookingsStore = create<BookingsStore>((set, get) => ({
   fetchBookings: async () => {
     set({ loading: true })
     const { data, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (!error && data) {
-      set({ bookings: data.map(toBooking) })
-    }
+      .from('bookings').select('*').order('created_at', { ascending: false })
+    if (!error && data) set({ bookings: data.map(toBooking) })
     set({ loading: false })
   },
 
   addBooking: async (data) => {
     const calculated = applyCalculations(data)
+    if (data.vendor?.trim()) await autoCreateCreditor(data.vendor.trim())
 
-    // ── Auto-create creditor if vendor is set ──
-    if (data.vendor?.trim()) {
-      await autoCreateCreditor(data.vendor.trim())
-    }
-
-    // ── Check client balance ──
     const { data: balanceRows } = await supabase
-      .from("client_balances")
-      .select("*")
-      .eq("client_name", data.clientName)
-      .limit(1)
-
+      .from("client_balances").select("*").eq("client_name", data.clientName).limit(1)
     const clientBalance = balanceRows?.[0] ?? null
-
     let paidAmount = calculated.paidAmount ?? 0
     let paymentStatus = calculated.paymentStatus
-    let balanceUsed = 0
 
     if (clientBalance && clientBalance.balance > 0) {
       const debt = calculated.sellPrice - paidAmount
       if (debt > 0) {
-        balanceUsed = Math.min(clientBalance.balance, debt)
+        const balanceUsed = Math.min(clientBalance.balance, debt)
         paidAmount += balanceUsed
-
-        if (paidAmount >= calculated.sellPrice) {
-          paymentStatus = "paid"
-        } else if (paidAmount > 0) {
-          paymentStatus = "partial"
-        }
-
+        paymentStatus = paidAmount >= calculated.sellPrice ? "paid" : "partial"
         const newBalance = clientBalance.balance - balanceUsed
-        await supabase
-          .from("client_balances")
-          .update({ balance: newBalance })
-          .eq("id", clientBalance.id)
-
+        await supabase.from("client_balances").update({ balance: newBalance }).eq("id", clientBalance.id)
         await supabase.from("client_balance_transactions").insert({
-          client_name: data.clientName,
-          amount: balanceUsed,
-          type: "debit",
+          client_name: data.clientName, amount: balanceUsed, type: "debit",
           description: `Avtomatik: yeni sifariş üçün balansdan silinib`,
         })
       }
     }
 
     const row = toRow({ ...calculated, paidAmount, paymentStatus })
-    const { data: inserted, error } = await supabase
-      .from("bookings")
-      .insert(row)
-      .select()
-      .single()
-
+    const { data: inserted, error } = await supabase.from("bookings").insert(row).select().single()
     if (!error && inserted) {
       const booking = toBooking(inserted)
       set((state) => ({ bookings: [booking, ...state.bookings] }))
@@ -184,33 +141,18 @@ export const useBookingsStore = create<BookingsStore>((set, get) => ({
 
   updateBooking: async (id, data) => {
     const calculated = applyCalculations(data)
-
-    // ── Auto-create creditor on update too ──
-    if (data.vendor?.trim()) {
-      await autoCreateCreditor(data.vendor.trim())
-    }
-
+    if (data.vendor?.trim()) await autoCreateCreditor(data.vendor.trim())
     const row = toRow(calculated)
-    const { error } = await supabase
-      .from('bookings')
-      .update(row)
-      .eq('id', id)
+    const { error } = await supabase.from('bookings').update(row).eq('id', id)
     if (!error) {
       set((state) => ({
-        bookings: state.bookings.map((b) =>
-          b.id === id ? { ...b, ...calculated } : b
-        ),
+        bookings: state.bookings.map((b) => b.id === id ? { ...b, ...calculated } : b)
       }))
     }
   },
 
   deleteBooking: async (id) => {
-    const { error } = await supabase
-      .from('bookings')
-      .delete()
-      .eq('id', id)
-    if (!error) {
-      set((state) => ({ bookings: state.bookings.filter((b) => b.id !== id) }))
-    }
+    const { error } = await supabase.from('bookings').delete().eq('id', id)
+    if (!error) set((state) => ({ bookings: state.bookings.filter((b) => b.id !== id) }))
   },
 }))
