@@ -7,7 +7,7 @@ import { formatCurrency } from "@/lib/calculations"
 import {
   TrendingUp, TrendingDown, DollarSign, Plus, Trash2,
   Wallet, ArrowUpRight, X, Receipt, CreditCard, BarChart3,
-  CheckCircle2, Clock, AlertCircle
+  CheckCircle2, Clock, AlertCircle, Edit3
 } from "lucide-react"
 
 interface Expense { id: string; name: string; amount: number; category: string; date: string }
@@ -94,6 +94,9 @@ export default function FinancesPage() {
   const [cashOperation, setCashOperation] = useState<"add" | "subtract">("add")
   const [cashCurrency, setCashCurrency] = useState<"AZN" | "USD">("AZN")
   const [cashHistory, setCashHistory] = useState<any[]>([])
+  const [editModal, setEditModal] = useState<any>(null)
+  const [editReason, setEditReason] = useState("")
+  const [editAmount, setEditAmount] = useState("")
   const [ready, setReady] = useState(false)
 
   async function loadCash() {
@@ -194,6 +197,38 @@ export default function FinancesPage() {
     }
     setCashInput(""); setCashReason("")
     await loadCash(); setCashModal(false)
+  }
+
+
+  async function handleEditCash(t: any) {
+    const amount = parseFloat(editAmount)
+    if (!amount || amount <= 0) return
+    // Recalculate balance: remove old, add new
+    const diff = amount - t.amount
+    const newBalanceAfter = t.balance_after + (t.operation === "add" ? diff : -diff)
+    await supabase.from("cash_transactions").update({ amount, reason: editReason, balance_after: newBalanceAfter }).eq("id", t.id)
+    // Update cash_balance
+    const currency = t.currency
+    const currentBalance = currency === "AZN" ? cashAZN : cashUSD
+    const newBalance = currentBalance + (t.operation === "add" ? diff : -diff)
+    await supabase.from("cash_balance").update({ amount: newBalance }).eq("currency", currency)
+    if (currency === "AZN") setCashAZN(newBalance)
+    else setCashUSD(newBalance)
+    await loadCash()
+    setEditModal(null)
+  }
+
+  async function handleDeleteCash(t: any) {
+    if (!confirm("Bu əməliyyatı silmək istəyirsiniz?")) return
+    // Reverse the effect on balance
+    const currency = t.currency
+    const currentBalance = currency === "AZN" ? cashAZN : cashUSD
+    const newBalance = t.operation === "add" ? currentBalance - t.amount : currentBalance + t.amount
+    await supabase.from("cash_transactions").delete().eq("id", t.id)
+    await supabase.from("cash_balance").update({ amount: Math.max(0, newBalance) }).eq("currency", currency)
+    if (currency === "AZN") setCashAZN(Math.max(0, newBalance))
+    else setCashUSD(Math.max(0, newBalance))
+    await loadCash()
   }
 
   return (
@@ -470,14 +505,14 @@ export default function FinancesPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: "var(--bg-glass)", borderBottom: "1px solid var(--border-color)" }}>
-                      {["Tarix", "Valyuta", "Növ", "Məbləğ", "Səbəb", "Qalıq"].map(h => (
+                      {["Tarix", "Valyuta", "Növ", "Məbləğ", "Səbəb", "Qalıq", ""].map(h => (
                         <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3" style={{ color: "var(--text-muted)" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {cashHistory.map((t: any) => (
-                      <tr key={t.id} className="transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
+                      <tr key={t.id} className="group transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                         <td className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -500,6 +535,20 @@ export default function FinancesPage() {
                         </td>
                         <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{t.reason || "—"}</td>
                         <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{t.balance_after} {t.currency}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                            <button onClick={() => { setEditModal(t); setEditAmount(String(t.amount)); setEditReason(t.reason || "") }}
+                              className="p-1.5 rounded-xl transition-all hover:scale-110"
+                              style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
+                              <Edit3 size={12} />
+                            </button>
+                            <button onClick={() => handleDeleteCash(t)}
+                              className="p-1.5 rounded-xl transition-all hover:scale-110"
+                              style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -619,6 +668,56 @@ export default function FinancesPage() {
         </div>
       )}
 
+
+      {/* ── Edit Cash Modal ── */}
+      {editModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+          <div className="w-full max-w-sm" style={modalStyle}>
+            <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.12)" }}>
+                  <Edit3 size={14} style={{ color: "#6366f1" }} />
+                </div>
+                <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Əməliyyatı redaktə et</h2>
+              </div>
+              <button onClick={() => setEditModal(null)} className="w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
+                <X size={15} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background: "var(--bg-glass)" }}>
+                <span className="text-xs px-2 py-1 rounded-xl font-medium"
+                  style={{ background: editModal.operation === "add" ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)", color: editModal.operation === "add" ? "#22c55e" : "#ef4444" }}>
+                  {editModal.operation === "add" ? "↑ Giriş" : "↓ Çıxış"}
+                </span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{editModal.currency} · {new Date(editModal.created_at).toLocaleDateString("az-AZ")}</span>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Məbləğ ({editModal.currency})</label>
+                <input type="number" step="0.01" min="0" value={editAmount} onChange={e => setEditAmount(e.target.value)} style={input} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Səbəb</label>
+                <input type="text" value={editReason} onChange={e => setEditReason(e.target.value)} placeholder="Səbəb..." style={input} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
+                <button onClick={() => setEditModal(null)}
+                  className="py-2.5 rounded-2xl text-sm font-medium transition-all"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                  Ləğv et
+                </button>
+                <button onClick={() => handleEditCash(editModal)}
+                  className="py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02]"
+                  style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 4px 12px rgba(99,102,241,0.3)" }}>
+                  Yadda saxla
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ── Income Modal ── */}
       {modal === "income" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
