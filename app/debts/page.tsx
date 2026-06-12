@@ -31,7 +31,7 @@ export default function DebtsPage() {
   const [modal, setModal] = useState(false)
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<string[]>([])
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+ const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [activeTab, setActiveTab] = useState<"all" | "selected">("all")
 
   const canDelete = ["it_admin", "direktor", "muhasib"].includes(profile?.role ?? "")
@@ -60,7 +60,7 @@ export default function DebtsPage() {
   const theyOwe = allDebts.reduce((s, b) => s + b.remaining, 0)
   const weOwe = manualDebts.filter(d => d.direction === "we_owe" && d.status === "pending").reduce((s, d) => s + d.amount, 0)
   const selectedTotal = selectedDebts.reduce((s, b) => s + b.remaining, 0)
-  
+
 function toggleRow(id: string) {
   setSelectedIds(prev => {
     const next = new Set(prev)
