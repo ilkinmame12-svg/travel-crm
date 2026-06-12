@@ -60,20 +60,19 @@ export default function DebtsPage() {
   const theyOwe = allDebts.reduce((s, b) => s + b.remaining, 0)
   const weOwe = manualDebts.filter(d => d.direction === "we_owe" && d.status === "pending").reduce((s, d) => s + d.amount, 0)
   const selectedTotal = selectedDebts.reduce((s, b) => s + b.remaining, 0)
-
-  function toggleRow(id: string) {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-        if (next.size === 0) setActiveTab("all")
-      } else {
-        next.add(id)
-        setActiveTab("selected")
-      }
-      return next
-    })
-  }
+  
+function toggleRow(id: string) {
+  setSelectedIds(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) {
+      next.delete(id)
+      if (next.size === 0) setActiveTab("all")
+    } else {
+      next.add(id)
+    }
+    return next
+  })
+}
 
   function clearSelected() {
     setSelectedIds(new Set())
