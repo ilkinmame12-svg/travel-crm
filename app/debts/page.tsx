@@ -22,6 +22,131 @@ function exportToPDF(debts: any[], label: string) {
   if (win) { win.document.write(html); win.document.close() }
 }
 
+// ─── DebtTable — OUTSIDE main component to prevent scroll on re-render ──────
+function DebtTable({ debts, selectedIds, toggleRow, setPayModal, setPayAmount, handleDeleteDebt, canDelete }: {
+  debts: any[]
+  selectedIds: Set<string>
+  toggleRow: (id: string) => void
+  setPayModal: (b: any) => void
+  setPayAmount: (s: string) => void
+  handleDeleteDebt: (id: string, price: number) => void
+  canDelete: boolean
+}) {
+  return (
+    <>
+      {/* Desktop */}
+      <div className="hidden md:block rounded-3xl overflow-hidden" style={card}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+              <th className="px-4 py-3 w-8"></th>
+              {["Müştəri", "İstiqamət", "Növ", "Tarix", "Ümumi", "Ödənilib", "Qalıq", "Menecer", ""].map(h => (
+                <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3"
+                  style={{ color: "var(--text-muted)" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {debts.map(b => {
+              const isSelected = selectedIds.has(b.id)
+              return (
+                <tr key={b.id} className="border-b transition-all cursor-pointer"
+                  style={{ borderColor: "var(--border-color)", background: isSelected ? "rgba(99,102,241,0.07)" : "transparent" }}
+                  onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? "rgba(99,102,241,0.07)" : "transparent" }}>
+                  <td className="px-4 py-3" onClick={() => toggleRow(b.id)}>
+                    <div className="w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all"
+                      style={{ borderColor: isSelected ? "#6366f1" : "var(--border-color)", background: isSelected ? "#6366f1" : "transparent" }}>
+                      {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3" onClick={() => toggleRow(b.id)}>
+                    <p className="font-medium text-sm" style={{ color: isSelected ? "#6366f1" : "var(--text-primary)" }}>{b.clientName}</p>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p>
+                  </td>
+                  <td className="px-4 py-3 max-w-[180px] truncate" style={{ color: "var(--text-secondary)" }} onClick={() => toggleRow(b.id)}>{b.destination}</td>
+                  <td className="px-4 py-3" onClick={() => toggleRow(b.id)}>
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>{b.bookingType}</span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--text-secondary)" }} onClick={() => toggleRow(b.id)}>{formatDate(b.departureDate)}</td>
+                  <td className="px-4 py-3 font-semibold" style={{ color: "var(--text-primary)" }} onClick={() => toggleRow(b.id)}>{formatCurrency(b.sellPrice)}</td>
+                  <td className="px-4 py-3 font-semibold text-green-500" onClick={() => toggleRow(b.id)}>{formatCurrency(b.paidAmount ?? 0)}</td>
+                  <td className="px-4 py-3 font-bold text-red-500" onClick={() => toggleRow(b.id)}>{formatCurrency(b.remaining)}</td>
+                  <td className="px-4 py-3 text-xs" style={{ color: "var(--text-secondary)" }} onClick={() => toggleRow(b.id)}>{b.manager?.split(" ")[0]}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-1.5">
+                      <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl font-medium transition-all hover:scale-105"
+                        style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
+                        <CheckCircle size={12} />Ödə
+                      </button>
+                      {canDelete && (
+                        <button onClick={() => handleDeleteDebt(b.id, b.sellPrice)}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl font-medium transition-all hover:scale-105"
+                          style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+                          <Trash2 size={12} />Sil
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile */}
+      <div className="md:hidden space-y-3">
+        {debts.map(b => {
+          const isSelected = selectedIds.has(b.id)
+          return (
+            <div key={b.id} className="p-4 rounded-3xl transition-all"
+              style={{ ...card, border: isSelected ? "2px solid #6366f1" : "1px solid var(--border-color)", background: isSelected ? "rgba(99,102,241,0.05)" : "var(--bg-card)" }}>
+              <div className="flex items-start gap-3 mb-2">
+                <div onClick={() => toggleRow(b.id)}
+                  className="w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 mt-0.5 cursor-pointer transition-all"
+                  style={{ borderColor: isSelected ? "#6366f1" : "var(--border-color)", background: isSelected ? "#6366f1" : "transparent" }}>
+                  {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </div>
+                <div className="flex-1 min-w-0" onClick={() => toggleRow(b.id)}>
+                  <p className="font-semibold truncate" style={{ color: isSelected ? "#6366f1" : "var(--text-primary)" }}>{b.clientName}</p>
+                  <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{b.destination}</p>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>{b.bookingType}</span>
+              </div>
+              <div className="flex items-center justify-between mb-2 ml-8">
+                <div>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{formatDate(b.departureDate)}</p>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.manager?.split(" ")[0]}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-red-500">{formatCurrency(b.remaining)}</p>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>Ödənilib: {formatCurrency(b.paidAmount ?? 0)}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 ml-8">
+                <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
+                  className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-2xl font-medium"
+                  style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
+                  <CheckCircle size={14} />Ödə
+                </button>
+                {canDelete && (
+                  <button onClick={() => handleDeleteDebt(b.id, b.sellPrice)}
+                    className="px-3 py-2 rounded-2xl"
+                    style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
 export default function DebtsPage() {
   const { bookings, fetchBookings } = useBookingsStore()
   const { profile } = useUserRole()
@@ -31,7 +156,7 @@ export default function DebtsPage() {
   const [modal, setModal] = useState(false)
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<string[]>([])
- const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [activeTab, setActiveTab] = useState<"all" | "selected">("all")
 
   const canDelete = ["it_admin", "direktor", "muhasib"].includes(profile?.role ?? "")
@@ -56,26 +181,26 @@ export default function DebtsPage() {
   )
 
   const visibleDebts = useMemo(() => {
-  if (activeTab === "selected") return allDebts.filter(b => selectedIds.has(b.id))
-  return allDebts
-}, [allDebts, activeTab, selectedIds])
+    if (activeTab === "selected") return allDebts.filter(b => selectedIds.has(b.id))
+    return allDebts
+  }, [allDebts, activeTab, selectedIds])
 
   const theyOwe = allDebts.reduce((s, b) => s + b.remaining, 0)
   const weOwe = manualDebts.filter(d => d.direction === "we_owe" && d.status === "pending").reduce((s, d) => s + d.amount, 0)
   const selectedTotal = selectedDebts.reduce((s, b) => s + b.remaining, 0)
 
-function toggleRow(id: string) {
-  setSelectedIds(prev => {
-    const next = new Set(prev)
-    if (next.has(id)) {
-      next.delete(id)
-      if (next.size === 0) setActiveTab("all")
-    } else {
-      next.add(id)
-    }
-    return next
-  })
-}
+  function toggleRow(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+        if (next.size === 0) setActiveTab("all")
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
 
   function clearSelected() {
     setSelectedIds(new Set())
@@ -105,126 +230,6 @@ function toggleRow(id: string) {
     const fd = new FormData(e.currentTarget)
     setManualDebts(prev => [...prev, { id: Date.now().toString(), name: fd.get("name") as string, amount: Number(fd.get("amount")), direction: fd.get("direction") as "they_owe" | "we_owe", description: fd.get("description") as string, dueDate: fd.get("dueDate") as string, status: "pending" }])
     setModal(false)
-  }
-
-  const typeLabel = typeFilter.length === 0 ? "Bütün növlər" : typeFilter.map(t => t === "bilet" ? "Aviabilet" : t === "otel" ? "Otel" : t === "tur" ? "Tur" : "Transfer").join(", ")
-
-  function DebtTable({ debts }: { debts: any[] }) {
-    return (
-      <>
-        {/* Desktop */}
-        <div className="hidden md:block rounded-3xl overflow-hidden" style={card}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                <th className="px-4 py-3 w-8"></th>
-                {["Müştəri", "İstiqamət", "Növ", "Tarix", "Ümumi", "Ödənilib", "Qalıq", "Menecer", ""].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3"
-                    style={{ color: "var(--text-muted)" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {debts.map(b => {
-                const isSelected = selectedIds.has(b.id)
-                return (
-                  <tr key={b.id} className="border-b transition-all cursor-pointer"
-                    style={{ borderColor: "var(--border-color)", background: isSelected ? "rgba(99,102,241,0.07)" : "transparent" }}
-                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)" }}
-                    onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = isSelected ? "rgba(99,102,241,0.07)" : "transparent" }}>
-                    {/* Checkbox */}
-                    <td className="px-4 py-3" onClick={() => toggleRow(b.id)}>
-                      <div className="w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all"
-                        style={{ borderColor: isSelected ? "#6366f1" : "var(--border-color)", background: isSelected ? "#6366f1" : "transparent" }}>
-                        {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3" onClick={() => toggleRow(b.id)}>
-                      <p className="font-medium text-sm" style={{ color: isSelected ? "#6366f1" : "var(--text-primary)" }}>{b.clientName}</p>
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p>
-                    </td>
-                    <td className="px-4 py-3 max-w-[180px] truncate" style={{ color: "var(--text-secondary)" }} onClick={() => toggleRow(b.id)}>{b.destination}</td>
-                    <td className="px-4 py-3" onClick={() => toggleRow(b.id)}>
-                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>{b.bookingType}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap" style={{ color: "var(--text-secondary)" }} onClick={() => toggleRow(b.id)}>{formatDate(b.departureDate)}</td>
-                    <td className="px-4 py-3 font-semibold" style={{ color: "var(--text-primary)" }} onClick={() => toggleRow(b.id)}>{formatCurrency(b.sellPrice)}</td>
-                    <td className="px-4 py-3 font-semibold text-green-500" onClick={() => toggleRow(b.id)}>{formatCurrency(b.paidAmount ?? 0)}</td>
-                    <td className="px-4 py-3 font-bold text-red-500" onClick={() => toggleRow(b.id)}>{formatCurrency(b.remaining)}</td>
-                    <td className="px-4 py-3 text-xs" style={{ color: "var(--text-secondary)" }} onClick={() => toggleRow(b.id)}>{b.manager?.split(" ")[0]}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1.5">
-                        <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
-                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl font-medium transition-all hover:scale-105"
-                          style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
-                          <CheckCircle size={12} />Ödə
-                        </button>
-                        {canDelete && (
-                          <button onClick={() => handleDeleteDebt(b.id, b.sellPrice)}
-                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl font-medium transition-all hover:scale-105"
-                            style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
-                            <Trash2 size={12} />Sil
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile */}
-        <div className="md:hidden space-y-3">
-          {debts.map(b => {
-            const isSelected = selectedIds.has(b.id)
-            return (
-              <div key={b.id} className="p-4 rounded-3xl transition-all"
-                style={{ ...card, border: isSelected ? "2px solid #6366f1" : "1px solid var(--border-color)", background: isSelected ? "rgba(99,102,241,0.05)" : "var(--bg-card)" }}>
-                <div className="flex items-start gap-3 mb-2">
-                  {/* Checkbox */}
-                  <div onClick={() => toggleRow(b.id)}
-                    className="w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 mt-0.5 cursor-pointer transition-all"
-                    style={{ borderColor: isSelected ? "#6366f1" : "var(--border-color)", background: isSelected ? "#6366f1" : "transparent" }}>
-                    {isSelected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                  </div>
-                  <div className="flex-1 min-w-0" onClick={() => toggleRow(b.id)}>
-                    <p className="font-semibold truncate" style={{ color: isSelected ? "#6366f1" : "var(--text-primary)" }}>{b.clientName}</p>
-                    <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{b.destination}</p>
-                  </div>
-                  <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>{b.bookingType}</span>
-                </div>
-                <div className="flex items-center justify-between mb-2 ml-8">
-                  <div>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{formatDate(b.departureDate)}</p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.manager?.split(" ")[0]}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-red-500">{formatCurrency(b.remaining)}</p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>Ödənilib: {formatCurrency(b.paidAmount ?? 0)}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 ml-8">
-                  <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
-                    className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-2xl font-medium"
-                    style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
-                    <CheckCircle size={14} />Ödə
-                  </button>
-                  {canDelete && (
-                    <button onClick={() => handleDeleteDebt(b.id, b.sellPrice)}
-                      className="px-3 py-2 rounded-2xl"
-                      style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </>
-    )
   }
 
   return (
@@ -291,7 +296,7 @@ function toggleRow(id: string) {
         </div>
       </div>
 
-      {/* Tab bar — only when something selected */}
+      {/* Tab bar */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-1 mb-4 p-1 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
           <button onClick={() => setActiveTab("all")}
@@ -321,7 +326,15 @@ function toggleRow(id: string) {
           <p className="text-sm font-medium">Borc tapılmadı</p>
         </div>
       ) : (
-        <DebtTable debts={visibleDebts} />
+        <DebtTable
+          debts={visibleDebts}
+          selectedIds={selectedIds}
+          toggleRow={toggleRow}
+          setPayModal={setPayModal}
+          setPayAmount={setPayAmount}
+          handleDeleteDebt={handleDeleteDebt}
+          canDelete={canDelete}
+        />
       )}
 
       {/* Pay Modal */}
