@@ -55,7 +55,10 @@ export default function DebtsPage() {
     [allDebts, selectedIds]
   )
 
-  const visibleDebts = activeTab === "selected" ? selectedDebts : allDebts
+  const visibleDebts = useMemo(() => {
+  if (activeTab === "selected") return allDebts.filter(b => selectedIds.has(b.id))
+  return allDebts
+}, [allDebts, activeTab, selectedIds])
 
   const theyOwe = allDebts.reduce((s, b) => s + b.remaining, 0)
   const weOwe = manualDebts.filter(d => d.direction === "we_owe" && d.status === "pending").reduce((s, d) => s + d.amount, 0)
