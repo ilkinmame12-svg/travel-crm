@@ -15,16 +15,16 @@ import { ThemeToggle } from "@/components/ThemeProvider"
 
 // ─── Menu config ─────────────────────────────────────────────────────────
 const ALL_MENU = [
-  { href: "/",          label: "Dashboard",   icon: LayoutDashboard, roles: ["it_admin","boss","direktor","muhasib","menecer"] },
-  { href: "/bookings",  label: "Sifarişlər",  icon: ClipboardList,   roles: ["it_admin","boss","direktor","muhasib","menecer"] },
+  { href: "/",          label: "Dashboard",   icon: LayoutDashboard, roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
+  { href: "/bookings",  label: "Sifarişlər",  icon: ClipboardList,   roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
   { href: "/drafts",    label: "Təsdiq",      icon: Clock,           roles: ["it_admin","direktor","muhasib","menecer"] },
   { href: "/mir", label: "MIR Import", icon: FileText, roles: ["it_admin", "direktor", "menecer"] },
   { href: "/flights",   label: "TK NDC",      icon: PlaneTakeoff,    roles: ["it_admin","direktor","menecer"] },
   { href: "/assistant", label: "AI Köməkçi",  icon: BotMessageSquare,roles: ["it_admin","boss","direktor","muhasib","menecer"] },
   { href: "/chat",      label: "Mesajlar",    icon: MessageCircle,   roles: ["it_admin","boss","direktor","muhasib","menecer"] },
   { href: "/employees", label: "İşçilər",     icon: Users,           roles: ["it_admin","boss","direktor","muhasib"] },
-  { href: "/settings",  label: "Ayarlar",     icon: Settings,        roles: ["it_admin","boss","direktor","muhasib","menecer"] },
-  { href: "/help",      label: "Help",        icon: HelpCircle,      roles: ["it_admin","boss","direktor","muhasib","menecer"] },
+  { href: "/settings",  label: "Ayarlar",     icon: Settings,        roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
+  { href: "/help",      label: "Help",        icon: HelpCircle,      roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
   { href: "/founder", label: "Əsasçı", icon: User, roles: ["it_admin", "direktor", "boss", "muhasib"] },
 ]
 
@@ -36,10 +36,16 @@ const FINANCE_MENU = [
   { href: "/iata",      label: "IATA",        icon: Globe },
 ]
 
-const FINANCE_ROLES = ["it_admin", "boss", "direktor", "muhasib"]
+const FINANCE_ROLES = ["it_admin", "boss", "direktor", "muhasib", "bilet_menecer"]
+
+// bilet_menecer görə biləcəyi finance menüsü — yalnız IATA
+function getFinanceMenu(role: string) {
+  if (role === "bilet_menecer") return FINANCE_MENU.filter(f => f.href === "/iata")
+  return FINANCE_MENU
+}
 
 const ROLE_LABELS: Record<string, string> = {
-  it_admin: "IT Admin", boss: "Boss", direktor: "Direktor", muhasib: "Mühasib", menecer: "Menecer",
+  it_admin: "IT Admin", boss: "Boss", direktor: "Direktor", muhasib: "Mühasib", menecer: "Menecer", bilet_menecer: "Bilet Menecer",
 }
 
 const ROLE_GRADIENTS: Record<string, string> = {
@@ -48,6 +54,7 @@ const ROLE_GRADIENTS: Record<string, string> = {
   direktor:  "linear-gradient(135deg, #3b82f6, #06b6d4)",
   muhasib:   "linear-gradient(135deg, #10b981, #34d399)",
   menecer:   "linear-gradient(135deg, #6b7280, #9ca3af)",
+  bilet_menecer: "linear-gradient(135deg, #3b82f6, #60a5fa)",
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -304,7 +311,7 @@ export default function Sidebar() {
                         <span className="text-sm font-medium flex-1">Maliyyə</span>
                       </Link>
                       <div className="ml-2 mt-0.5 space-y-0.5 pl-3" style={{ borderLeft: "1px solid var(--border-color)" }}>
-                        {FINANCE_MENU.map(f => {
+                        {getFinanceMenu(profile?.role ?? "").map(f => {
                           const Icon = f.icon
                           const active = pathname === f.href
                           return (
@@ -453,7 +460,7 @@ export default function Sidebar() {
           <p className="text-xs font-bold uppercase tracking-widest px-4 py-2" style={{ color: "var(--text-muted)" }}>
             Maliyyə
           </p>
-          {FINANCE_MENU.map(f => {
+          {getFinanceMenu(profile?.role ?? "").map(f => {
             const Icon = f.icon
             const active = pathname === f.href
             return (
