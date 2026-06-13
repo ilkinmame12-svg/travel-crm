@@ -239,6 +239,7 @@ export default function SifarislerPage() {
   const { profile, canDelete } = useUserRole()
   const isReadOnly = profile?.role === "boss"
   const isManager = profile?.role === "menecer"
+  const isBiletMenecer = profile?.role === "bilet_menecer"
   const { bookings, loading, fetchBookings, addBooking, updateBooking, deleteBooking } = useBookingsStore()
   const [modal, setModal] = useState<"create" | "edit" | null>(null)
   const [selected, setSelected] = useState<Booking | null>(null)
@@ -276,6 +277,8 @@ export default function SifarislerPage() {
 
   const filtered = useMemo(() => bookings.filter(b => {
     if (isManager && b.manager !== profile?.fullName) return false
+    if (isBiletMenecer && b.manager !== profile?.fullName) return false
+    if (isBiletMenecer && b.bookingType !== "bilet") return false
     if (activeTab !== "all" && b.bookingType !== activeTab) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
@@ -288,7 +291,7 @@ export default function SifarislerPage() {
     if (filters.iataPeriod !== "all" && b.iataPeriod !== filters.iataPeriod) return false
     if (filters.dateFrom && !b.departureDate.startsWith(filters.dateFrom)) return false
     return true
-  }), [bookings, filters, activeTab, isManager, profile])
+  }), [bookings, filters, activeTab, isManager, isBiletMenecer, profile])
 
   const totalRevenue = filtered.reduce((s, b) => s + b.sellPrice, 0)
   const totalProfit  = filtered.reduce((s, b) => s + b.profit, 0)
@@ -297,7 +300,7 @@ export default function SifarislerPage() {
 
   const typeCounts = BOOKING_TYPES.map(t => ({
     ...t,
-    count: bookings.filter(b => b.bookingType === t.value && (!isManager || b.manager === profile?.fullName)).length
+    count: bookings.filter(b => b.bookingType === t.value && (!isManager || b.manager === profile?.fullName) && (!isBiletMenecer || b.manager === profile?.fullName)).length
   }))
 
   const activeFiltersCount = [
@@ -343,7 +346,7 @@ export default function SifarislerPage() {
 
     if (modal === "edit" && selected) {
       await updateBooking(selected.id, data)
-    } else if (isManager) {
+    } else if (isManager || isBiletMenecer) {
       await supabase.from("booking_drafts").insert({
         client_name: data.clientName, client_phone: data.clientPhone,
         destination: data.destination, departure_date: data.departureDate,
