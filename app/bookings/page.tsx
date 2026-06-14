@@ -297,8 +297,8 @@ export default function SifarislerPage() {
 
       const myBookings = bookings.filter(b =>
         b.status !== "cancelled" &&
-        (profile.role === "menecer" || profile.role === "bilet_menecer"
-          ? b.manager === profile.fullName
+        (profile?.role === "menecer" || profile?.role === "bilet_menecer"
+          ? b.manager === profile?.fullName
           : true)
       )
 
