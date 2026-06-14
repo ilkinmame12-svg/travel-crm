@@ -262,7 +262,18 @@ export default function DebtsPage() {
         <input type="text" placeholder="Müştəri adı ilə axtar..." value={search}
           onChange={e => setSearch(e.target.value)} className="w-full" style={inputStyle} />
         <div className="flex gap-2 flex-wrap">
-          {[{ value: "bilet", label: "✈️ Bilet" }, { value: "otel", label: "🏨 Otel" }, { value: "tur", label: "🏖️ Tur" }, { value: "transfer", label: "🚗 Transfer" }, { value: "kruiz", label: "🚢 Kruiz" }].map(t => (
+         {[
+  { value: "bilet", label: "✈️ Bilet" },
+  { value: "otel", label: "🏨 Otel" },
+  { value: "tur", label: "🏖️ Tur" },
+  { value: "transfer", label: "🚗 Transfer" },
+  { value: "kruiz", label: "🚢 Kruiz" },
+  { value: "bagaj", label: "🧳 Bagaj" },
+  { value: "yer_secimi", label: "💺 Yer seçimi" },
+  { value: "sigorta", label: "🛡️ Sığorta" },
+  { value: "viza", label: "📋 Viza" },
+  { value: "cip", label: "⭐ CIP" },
+].map(t => (
             <button key={t.value}
               onClick={() => setTypeFilter(prev => prev.includes(t.value) ? prev.filter(x => x !== t.value) : [...prev, t.value])}
               className="px-3 py-1.5 rounded-2xl text-sm font-medium transition-all"
