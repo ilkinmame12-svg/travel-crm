@@ -275,6 +275,96 @@ export default function SifarislerPage() {
     }
   }, [modal, selected])
 
+
+  // ─── Flight reminder notifications ───────────────────────────────────────
+  useEffect(() => {
+    if (!ready || !profile) return
+    const canReceive = ["it_admin", "boss", "direktor", "menecer", "bilet_menecer"].includes(profile.role)
+    if (!canReceive) return
+
+    // Request notification permission
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission()
+    }
+
+    function checkFlights() {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
+      const in5days = new Date(today); in5days.setDate(today.getDate() + 5)
+      const tomorrowStr = tomorrow.toISOString().split("T")[0]
+      const in5daysStr = in5days.toISOString().split("T")[0]
+
+      const myBookings = bookings.filter(b =>
+        b.status !== "cancelled" &&
+        (profile.role === "menecer" || profile.role === "bilet_menecer"
+          ? b.manager === profile.fullName
+          : true)
+      )
+
+      const tomorrow1 = myBookings.filter(b => b.departureDate === tomorrowStr)
+      const in5days1 = myBookings.filter(b => b.departureDate === in5daysStr)
+
+      function playAlert() {
+        try {
+          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.connect(gain); gain.connect(ctx.destination)
+          osc.frequency.setValueAtTime(880, ctx.currentTime)
+          osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15)
+          osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3)
+          gain.gain.setValueAtTime(0.3, ctx.currentTime)
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+          osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5)
+        } catch {}
+      }
+
+      if (tomorrow1.length > 0) {
+        const shown = sessionStorage.getItem(`notif_1d_${tomorrowStr}`)
+        if (!shown) {
+          playAlert()
+          if (Notification.permission === "granted") {
+            new Notification("🚨 Sabah uçuş!", {
+              body: `${tomorrow1.length} müştərinin sabah uçuşu var: ${tomorrow1.slice(0,3).map(b => b.clientName).join(", ")}`,
+              icon: "/favicon.ico"
+            })
+          }
+          sessionStorage.setItem(`notif_1d_${tomorrowStr}`, "1")
+        }
+      }
+
+      if (in5days1.length > 0) {
+        const shown = sessionStorage.getItem(`notif_5d_${in5daysStr}`)
+        if (!shown) {
+          if (Notification.permission === "granted") {
+            new Notification("⏰ 5 gün sonra uçuş", {
+              body: `${in5days1.length} müştərinin 5 gün sonra uçuşu var: ${in5days1.slice(0,3).map(b => b.clientName).join(", ")}`,
+              icon: "/favicon.ico"
+            })
+          }
+          sessionStorage.setItem(`notif_5d_${in5daysStr}`, "1")
+        }
+      }
+    }
+
+    if (bookings.length > 0) checkFlights()
+    const interval = setInterval(checkFlights, 60 * 60 * 1000) // check every hour
+    return () => clearInterval(interval)
+  }, [bookings, ready, profile])
+
+  // ─── Flights tomorrow banner data ────────────────────────────────────────
+  const flightsTomorrow = useMemo(() => {
+    if (!profile) return []
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowStr = tomorrow.toISOString().split("T")[0]
+    return bookings.filter(b =>
+      b.departureDate === tomorrowStr &&
+      b.status !== "cancelled" &&
+      (["menecer","bilet_menecer"].includes(profile.role) ? b.manager === profile.fullName : true)
+    )
+  }, [bookings, profile])
+
   const filtered = useMemo(() => bookings.filter(b => {
     if (isManager && b.manager !== profile?.fullName) return false
     if (isBiletMenecer && b.manager !== profile?.fullName) return false
@@ -682,8 +772,8 @@ export default function SifarislerPage() {
                 <ClientAutocomplete defaultValue={selected?.clientName ?? ""} bookings={bookings} ready={ready} />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Telefon</label>
-                <input name="clientPhone" defaultValue={selected?.clientPhone}
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Telefon *</label>
+                <input name="clientPhone" defaultValue={selected?.clientPhone} required
                   className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
                   style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
@@ -706,10 +796,10 @@ export default function SifarislerPage() {
                   style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Sifariş tarixi (müştəri gəldi)</label>
-                <input name="orderDate" type="date" defaultValue={(selected as any)?.orderDate ?? new Date().toISOString().split("T")[0]}
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Sifariş tarixi * (müştəri gəldi)</label>
+                <input name="orderDate" type="date" required defaultValue={(selected as any)?.orderDate ?? new Date().toISOString().split("T")[0]}
                   className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
-                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
+                  style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--text-primary)" }} />
               </div>
               <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Maliyyə</p></div>
               <div>
