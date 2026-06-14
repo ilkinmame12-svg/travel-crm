@@ -24,6 +24,7 @@ const BOOKING_TYPES = [
   { value: "yer_secimi",label: "Yer seçimi", Icon: Armchair, color: "#ec4899", bg: "rgba(236,72,153,0.12)" },
   { value: "cip",       label: "CIP",        Icon: Star,     color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
   { value: "sigorta",   label: "Sığorta",    Icon: Shield,   color: "#14b8a6", bg: "rgba(20,184,166,0.12)" },
+  { value: "viza", label: "Viza", Icon: CreditCard, color: "#0ea5e9", bg: "rgba(14,165,233,0.12)" },
 ]
 
 const EMPTY_FILTERS: BookingFilters = {

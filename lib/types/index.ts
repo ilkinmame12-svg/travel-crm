@@ -1,7 +1,7 @@
 export type IATAPeriod = "1-7" | "8-15" | "16-23" | "24-31"
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid'
-export type BookingType = 'bilet' | 'otel' | 'tur' | 'kruiz' | 'transfer' | 'bagaj' | 'yer_secimi' | 'cip'
+export type BookingType = 'bilet' | 'otel' | 'tur' | 'kruiz' | 'transfer' | 'bagaj' | 'yer_secimi' | 'cip' | 'sigorta' | 'viza'
 
 export interface Booking {
   id: string
