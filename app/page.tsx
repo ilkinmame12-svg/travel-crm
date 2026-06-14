@@ -607,7 +607,7 @@ export default function DashboardPage() {
 
   if (!profile) return <DashboardSkeleton />
 
-  if (profile.role === "menecer") {
+  if (profile.role === "menecer" || profile.role === "bilet_menecer") {
     return <ManagerDashboard bookings={bookings} profile={profile} />
   }
 
