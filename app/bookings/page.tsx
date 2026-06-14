@@ -796,7 +796,7 @@ export default function SifarislerPage() {
                   style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }} />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Sifariş tarixi * (müştəri gəldi)</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Sifariş tarixi * (müştəri uçuş tarixi)</label>
                 <input name="orderDate" type="date" required defaultValue={(selected as any)?.orderDate ?? new Date().toISOString().split("T")[0]}
                   className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
                   style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--text-primary)" }} />
