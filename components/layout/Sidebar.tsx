@@ -292,40 +292,42 @@ export default function Sidebar() {
 
             {showFinance && (
               <>
-                {expanded
-                  ? <div className="sidebar-nav-item" style={{ animationDelay:"0.08s" }}>
-                      <Link href="/finances"
-                        className="flex items-center rounded-2xl transition-all duration-150"
-                        style={{
-                          gap:"10px", padding:"9px 12px",
-                          background: isFinActive ? "linear-gradient(135deg,#ef4444,#f97316)" : "transparent",
-                          color: isFinActive ? "white" : "var(--text-secondary)",
-                          boxShadow: isFinActive ? "0 4px 16px rgba(239,68,68,0.25), inset 0 1px 0 rgba(255,255,255,0.1)" : "none",
-                          whiteSpace: "nowrap",
-                        }}
-                        onMouseEnter={e => { if(!isFinActive)(e.currentTarget as HTMLElement).style.background="var(--bg-glass)" }}
-                        onMouseLeave={e => { if(!isFinActive)(e.currentTarget as HTMLElement).style.background="transparent" }}>
-                        <Wallet size={17} style={{ flexShrink:0 }} />
-                        <span className="text-sm font-medium flex-1">Maliyyə</span>
-                      </Link>
-                      <div className="ml-2 mt-0.5 space-y-0.5 pl-3" style={{ borderLeft:"1px solid var(--border-color)" }}>
-                        {getFinanceMenu(profile?.role ?? "").map(f => {
-                          const Icon = f.icon
-                          const active = pathname === f.href
-                          return (
-                            <Link key={f.href} href={f.href}
-                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
-                              style={{ color:active?"#ef4444":"var(--text-secondary)", background:active?"rgba(239,68,68,0.1)":"transparent" }}
-                              onMouseEnter={e => { if(!active)(e.currentTarget as HTMLElement).style.background="var(--bg-glass)" }}
-                              onMouseLeave={e => { if(!active)(e.currentTarget as HTMLElement).style.background=active?"rgba(239,68,68,0.1)":"transparent" }}>
-                              <Icon size={14} />
-                              {f.label}
-                              {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500" />}
-                            </Link>
-                          )
-                        })}
-                      </div>
-                    </div>
+               {expanded
+  ? <div>
+      <div className="sidebar-nav-item" style={{ animationDelay:"0.08s" }}>
+        <Link href="/finances"
+          className="flex items-center rounded-2xl transition-all duration-150"
+          style={{
+            gap:"10px", padding:"9px 12px",
+            background: isFinActive ? "linear-gradient(135deg,#ef4444,#f97316)" : "transparent",
+            color: isFinActive ? "white" : "var(--text-secondary)",
+            boxShadow: isFinActive ? "0 4px 16px rgba(239,68,68,0.25), inset 0 1px 0 rgba(255,255,255,0.1)" : "none",
+            whiteSpace: "nowrap",
+          }}
+          onMouseEnter={e => { if(!isFinActive)(e.currentTarget as HTMLElement).style.background="var(--bg-glass)" }}
+          onMouseLeave={e => { if(!isFinActive)(e.currentTarget as HTMLElement).style.background="transparent" }}>
+          <Wallet size={17} style={{ flexShrink:0 }} />
+          <span className="text-sm font-medium flex-1">Maliyyə</span>
+        </Link>
+      </div>
+      <div className="ml-2 mt-0.5 space-y-0.5 pl-3" style={{ borderLeft:"1px solid var(--border-color)" }}>
+        {getFinanceMenu(profile?.role ?? "").map(f => {
+          const Icon = f.icon
+          const active = pathname === f.href
+          return (
+            <Link key={f.href} href={f.href}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+              style={{ color:active?"#ef4444":"var(--text-secondary)", background:active?"rgba(239,68,68,0.1)":"transparent" }}
+              onMouseEnter={e => { if(!active)(e.currentTarget as HTMLElement).style.background="var(--bg-glass)" }}
+              onMouseLeave={e => { if(!active)(e.currentTarget as HTMLElement).style.background=active?"rgba(239,68,68,0.1)":"transparent" }}>
+              <Icon size={14} />
+              {f.label}
+              {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500" />}
+            </Link>
+          )
+        })}
+      </div>
+    </div>
                   : <div className="group relative sidebar-nav-item" style={{ animationDelay:"0.08s" }}
                       onMouseEnter={openFinance} onMouseLeave={closeFinance}>
                       <div className="flex items-center justify-center rounded-2xl transition-all duration-150 cursor-pointer"
