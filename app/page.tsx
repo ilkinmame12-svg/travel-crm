@@ -9,70 +9,73 @@ import { formatCurrency } from "@/lib/calculations"
 import {
   TrendingUp, TrendingDown, DollarSign, Users, Clock,
   ArrowUpRight, Trophy, AlertCircle, CheckCircle2, Star,
-  Sparkles, Wallet, ArrowRight, Activity
+  Sparkles, Wallet, ArrowRight, Activity, Zap
 } from "lucide-react"
 
-// ─── Design tokens ─────────────────────────────────────────────────────────
+// ─── Global styles ───────────────────────────────────────────────────────────
+const GLOBAL_CSS = `
+  @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+  @keyframes slideUp { from { transform:translateY(32px);opacity:0 } to { transform:translateY(0);opacity:1 } }
+  @keyframes slideRight { from { transform:translateX(-24px);opacity:0 } to { transform:translateX(0);opacity:1 } }
+  @keyframes planeFly { 0%{transform:translateX(-120px) translateY(20px) rotate(-5deg);opacity:0} 20%{opacity:1} 100%{transform:translateX(calc(100vw + 120px)) translateY(-30px) rotate(6deg);opacity:0} }
+  @keyframes pulse-ring { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)} 50%{box-shadow:0 0 0 20px rgba(239,68,68,0)} }
+  @keyframes countDown { from{width:100%} to{width:0%} }
+  @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  @keyframes glow { 0%,100%{opacity:0.5} 50%{opacity:1} }
+  @keyframes numberUp { from{transform:translateY(8px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .dash-card { transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease; }
+  .dash-card:hover { transform: translateY(-2px) scale(1.005); }
+`
+
 const card = {
   background: "var(--bg-card)",
   border: "1px solid var(--border-color)",
   backdropFilter: "blur(24px)",
-  borderRadius: "24px",
+  borderRadius: "28px",
 }
 
 const MEDAL_GRADIENTS = [
   "linear-gradient(135deg, #f59e0b, #fbbf24)",
-  "linear-gradient(135deg, #94a3b8, #e2e8f0)",
+  "linear-gradient(135deg, #94a3b8, #cbd5e1)",
   "linear-gradient(135deg, #b45309, #d97706)",
 ]
-
 const CLIENT_GRADIENTS = [
   "linear-gradient(135deg, #3b82f6, #06b6d4)",
   "linear-gradient(135deg, #8b5cf6, #6366f1)",
   "linear-gradient(135deg, #10b981, #34d399)",
+  "linear-gradient(135deg, #f59e0b, #fbbf24)",
+  "linear-gradient(135deg, #ec4899, #f43f5e)",
 ]
 
-// ─── Skeleton ───────────────────────────────────────────────────────────────
-function Skeleton({ className = "", style = {} }: { className?: string; style?: any }) {
-  return (
-    <div className={`animate-pulse rounded-2xl ${className}`}
-      style={{ background: "var(--bg-glass)", ...style }} />
-  )
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+function Skeleton({ style = {} }: { style?: any }) {
+  return <div className="animate-pulse rounded-3xl" style={{ background: "var(--bg-glass)", ...style }} />
 }
-
 function DashboardSkeleton() {
   return (
     <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}>
-      <div className="mb-7 space-y-2">
-        <Skeleton style={{ height: 28, width: 200 }} />
-        <Skeleton style={{ height: 16, width: 160 }} />
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        {[1,2,3,4].map(i => <Skeleton key={i} style={{ height: 110 }} />)}
-      </div>
-      <div className="grid grid-cols-3 gap-4 mb-5">
-        {[1,2,3].map(i => <Skeleton key={i} style={{ height: 88 }} />)}
-      </div>
-      <div className="grid grid-cols-2 gap-5 mb-5">
-        {[1,2].map(i => <Skeleton key={i} style={{ height: 280 }} />)}
-      </div>
-      <Skeleton style={{ height: 320 }} />
+      <div className="mb-8 space-y-2"><Skeleton style={{ height:32, width:240 }} /><Skeleton style={{ height:16, width:180 }} /></div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">{[1,2,3,4].map(i=><Skeleton key={i} style={{height:120}}/>)}</div>
+      <div className="grid grid-cols-3 gap-4 mb-5">{[1,2,3].map(i=><Skeleton key={i} style={{height:96}}/>)}</div>
+      <div className="grid grid-cols-2 gap-5 mb-5">{[1,2].map(i=><Skeleton key={i} style={{height:300}}/>)}</div>
+      <Skeleton style={{height:340}}/>
     </div>
   )
 }
 
-// ─── Reusable widgets ───────────────────────────────────────────────────────
-function SectionHeader({ icon: Icon, title, href, hrefLabel = "Hamısı →", iconColor = "#6366f1", iconBg = "rgba(99,102,241,0.1)" }: any) {
+// ─── Reusable ────────────────────────────────────────────────────────────────
+function SectionHeader({ icon: Icon, title, href, hrefLabel="Hamısı →", iconColor="#6366f1", iconBg="rgba(99,102,241,0.12)" }: any) {
   return (
     <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
-      <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: iconBg }}>
-          <Icon size={14} style={{ color: iconColor }} />
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-2xl flex items-center justify-center" style={{ background: iconBg }}>
+          <Icon size={15} style={{ color: iconColor }} />
         </div>
-        <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{title}</h2>
+        <h2 className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{title}</h2>
       </div>
       {href && (
-        <a href={href} className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-xl transition-all hover:scale-[1.03]"
+        <a href={href} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all hover:scale-[1.04] active:scale-95"
           style={{ background: "var(--bg-glass)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}>
           {hrefLabel} <ArrowRight size={11} />
         </a>
@@ -81,28 +84,26 @@ function SectionHeader({ icon: Icon, title, href, hrefLabel = "Hamısı →", ic
   )
 }
 
-function RankRow({ item, index, gradients, valueKey = "revenue", subKey = "count", subSuffix = " sifariş", formatVal = true }: any) {
-  const val = item[valueKey]
-  const sub = item[subKey]
+function RankRow({ item, index, gradients, valueKey="revenue", subKey="count", subSuffix=" sifariş", formatVal=true }: any) {
   return (
-    <div className="flex items-center gap-3 px-2 py-2 rounded-2xl transition-all hover:scale-[1.01]"
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all cursor-default"
       style={{ background: "transparent" }}
       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-      <div className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
-        style={{ background: index < 3 ? gradients[index] : "var(--bg-glass)", color: index < 3 ? "white" : "var(--text-secondary)" }}>
-        {index + 1}
+      <div className="w-8 h-8 rounded-2xl flex items-center justify-center text-xs font-black flex-shrink-0"
+        style={{ background: index < 3 ? gradients[index] : "var(--bg-glass)", color: index < 3 ? "white" : "var(--text-secondary)", boxShadow: index < 3 ? "0 4px 12px rgba(0,0,0,0.15)" : "none" }}>
+        {index < 3 ? ["🥇","🥈","🥉"][index] : index+1}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{item.name}</p>
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{sub}{subSuffix}</p>
+        <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>{item.name}</p>
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item[subKey]}{subSuffix}</p>
       </div>
       <div className="text-right flex-shrink-0">
         <p className="text-sm font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>
-          {formatVal ? formatCurrency(val) : val}
+          {formatVal ? formatCurrency(item[valueKey]) : item[valueKey]}
         </p>
         {item.profit !== undefined && (
-          <p className="text-xs tabular-nums" style={{ color: "#22c55e" }}>{formatCurrency(item.profit)}</p>
+          <p className="text-xs tabular-nums text-green-500">{formatCurrency(item.profit)}</p>
         )}
       </div>
     </div>
@@ -112,17 +113,17 @@ function RankRow({ item, index, gradients, valueKey = "revenue", subKey = "count
 function CashRow({ t }: { t: any }) {
   const isAdd = t.operation === "add"
   return (
-    <div className="flex items-center gap-3 px-2 py-2 rounded-2xl transition-all"
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all"
       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-      <div className="w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 text-lg font-bold"
+      <div className="w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 text-base font-bold"
         style={{ background: isAdd ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)", color: isAdd ? "#22c55e" : "#ef4444" }}>
         {isAdd ? "↑" : "↓"}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{t.reason || "Səbəb yoxdur"}</p>
+        <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{t.reason || "—"}</p>
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          {new Date(t.created_at).toLocaleDateString("az-AZ", { day: "numeric", month: "short" })} · {t.currency}
+          {new Date(t.created_at).toLocaleDateString("az-AZ", { day:"numeric", month:"short" })} · {t.currency}
         </p>
       </div>
       <p className={`text-sm font-bold tabular-nums flex-shrink-0 ${isAdd ? "text-green-500" : "text-red-500"}`}>
@@ -134,13 +135,11 @@ function CashRow({ t }: { t: any }) {
 
 function DebtRow({ b, i }: { b: any; i: number }) {
   return (
-    <div className="flex items-center gap-3 px-2 py-2 rounded-2xl transition-all"
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all"
       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-      <div className="w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 text-sm font-bold"
-        style={{ background: `rgba(239,68,68,${0.15 - i * 0.02})`, color: "#ef4444" }}>
-        {i + 1}
-      </div>
+      <div className="w-8 h-8 rounded-2xl flex items-center justify-center flex-shrink-0 text-xs font-bold"
+        style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>{i+1}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>{b.clientName}</p>
         <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{b.destination}</p>
@@ -150,110 +149,73 @@ function DebtRow({ b, i }: { b: any; i: number }) {
   )
 }
 
-
-// ─── Flight Alert Overlay ────────────────────────────────────────────────────
+// ─── Flight Alert ─────────────────────────────────────────────────────────────
 function FlightAlertOverlay({ flights, onClose }: { flights: any[]; onClose: () => void }) {
   const [visible, setVisible] = useState(true)
-
   useEffect(() => {
-    // Play dramatic sound
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
       const notes = [523, 659, 784, 1047, 784, 659, 523]
       notes.forEach((freq, i) => {
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
+        const osc = ctx.createOscillator(); const gain = ctx.createGain()
         osc.connect(gain); gain.connect(ctx.destination)
-        osc.frequency.value = freq
-        osc.type = "sine"
+        osc.frequency.value = freq; osc.type = "sine"
         gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.12)
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.2)
-        osc.start(ctx.currentTime + i * 0.12)
-        osc.stop(ctx.currentTime + i * 0.12 + 0.25)
+        osc.start(ctx.currentTime + i * 0.12); osc.stop(ctx.currentTime + i * 0.12 + 0.25)
       })
     } catch {}
-
-    // Auto close after 8 seconds
-    const t = setTimeout(() => { setVisible(false); setTimeout(onClose, 500) }, 8000)
+    const t = setTimeout(() => { setVisible(false); setTimeout(onClose, 400) }, 8000)
     return () => clearTimeout(t)
   }, [])
-
   if (!visible) return null
-
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
   const dateStr = tomorrow.toLocaleDateString("az-AZ", { day: "numeric", month: "long" })
-
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)", animation: "fadeIn 0.3s ease" }}>
+      style={{ background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", animation: "fadeIn 0.3s ease" }}>
       <style>{`
-        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes planeFly { 0% { transform: translateX(-100px) translateY(20px) rotate(-5deg); opacity: 0 } 30% { opacity: 1 } 100% { transform: translateX(calc(100vw + 100px)) translateY(-20px) rotate(5deg); opacity: 0 } }
-        @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6) } 50% { box-shadow: 0 0 0 30px rgba(239,68,68,0) } }
-        @keyframes slideUp { from { transform: translateY(40px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
-        @keyframes countDown { from { width: 100% } to { width: 0% } }
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes planeFly{0%{transform:translateX(-120px) translateY(20px) rotate(-5deg);opacity:0}20%{opacity:1}100%{transform:translateX(calc(100vw + 120px)) translateY(-30px) rotate(6deg);opacity:0}}
+        @keyframes pulse-ring{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 24px rgba(239,68,68,0)}}
+        @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+        @keyframes countDown{from{width:100%}to{width:0%}}
       `}</style>
-
-      {/* Animated plane flying across */}
-      <div style={{ position: "absolute", top: "20%", animation: "planeFly 3s ease-in-out infinite", fontSize: "60px", pointerEvents: "none" }}>✈️</div>
-
-      {/* Main alert card */}
-      <div style={{ animation: "slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1)", maxWidth: 480, width: "90%", position: "relative" }}>
+      <div style={{ position:"absolute", top:"15%", animation:"planeFly 2.8s ease-in-out infinite", fontSize:64, pointerEvents:"none" }}>✈️</div>
+      <div style={{ animation:"slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1)", maxWidth:480, width:"90%", position:"relative" }}>
         <div className="rounded-3xl overflow-hidden"
-          style={{ background: "linear-gradient(135deg, #1a0000, #2d0000)", border: "2px solid rgba(239,68,68,0.5)", animation: "pulse-red 2s ease infinite" }}>
-
-          {/* Header */}
-          <div className="p-6 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.3), rgba(249,115,22,0.2))" }}>
-            <div style={{ fontSize: 64, lineHeight: 1, marginBottom: 8 }}>🚨</div>
-            <h1 style={{ color: "white", fontSize: 24, fontWeight: 900, letterSpacing: "-0.5px", textShadow: "0 0 20px rgba(239,68,68,0.8)" }}>
-              TƏCİLİ XATIRLATMA!
-            </h1>
-            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, marginTop: 4 }}>
-              Sabah — {dateStr} — {flights.length} müştərinin uçuşu var
-            </p>
+          style={{ background:"linear-gradient(135deg,#1a0000,#2d0000)", border:"2px solid rgba(239,68,68,0.5)", animation:"pulse-ring 2s ease infinite" }}>
+          <div className="p-7 text-center" style={{ background:"linear-gradient(135deg,rgba(239,68,68,0.25),rgba(249,115,22,0.15))" }}>
+            <div style={{ fontSize:72, lineHeight:1, marginBottom:10 }}>🚨</div>
+            <h1 style={{ color:"white", fontSize:26, fontWeight:900, letterSpacing:"-0.5px", textShadow:"0 0 24px rgba(239,68,68,0.9)" }}>TƏCİLİ XATIRLATMA!</h1>
+            <p style={{ color:"rgba(255,255,255,0.7)", fontSize:14, marginTop:6 }}>Sabah — {dateStr} — {flights.length} müştərinin uçuşu var</p>
           </div>
-
-          {/* Flight list */}
           <div className="p-5 space-y-3">
-            {flights.slice(0, 4).map((b: any, i: number) => (
+            {flights.slice(0,4).map((b: any, i: number) => (
               <div key={b.id} className="flex items-center gap-3 p-3 rounded-2xl"
-                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", animation: `slideUp ${0.4 + i * 0.1}s cubic-bezier(0.34,1.56,0.64,1)` }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                  style={{ background: "rgba(239,68,68,0.2)" }}>✈</div>
+                style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", animation:`slideUp ${0.4+i*0.1}s cubic-bezier(0.34,1.56,0.64,1)` }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ background:"rgba(239,68,68,0.2)" }}>✈</div>
                 <div className="flex-1 min-w-0">
-                  <p style={{ color: "white", fontWeight: 700, fontSize: 14 }}>{b.clientName}</p>
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{b.destination} · {b.manager?.split(" ")[0]}</p>
+                  <p style={{ color:"white", fontWeight:700, fontSize:14 }}>{b.clientName}</p>
+                  <p style={{ color:"rgba(255,255,255,0.5)", fontSize:12 }}>{b.destination} · {b.manager?.split(" ")[0]}</p>
                 </div>
-                <div className="text-right">
-                  <p style={{ color: b.paymentStatus === "paid" ? "#4ade80" : "#fbbf24", fontSize: 11, fontWeight: 600 }}>
-                    {b.paymentStatus === "paid" ? "✓ Ödənilib" : "⚠ Ödənilməyib"}
-                  </p>
-                </div>
+                <p style={{ color:b.paymentStatus==="paid"?"#4ade80":"#fbbf24", fontSize:11, fontWeight:600 }}>
+                  {b.paymentStatus==="paid"?"✓ Ödənilib":"⚠ Ödənilməyib"}
+                </p>
               </div>
             ))}
-            {flights.length > 4 && (
-              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, textAlign: "center" }}>
-                +{flights.length - 4} daha müştəri
-              </p>
-            )}
+            {flights.length > 4 && <p style={{ color:"rgba(255,255,255,0.4)", fontSize:13, textAlign:"center" }}>+{flights.length-4} daha</p>}
           </div>
-
-          {/* Countdown bar + close */}
           <div className="px-5 pb-5">
-            <div style={{ height: 3, background: "rgba(255,255,255,0.1)", borderRadius: 9999, overflow: "hidden", marginBottom: 12 }}>
-              <div style={{ height: "100%", background: "linear-gradient(90deg, #ef4444, #f97316)", borderRadius: 9999, animation: "countDown 8s linear forwards" }} />
+            <div style={{ height:3, background:"rgba(255,255,255,0.1)", borderRadius:9999, overflow:"hidden", marginBottom:12 }}>
+              <div style={{ height:"100%", background:"linear-gradient(90deg,#ef4444,#f97316)", borderRadius:9999, animation:"countDown 8s linear forwards" }} />
             </div>
             <div className="flex gap-2">
-              <a href="/bookings"
-                className="flex-1 py-3 rounded-2xl text-sm font-bold text-white text-center transition-all hover:scale-[1.02]"
-                style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 20px rgba(239,68,68,0.5)" }}>
-                Sifarişlərə bax →
-              </a>
-              <button onClick={() => { setVisible(false); setTimeout(onClose, 300) }}
+              <a href="/bookings" className="flex-1 py-3 rounded-2xl text-sm font-bold text-white text-center transition-all hover:scale-[1.02]"
+                style={{ background:"linear-gradient(135deg,#ef4444,#f97316)", boxShadow:"0 4px 20px rgba(239,68,68,0.5)" }}>Sifarişlərə bax →</a>
+              <button onClick={() => { setVisible(false); setTimeout(onClose,300) }}
                 className="px-4 py-3 rounded-2xl text-sm font-medium"
-                style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                Bağla
-              </button>
+                style={{ background:"rgba(255,255,255,0.1)", color:"rgba(255,255,255,0.6)", border:"1px solid rgba(255,255,255,0.1)" }}>Bağla</button>
             </div>
           </div>
         </div>
@@ -262,183 +224,120 @@ function FlightAlertOverlay({ flights, onClose }: { flights: any[]; onClose: () 
   )
 }
 
-// ─── Flight Widget (Dashboard card) ─────────────────────────────────────────
 function FlightWidget({ bookings, profile }: { bookings: any[]; profile: any }) {
   const [showAlert, setShowAlert] = useState(false)
-  const [alertShown, setAlertShown] = useState(false)
-
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
   const tomorrowStr = tomorrow.toISOString().split("T")[0]
   const in5days = new Date(); in5days.setDate(in5days.getDate() + 5)
   const in5daysStr = in5days.toISOString().split("T")[0]
   const todayStr = new Date().toISOString().split("T")[0]
-
-  const flightsTomorrow = bookings.filter(b =>
-    b.departureDate === tomorrowStr && b.status !== "cancelled" &&
-    (["menecer","bilet_menecer"].includes(profile?.role) ? b.manager === profile?.fullName : true)
-  )
-  const flightsIn5Days = bookings.filter(b =>
-    b.departureDate === in5daysStr && b.status !== "cancelled" &&
-    (["menecer","bilet_menecer"].includes(profile?.role) ? b.manager === profile?.fullName : true)
-  )
-  const flightsToday = bookings.filter(b =>
-    b.departureDate === todayStr && b.status !== "cancelled" &&
-    (["menecer","bilet_menecer"].includes(profile?.role) ? b.manager === profile?.fullName : true)
-  )
-
+  const filter = (b: any) => b.status !== "cancelled" && (["menecer","bilet_menecer"].includes(profile?.role) ? b.manager === profile?.fullName : true)
+  const flightsTomorrow = bookings.filter(b => b.departureDate === tomorrowStr && filter(b))
+  const flightsIn5Days = bookings.filter(b => b.departureDate === in5daysStr && filter(b))
+  const flightsToday = bookings.filter(b => b.departureDate === todayStr && filter(b))
   useEffect(() => {
-    if (flightsTomorrow.length > 0 && !alertShown) {
-      const key = `alert_shown_${tomorrowStr}`
-      if (!sessionStorage.getItem(key)) {
-        setTimeout(() => { setShowAlert(true); setAlertShown(true) }, 1500)
-        sessionStorage.setItem(key, "1")
-      }
+    if (flightsTomorrow.length > 0) {
+      const key = `alert_${tomorrowStr}`
+      if (!sessionStorage.getItem(key)) { setTimeout(() => setShowAlert(true), 1500); sessionStorage.setItem(key, "1") }
     }
   }, [flightsTomorrow.length])
-
-  if (flightsTomorrow.length === 0 && flightsIn5Days.length === 0 && flightsToday.length === 0) return null
-
+  if (!flightsTomorrow.length && !flightsIn5Days.length && !flightsToday.length) return null
   return (
     <>
-      {showAlert && flightsTomorrow.length > 0 && (
-        <FlightAlertOverlay flights={flightsTomorrow} onClose={() => setShowAlert(false)} />
-      )}
-
-      <div className="mb-5 rounded-3xl overflow-hidden" style={{ border: "2px solid rgba(239,68,68,0.3)", background: "var(--bg-card)" }}>
-        <div className="px-5 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(249,115,22,0.08))", borderBottom: "1px solid rgba(239,68,68,0.15)" }}>
+      {showAlert && <FlightAlertOverlay flights={flightsTomorrow} onClose={() => setShowAlert(false)} />}
+      <div className="mb-5 rounded-3xl overflow-hidden dash-card" style={{ border:"2px solid rgba(239,68,68,0.25)", background:"var(--bg-card)" }}>
+        <div className="px-5 py-4 flex items-center justify-between" style={{ background:"linear-gradient(135deg,rgba(239,68,68,0.1),rgba(249,115,22,0.06))", borderBottom:"1px solid rgba(239,68,68,0.15)" }}>
           <div className="flex items-center gap-3">
-            <span style={{ fontSize: 24 }}>✈️</span>
-            <div>
-              <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>Uçuş Xatırlatmaları</p>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Yaxınlaşan uçuşlar</p>
-            </div>
+            <span style={{ fontSize:22, animation:"float 3s ease-in-out infinite" }}>✈️</span>
+            <div><p className="text-sm font-bold" style={{ color:"var(--text-primary)" }}>Uçuş Xatırlatmaları</p><p className="text-xs" style={{ color:"var(--text-muted)" }}>Yaxınlaşan uçuşlar</p></div>
           </div>
           {flightsTomorrow.length > 0 && (
-            <button onClick={() => setShowAlert(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:scale-105"
-              style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 12px rgba(239,68,68,0.4)" }}>
+            <button onClick={() => setShowAlert(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:scale-105"
+              style={{ background:"linear-gradient(135deg,#ef4444,#f97316)", boxShadow:"0 4px 12px rgba(239,68,68,0.4)" }}>
               🚨 {flightsTomorrow.length} sabah
             </button>
           )}
         </div>
-
         <div className="p-4 space-y-2">
-          {flightsToday.length > 0 && (
-            <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
-              <span className="text-xl">🔴</span>
-              <div className="flex-1">
-                <p className="text-xs font-bold" style={{ color: "#ef4444" }}>BU GÜN UÇUŞ — {flightsToday.length} müştəri</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{flightsToday.slice(0,3).map((b:any) => b.clientName).join(" · ")}</p>
-              </div>
-            </div>
-          )}
-          {flightsTomorrow.length > 0 && (
-            <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)" }}>
-              <span className="text-xl">🟠</span>
-              <div className="flex-1">
-                <p className="text-xs font-bold" style={{ color: "#f97316" }}>SABAH UÇUŞ — {flightsTomorrow.length} müştəri</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{flightsTomorrow.slice(0,3).map((b:any) => b.clientName).join(" · ")}</p>
-              </div>
-            </div>
-          )}
-          {flightsIn5Days.length > 0 && (
-            <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)" }}>
-              <span className="text-xl">🟡</span>
-              <div className="flex-1">
-                <p className="text-xs font-bold" style={{ color: "#f59e0b" }}>5 GÜN SONRA — {flightsIn5Days.length} müştəri</p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{flightsIn5Days.slice(0,3).map((b:any) => b.clientName).join(" · ")}</p>
-              </div>
-            </div>
-          )}
+          {flightsToday.length > 0 && <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.25)" }}><span className="text-lg">🔴</span><div className="flex-1"><p className="text-xs font-bold" style={{ color:"#ef4444" }}>BU GÜN — {flightsToday.length} müştəri</p><p className="text-xs" style={{ color:"var(--text-muted)" }}>{flightsToday.slice(0,3).map((b:any)=>b.clientName).join(" · ")}</p></div></div>}
+          {flightsTomorrow.length > 0 && <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background:"rgba(249,115,22,0.08)", border:"1px solid rgba(249,115,22,0.25)" }}><span className="text-lg">🟠</span><div className="flex-1"><p className="text-xs font-bold" style={{ color:"#f97316" }}>SABAH — {flightsTomorrow.length} müştəri</p><p className="text-xs" style={{ color:"var(--text-muted)" }}>{flightsTomorrow.slice(0,3).map((b:any)=>b.clientName).join(" · ")}</p></div></div>}
+          {flightsIn5Days.length > 0 && <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.25)" }}><span className="text-lg">🟡</span><div className="flex-1"><p className="text-xs font-bold" style={{ color:"#f59e0b" }}>5 GÜN SONRA — {flightsIn5Days.length} müştəri</p><p className="text-xs" style={{ color:"var(--text-muted)" }}>{flightsIn5Days.slice(0,3).map((b:any)=>b.clientName).join(" · ")}</p></div></div>}
         </div>
       </div>
     </>
   )
 }
 
-// ─── Manager Dashboard ──────────────────────────────────────────────────────
+// ─── Manager Dashboard ────────────────────────────────────────────────────────
 function ManagerDashboard({ bookings, profile }: { bookings: any[]; profile: any }) {
   const myBookings = bookings.filter(b => b.manager === profile?.fullName)
-  const myRevenue    = myBookings.reduce((s, b) => s + b.sellPrice, 0)
-  const myProfit     = myBookings.reduce((s, b) => s + b.profit, 0)
-  const myCommission = myBookings.reduce((s, b) => s + b.commissionAmount, 0)
-  const myPending    = myBookings.filter(b => b.status === "pending").length
-  const myUnpaid     = myBookings.filter(b => b.paymentStatus !== "paid").length
-  const myConfirmed  = myBookings.filter(b => b.status === "confirmed").length
-  const recent       = [...myBookings].slice(0, 8)
-
+  const myRevenue = myBookings.reduce((s,b) => s+b.sellPrice, 0)
+  const myProfit = myBookings.reduce((s,b) => s+b.profit, 0)
+  const myCommission = myBookings.reduce((s,b) => s+b.commissionAmount, 0)
+  const myPending = myBookings.filter(b => b.status==="pending").length
+  const myUnpaid = myBookings.filter(b => b.paymentStatus!=="paid").length
+  const myConfirmed = myBookings.filter(b => b.status==="confirmed").length
+  const recent = [...myBookings].slice(0, 8)
   const topClients = useMemo(() => {
-    const stats = myBookings.reduce((acc: any, b) => {
-      if (!acc[b.clientName]) acc[b.clientName] = { revenue: 0, count: 0 }
-      acc[b.clientName].revenue += b.sellPrice; acc[b.clientName].count++
-      return acc
-    }, {})
-    return Object.entries(stats).map(([name, s]: any) => ({ name, ...s })).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 5)
+    const stats = myBookings.reduce((acc:any,b) => { if(!acc[b.clientName]) acc[b.clientName]={revenue:0,count:0}; acc[b.clientName].revenue+=b.sellPrice; acc[b.clientName].count++; return acc }, {})
+    return Object.entries(stats).map(([name,s]:any)=>({name,...s})).sort((a:any,b:any)=>b.revenue-a.revenue).slice(0,5)
   }, [myBookings])
-
   const myDebts = useMemo(() =>
-    myBookings.filter(b => b.paymentStatus !== "paid" && b.sellPrice - (b.paidAmount ?? 0) > 0)
-      .map(b => ({ ...b, remaining: b.sellPrice - (b.paidAmount ?? 0) }))
-      .sort((a: any, b: any) => b.remaining - a.remaining).slice(0, 5),
-    [myBookings])
-
+    myBookings.filter(b=>b.paymentStatus!=="paid"&&b.sellPrice-(b.paidAmount??0)>0)
+      .map(b=>({...b,remaining:b.sellPrice-(b.paidAmount??0)}))
+      .sort((a:any,b:any)=>b.remaining-a.remaining).slice(0,5), [myBookings])
   const firstName = profile?.fullName?.split(" ")[0]
   const now = new Date()
   const hour = now.getHours()
-  const greeting = hour < 12 ? "Sabahınız xeyir" : hour < 18 ? "Günortanız xeyir" : "Axşamınız xeyir"
+  const greeting = hour<12?"Sabahınız xeyir":hour<18?"Günortanız xeyir":"Axşamınız xeyir"
 
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}>
+    <div className="min-h-screen p-5 md:p-7" style={{ background:"var(--bg-primary)" }}>
+      <style>{GLOBAL_CSS}</style>
 
       {/* Header */}
-      <div className="mb-7">
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles size={18} style={{ color: "#f59e0b" }} />
-          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-            {greeting}, {firstName}! 👋
-          </h1>
+      <div className="mb-7" style={{ animation:"slideRight 0.4s ease" }}>
+        <div className="flex items-center gap-2.5 mb-1">
+          <div className="w-8 h-8 rounded-2xl flex items-center justify-center" style={{ background:"linear-gradient(135deg,#f59e0b,#fbbf24)" }}>
+            <Sparkles size={15} color="white" />
+          </div>
+          <h1 className="text-2xl font-bold" style={{ color:"var(--text-primary)" }}>{greeting}, {firstName}! 👋</h1>
         </div>
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {now.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+        <p className="text-sm ml-10" style={{ color:"var(--text-secondary)" }}>
+          {now.toLocaleDateString("ru-RU", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
         </p>
       </div>
 
+      <FlightWidget bookings={bookings} profile={profile} />
+
       {/* KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        {/* Hero card */}
-        <div className="col-span-2 lg:col-span-1 p-6 text-white relative overflow-hidden rounded-3xl"
-          style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 8px 32px rgba(99,102,241,0.3)" }}>
-          <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-15" style={{ background: "white" }} />
-          <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full opacity-10" style={{ background: "white" }} />
+        <div className="col-span-2 lg:col-span-1 p-6 text-white relative overflow-hidden rounded-3xl dash-card"
+          style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow:"0 12px 40px rgba(99,102,241,0.35)", animation:"slideUp 0.4s ease" }}>
+          <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-10" style={{ background:"white" }} />
+          <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full opacity-10" style={{ background:"white" }} />
           <div className="relative">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-semibold opacity-75 uppercase tracking-wider">Mənim sifarişlərim</p>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.2)" }}>
-                <Star size={14} />
-              </div>
+              <p className="text-xs font-bold opacity-70 uppercase tracking-widest">Sifarişlərim</p>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background:"rgba(255,255,255,0.2)" }}><Star size={14}/></div>
             </div>
-            <p className="text-4xl font-bold mb-1 tabular-nums">{myBookings.length}</p>
-            <div className="flex items-center gap-1.5 mt-2">
-              <CheckCircle2 size={12} className="opacity-70" />
-              <p className="text-xs opacity-70">{myConfirmed} təsdiqlənib</p>
-            </div>
+            <p className="text-5xl font-black mb-2 tabular-nums" style={{ animation:"numberUp 0.5s ease" }}>{myBookings.length}</p>
+            <div className="flex items-center gap-1.5"><CheckCircle2 size={12} className="opacity-70"/><p className="text-xs opacity-70">{myConfirmed} təsdiqlənib</p></div>
           </div>
         </div>
-
         {[
-          { label: "Satış həcmim", value: formatCurrency(myRevenue), sub: "Ümumi satış", Icon: TrendingUp, color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
-          { label: "Komissiyam", value: formatCurrency(myCommission), sub: "Cəmi qazanc", Icon: DollarSign, color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-          { label: "Mənfəət", value: formatCurrency(myProfit), sub: "Şirkət üçün", Icon: ArrowUpRight, color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
-        ].map(({ label, value, sub, Icon, color, bg }) => (
-          <div key={label} className="p-5 rounded-3xl transition-all hover:scale-[1.01]" style={card}>
+          { label:"Satış həcmim", value:formatCurrency(myRevenue), Icon:TrendingUp, color:"#22c55e", bg:"rgba(34,197,94,0.12)", delay:"0.1s" },
+          { label:"Komissiyam", value:formatCurrency(myCommission), Icon:DollarSign, color:"#f59e0b", bg:"rgba(245,158,11,0.12)", delay:"0.2s" },
+          { label:"Mənfəət", value:formatCurrency(myProfit), Icon:ArrowUpRight, color:"#6366f1", bg:"rgba(99,102,241,0.12)", delay:"0.3s" },
+        ].map(({ label, value, Icon, color, bg, delay }) => (
+          <div key={label} className="p-5 rounded-3xl dash-card" style={{ ...card, animation:`slideUp 0.4s ease ${delay}` }}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: bg }}>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color:"var(--text-muted)" }}>{label}</p>
+              <div className="w-8 h-8 rounded-2xl flex items-center justify-center" style={{ background:bg }}>
                 <Icon size={14} style={{ color }} />
               </div>
             </div>
-            <p className="text-xl font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{value}</p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{sub}</p>
+            <p className="text-xl font-black tabular-nums" style={{ color:"var(--text-primary)" }}>{value}</p>
           </div>
         ))}
       </div>
@@ -446,162 +345,130 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[]; profile: any
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4 mb-5">
         {[
-          { label: "Gözləyir", value: myPending, Icon: Clock, color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-          { label: "Təsdiqlənib", value: myConfirmed, Icon: CheckCircle2, color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
-          { label: "Ödənilməyib", value: myUnpaid, Icon: AlertCircle, color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
-        ].map(({ label, value, Icon, color, bg }) => (
-          <div key={label} className="p-5 rounded-3xl flex items-center gap-4 transition-all hover:scale-[1.01]" style={card}>
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
+          { label:"Gözləyir", value:myPending, Icon:Clock, color:"#f59e0b", bg:"rgba(245,158,11,0.12)", glow:"rgba(245,158,11,0.2)" },
+          { label:"Təsdiqlənib", value:myConfirmed, Icon:CheckCircle2, color:"#22c55e", bg:"rgba(34,197,94,0.12)", glow:"rgba(34,197,94,0.2)" },
+          { label:"Ödənilməyib", value:myUnpaid, Icon:AlertCircle, color:"#ef4444", bg:"rgba(239,68,68,0.12)", glow:"rgba(239,68,68,0.2)" },
+        ].map(({ label, value, Icon, color, bg, glow }) => (
+          <div key={label} className="p-5 rounded-3xl flex items-center gap-4 dash-card" style={{ ...card }}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background:bg, boxShadow:`0 4px 16px ${glow}` }}>
               <Icon size={20} style={{ color }} />
             </div>
             <div>
-              <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{value}</p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{label}</p>
+              <p className="text-2xl font-black tabular-nums" style={{ color:"var(--text-primary)" }}>{value}</p>
+              <p className="text-xs font-medium mt-0.5" style={{ color:"var(--text-secondary)" }}>{label}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Widgets */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-        <div className="rounded-3xl overflow-hidden" style={card}>
+        <div className="rounded-3xl overflow-hidden dash-card" style={card}>
           <SectionHeader icon={Users} title="Mənim Müştərilərim" iconColor="#3b82f6" iconBg="rgba(59,130,246,0.12)" />
           <div className="p-4 space-y-1">
-            {topClients.length === 0
-              ? <p className="text-sm text-center py-6" style={{ color: "var(--text-muted)" }}>Hələ müştəri yoxdur</p>
-              : topClients.map((c: any, i: number) => <RankRow key={c.name} item={c} index={i} gradients={CLIENT_GRADIENTS} />)
-            }
+            {topClients.length===0
+              ? <p className="text-sm text-center py-6" style={{ color:"var(--text-muted)" }}>Hələ müştəri yoxdur</p>
+              : topClients.map((c:any,i:number)=><RankRow key={c.name} item={c} index={i} gradients={CLIENT_GRADIENTS}/>)}
           </div>
         </div>
-
-        <div className="rounded-3xl overflow-hidden" style={card}>
-          <SectionHeader icon={AlertCircle} title="Mənim Borclarım" href="/debts"
-            iconColor="#ef4444" iconBg="rgba(239,68,68,0.12)" />
+        <div className="rounded-3xl overflow-hidden dash-card" style={card}>
+          <SectionHeader icon={AlertCircle} title="Mənim Borclarım" href="/debts" iconColor="#ef4444" iconBg="rgba(239,68,68,0.12)" />
           <div className="p-4 space-y-1">
-            {myDebts.length === 0
-              ? <div className="flex flex-col items-center py-6 gap-2"><CheckCircle2 size={24} className="text-green-500" /><p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Borc yoxdur 🎉</p></div>
-              : myDebts.map((b: any, i: number) => <DebtRow key={b.id} b={b} i={i} />)
-            }
+            {myDebts.length===0
+              ? <div className="flex flex-col items-center py-6 gap-2"><CheckCircle2 size={28} className="text-green-500"/><p className="text-sm font-semibold" style={{ color:"var(--text-muted)" }}>Borc yoxdur 🎉</p></div>
+              : myDebts.map((b:any,i:number)=><DebtRow key={b.id} b={b} i={i}/>)}
           </div>
         </div>
       </div>
 
-      {/* Recent bookings */}
-      <div className="rounded-3xl overflow-hidden" style={card}>
-        <SectionHeader icon={Activity} title="Son Sifarişlərim" href="/bookings"
-          iconColor="#ef4444" iconBg="rgba(239,68,68,0.12)" />
+      <div className="rounded-3xl overflow-hidden dash-card" style={card}>
+        <SectionHeader icon={Activity} title="Son Sifarişlərim" href="/bookings" iconColor="#ef4444" iconBg="rgba(239,68,68,0.12)" />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                {["Müştəri", "İstiqamət", "Tarix", "Ödəniş", "Status"].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-6 py-3.5" style={{ color: "var(--text-muted)" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+            <thead><tr style={{ borderBottom:"1px solid var(--border-color)" }}>
+              {["Müştəri","İstiqamət","Tarix","Ödəniş","Status"].map(h=>(
+                <th key={h} className="text-left text-xs font-bold uppercase tracking-wider px-6 py-4" style={{ color:"var(--text-muted)" }}>{h}</th>
+              ))}
+            </tr></thead>
             <tbody>
-              {recent.map((b: any) => (
-                <tr key={b.id} className="transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-                  <td className="px-6 py-3.5">
-                    <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{b.clientName}</p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p>
-                  </td>
-                  <td className="px-6 py-3.5 max-w-xs truncate" style={{ color: "var(--text-secondary)" }}>{b.destination}</td>
-                  <td className="px-6 py-3.5 text-xs" style={{ color: "var(--text-secondary)" }}>{b.departureDate}</td>
-                  <td className="px-6 py-3.5">
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{
-                      background: b.paymentStatus === "paid" ? "rgba(34,197,94,0.12)" : b.paymentStatus === "partial" ? "rgba(249,115,22,0.12)" : "rgba(239,68,68,0.12)",
-                      color: b.paymentStatus === "paid" ? "#22c55e" : b.paymentStatus === "partial" ? "#f97316" : "#ef4444"
-                    }}>
-                      {b.paymentStatus === "paid" ? "Ödənilib" : b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3.5">
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{
-                      background: b.status === "confirmed" ? "rgba(34,197,94,0.12)" : b.status === "pending" ? "rgba(245,158,11,0.12)" : "rgba(99,102,241,0.12)",
-                      color: b.status === "confirmed" ? "#22c55e" : b.status === "pending" ? "#f59e0b" : "#6366f1"
-                    }}>
-                      {b.status === "confirmed" ? "Təsdiqlənib" : b.status === "pending" ? "Gözləyir" : "Tamamlandı"}
-                    </span>
-                  </td>
+              {recent.map((b:any)=>(
+                <tr key={b.id} className="transition-all" style={{ borderBottom:"1px solid var(--border-color)" }}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-glass)"}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}>
+                  <td className="px-6 py-3.5"><p className="font-semibold" style={{ color:"var(--text-primary)" }}>{b.clientName}</p><p className="text-xs" style={{ color:"var(--text-muted)" }}>{b.clientPhone}</p></td>
+                  <td className="px-6 py-3.5 max-w-xs truncate" style={{ color:"var(--text-secondary)" }}>{b.destination}</td>
+                  <td className="px-6 py-3.5 text-xs" style={{ color:"var(--text-secondary)" }}>{b.departureDate}</td>
+                  <td className="px-6 py-3.5"><span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background:b.paymentStatus==="paid"?"rgba(34,197,94,0.12)":b.paymentStatus==="partial"?"rgba(249,115,22,0.12)":"rgba(239,68,68,0.12)", color:b.paymentStatus==="paid"?"#22c55e":b.paymentStatus==="partial"?"#f97316":"#ef4444" }}>{b.paymentStatus==="paid"?"Ödənilib":b.paymentStatus==="partial"?"Qismən":"Ödənilməyib"}</span></td>
+                  <td className="px-6 py-3.5"><span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background:b.status==="confirmed"?"rgba(34,197,94,0.12)":b.status==="pending"?"rgba(245,158,11,0.12)":"rgba(99,102,241,0.12)", color:b.status==="confirmed"?"#22c55e":b.status==="pending"?"#f59e0b":"#6366f1" }}>{b.status==="confirmed"?"Təsdiqlənib":b.status==="pending"?"Gözləyir":"Tamamlandı"}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Footer */}
+      <div className="mt-6 text-center">
+        <a href="https://varktechnologies.netlify.app/" target="_blank" rel="noopener noreferrer"
+          className="text-xs font-medium transition-all hover:opacity-80"
+          style={{ color:"var(--text-muted)" }}>
+          Powered by <span style={{ color:"#6366f1", fontWeight:700 }}>VARK TECHNOLOGIES</span>
+        </a>
+      </div>
     </div>
   )
 }
 
-// ─── Admin Dashboard ────────────────────────────────────────────────────────
+// ─── Admin Dashboard ──────────────────────────────────────────────────────────
 function AdminDashboard({ bookings, payments, cashHistory, profile }: { bookings: any[]; payments: any[]; cashHistory: any[]; profile?: any }) {
-  const [managerPeriod, setManagerPeriod] = useState<"week" | "month" | "year">("month")
-
-  const totalRevenue    = bookings.reduce((s, b) => s + b.sellPrice, 0)
-  const totalCost       = bookings.reduce((s, b) => s + b.buyPrice, 0)
-  const totalProfit     = bookings.reduce((s, b) => s + b.profit, 0)
-  const totalCommission = bookings.reduce((s, b) => s + b.commissionAmount, 0)
-  const pending         = bookings.filter(b => b.status === "pending").length
-  const unpaid          = bookings.filter(b => b.paymentStatus !== "paid").length
-  const margin          = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0
-  const recent          = [...bookings].slice(0, 8)
-
+  const [managerPeriod, setManagerPeriod] = useState<"week"|"month"|"year">("month")
+  const totalRevenue    = bookings.reduce((s,b)=>s+b.sellPrice,0)
+  const totalCost       = bookings.reduce((s,b)=>s+b.buyPrice,0)
+  const totalProfit     = bookings.reduce((s,b)=>s+b.profit,0)
+  const totalCommission = bookings.reduce((s,b)=>s+b.commissionAmount,0)
+  const pending         = bookings.filter(b=>b.status==="pending").length
+  const unpaid          = bookings.filter(b=>b.paymentStatus!=="paid").length
+  const margin          = totalRevenue>0?Math.round((totalProfit/totalRevenue)*100):0
+  const recent          = [...bookings].slice(0,8)
   const now = new Date()
 
-  const filteredByPeriod = useMemo(() => bookings.filter(b => {
-    const d = new Date(b.departureDate)
-    if (managerPeriod === "week") {
-      const wa = new Date(now); wa.setDate(now.getDate() - 7)
-      return d >= wa
-    }
-    if (managerPeriod === "month") {
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-    }
-    return d.getFullYear() === now.getFullYear()
-  }), [bookings, managerPeriod])
+  const filteredByPeriod = useMemo(()=>bookings.filter(b=>{
+    const d=new Date(b.departureDate)
+    if(managerPeriod==="week"){const wa=new Date(now);wa.setDate(now.getDate()-7);return d>=wa}
+    if(managerPeriod==="month") return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()
+    return d.getFullYear()===now.getFullYear()
+  }),[bookings,managerPeriod])
 
-  const topManagers = useMemo(() => {
-    const stats = filteredByPeriod.reduce((acc: any, b) => {
-      if (!b.manager) return acc
-      if (!acc[b.manager]) acc[b.manager] = { revenue: 0, profit: 0, count: 0 }
-      acc[b.manager].revenue += b.sellPrice; acc[b.manager].profit += b.profit; acc[b.manager].count++
-      return acc
-    }, {})
-    return Object.entries(stats).map(([name, s]: any) => ({ name, ...s })).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 5)
-  }, [filteredByPeriod])
+  const topManagers = useMemo(()=>{
+    const stats=filteredByPeriod.reduce((acc:any,b)=>{if(!b.manager)return acc;if(!acc[b.manager])acc[b.manager]={revenue:0,profit:0,count:0};acc[b.manager].revenue+=b.sellPrice;acc[b.manager].profit+=b.profit;acc[b.manager].count++;return acc},{})
+    return Object.entries(stats).map(([name,s]:any)=>({name,...s})).sort((a:any,b:any)=>b.revenue-a.revenue).slice(0,5)
+  },[filteredByPeriod])
 
-  const topClients = useMemo(() => {
-    const stats = bookings.reduce((acc: any, b) => {
-      if (!acc[b.clientName]) acc[b.clientName] = { revenue: 0, count: 0 }
-      acc[b.clientName].revenue += b.sellPrice; acc[b.clientName].count++
-      return acc
-    }, {})
-    return Object.entries(stats).map(([name, s]: any) => ({ name, ...s })).sort((a: any, b: any) => b.revenue - a.revenue).slice(0, 5)
-  }, [bookings])
+  const topClients = useMemo(()=>{
+    const stats=bookings.reduce((acc:any,b)=>{if(!acc[b.clientName])acc[b.clientName]={revenue:0,count:0};acc[b.clientName].revenue+=b.sellPrice;acc[b.clientName].count++;return acc},{})
+    return Object.entries(stats).map(([name,s]:any)=>({name,...s})).sort((a:any,b:any)=>b.revenue-a.revenue).slice(0,5)
+  },[bookings])
 
-  const topDebts = useMemo(() =>
-    bookings.filter(b => b.paymentStatus !== "paid" && b.sellPrice - (b.paidAmount ?? 0) > 0)
-      .map(b => ({ ...b, remaining: b.sellPrice - (b.paidAmount ?? 0) }))
-      .sort((a: any, b: any) => b.remaining - a.remaining).slice(0, 5),
-    [bookings])
+  const topDebts = useMemo(()=>
+    bookings.filter(b=>b.paymentStatus!=="paid"&&b.sellPrice-(b.paidAmount??0)>0)
+      .map(b=>({...b,remaining:b.sellPrice-(b.paidAmount??0)}))
+      .sort((a:any,b:any)=>b.remaining-a.remaining).slice(0,5),[bookings])
 
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}>
+    <div className="min-h-screen p-5 md:p-7" style={{ background:"var(--bg-primary)" }}>
+      <style>{GLOBAL_CSS}</style>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-7">
+      <div className="flex items-center justify-between mb-8" style={{ animation:"slideRight 0.4s ease" }}>
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Dashboard</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
-            {now.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          <h1 className="text-3xl font-black tracking-tight" style={{ color:"var(--text-primary)", letterSpacing:"-0.5px" }}>Dashboard</h1>
+          <p className="text-sm mt-1" style={{ color:"var(--text-secondary)" }}>
+            {now.toLocaleDateString("ru-RU", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
           </p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-2xl" style={card}>
-          <Activity size={14} style={{ color: "#22c55e" }} />
-          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{bookings.length} sifariş</span>
+        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl" style={card}>
+          <div className="w-2 h-2 rounded-full bg-green-500" style={{ animation:"glow 2s ease infinite" }} />
+          <span className="text-xs font-bold" style={{ color:"var(--text-secondary)" }}>{bookings.length} sifariş</span>
+          <Zap size={13} style={{ color:"#f59e0b" }} />
         </div>
       </div>
 
@@ -609,196 +476,154 @@ function AdminDashboard({ bookings, payments, cashHistory, profile }: { bookings
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <div className="col-span-2 lg:col-span-1 p-6 text-white relative overflow-hidden rounded-3xl"
-          style={{ background: "linear-gradient(135deg, #11998e, #38ef7d)", boxShadow: "0 8px 32px rgba(17,153,142,0.3)" }}>
-          <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-15" style={{ background: "white" }} />
-          <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full opacity-10" style={{ background: "white" }} />
+        {/* Hero */}
+        <div className="col-span-2 lg:col-span-1 p-6 text-white relative overflow-hidden rounded-3xl dash-card"
+          style={{ background:"linear-gradient(135deg,#11998e 0%,#38ef7d 100%)", boxShadow:"0 12px 40px rgba(17,153,142,0.35)", animation:"slideUp 0.3s ease" }}>
+          <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-10" style={{ background:"white" }} />
+          <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full opacity-08" style={{ background:"white" }} />
           <div className="relative">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold opacity-75 uppercase tracking-wider">Ümumi gəlir</p>
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.2)" }}>
-                <ArrowUpRight size={13} />
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-bold opacity-75 uppercase tracking-widest">Ümumi gəlir</p>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background:"rgba(255,255,255,0.2)" }}><ArrowUpRight size={14}/></div>
             </div>
-            <p className="text-2xl font-bold tabular-nums mb-1">{formatCurrency(totalRevenue)}</p>
-            <div className="flex items-center gap-1 mt-2 opacity-75">
-              <TrendingUp size={11} />
-              <p className="text-xs">Marja: {margin}%</p>
+            <p className="text-2xl font-black mb-2 tabular-nums leading-tight">{formatCurrency(totalRevenue)}</p>
+            <div className="flex items-center gap-1.5 mt-1 opacity-80">
+              <TrendingUp size={11}/>
+              <p className="text-xs font-semibold">Marja: {margin}%</p>
             </div>
           </div>
         </div>
 
         {[
-          { label: "Alış xərci", value: formatCurrency(totalCost), sub: "Bilet və tur", Icon: TrendingDown, color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
-          { label: "Mənfəət", value: formatCurrency(totalProfit), sub: `${margin}% marja`, Icon: TrendingUp, color: totalProfit >= 0 ? "#22c55e" : "#ef4444", bg: totalProfit >= 0 ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)" },
-          { label: "Komissiya", value: formatCurrency(totalCommission), sub: "Cəmi", Icon: DollarSign, color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
-        ].map(({ label, value, sub, Icon, color, bg }) => (
-          <div key={label} className="p-5 rounded-3xl transition-all hover:scale-[1.01]" style={card}>
+          { label:"Alış xərci", value:formatCurrency(totalCost), sub:"Bilet və tur", Icon:TrendingDown, color:"#ef4444", bg:"rgba(239,68,68,0.12)", delay:"0.1s" },
+          { label:"Mənfəət", value:formatCurrency(totalProfit), sub:`${margin}% marja`, Icon:TrendingUp, color:"#22c55e", bg:"rgba(34,197,94,0.12)", delay:"0.2s" },
+          { label:"Komissiya", value:formatCurrency(totalCommission), sub:"Cəmi", Icon:DollarSign, color:"#6366f1", bg:"rgba(99,102,241,0.12)", delay:"0.3s" },
+        ].map(({ label, value, sub, Icon, color, bg, delay }) => (
+          <div key={label} className="p-5 rounded-3xl dash-card" style={{ ...card, animation:`slideUp 0.4s ease ${delay}` }}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: bg }}>
-                <Icon size={14} style={{ color }} />
-              </div>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color:"var(--text-muted)" }}>{label}</p>
+              <div className="w-8 h-8 rounded-2xl flex items-center justify-center" style={{ background:bg }}><Icon size={14} style={{ color }}/></div>
             </div>
-            <p className="text-xl font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{value}</p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{sub}</p>
+            <p className="text-xl font-black tabular-nums" style={{ color:"var(--text-primary)" }}>{value}</p>
+            <p className="text-xs mt-1" style={{ color:"var(--text-muted)" }}>{sub}</p>
           </div>
         ))}
       </div>
 
-      {/* Stats */}
+      {/* Stats row */}
       <div className="grid grid-cols-3 gap-4 mb-5">
         {[
-          { label: "Cəmi sifarişlər", value: bookings.length, Icon: Users, color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
-          { label: "Gözləyir", value: pending, Icon: Clock, color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-          { label: "Ödənilməyib", value: unpaid, Icon: AlertCircle, color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
-        ].map(({ label, value, Icon, color, bg }) => (
-          <div key={label} className="p-5 rounded-3xl flex items-center gap-4 transition-all hover:scale-[1.01]" style={card}>
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
-              <Icon size={20} style={{ color }} />
+          { label:"Cəmi sifarişlər", value:bookings.length, Icon:Activity, color:"#6366f1", bg:"rgba(99,102,241,0.12)", glow:"rgba(99,102,241,0.2)" },
+          { label:"Gözləyir", value:pending, Icon:Clock, color:"#f59e0b", bg:"rgba(245,158,11,0.12)", glow:"rgba(245,158,11,0.2)" },
+          { label:"Ödənilməyib", value:unpaid, Icon:AlertCircle, color:"#ef4444", bg:"rgba(239,68,68,0.12)", glow:"rgba(239,68,68,0.2)" },
+        ].map(({ label, value, Icon, color, bg, glow }) => (
+          <div key={label} className="p-5 rounded-3xl flex items-center gap-4 dash-card" style={{ ...card }}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background:bg, boxShadow:`0 4px 16px ${glow}` }}>
+              <Icon size={20} style={{ color }}/>
             </div>
             <div>
-              <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{value}</p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{label}</p>
+              <p className="text-2xl font-black tabular-nums" style={{ color:"var(--text-primary)" }}>{value}</p>
+              <p className="text-xs font-medium mt-0.5" style={{ color:"var(--text-secondary)" }}>{label}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Top Managers + Top Clients */}
+      {/* Top managers + clients */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-
-        {/* Top Managers with period filter */}
-        <div className="rounded-3xl overflow-hidden" style={card}>
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--border-color)" }}>
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: "rgba(245,158,11,0.12)" }}>
-                <Trophy size={14} style={{ color: "#f59e0b" }} />
-              </div>
-              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Top Menecerlər</h2>
+        <div className="rounded-3xl overflow-hidden dash-card" style={card}>
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom:"1px solid var(--border-color)" }}>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-2xl flex items-center justify-center" style={{ background:"rgba(245,158,11,0.12)" }}><Trophy size={15} style={{ color:"#f59e0b" }}/></div>
+              <h2 className="text-sm font-bold" style={{ color:"var(--text-primary)" }}>Top Menecerlər</h2>
             </div>
-            <div className="flex gap-1">
-              {[{ v: "week", l: "Həftə" }, { v: "month", l: "Ay" }, { v: "year", l: "İl" }].map(p => (
-                <button key={p.v} onClick={() => setManagerPeriod(p.v as any)}
-                  className="px-2.5 py-1 rounded-xl text-xs font-medium transition-all hover:scale-[1.03]"
-                  style={{
-                    background: managerPeriod === p.v ? "linear-gradient(135deg, #ef4444, #f97316)" : "var(--bg-glass)",
-                    color: managerPeriod === p.v ? "white" : "var(--text-secondary)",
-                    border: "1px solid var(--border-color)",
-                    boxShadow: managerPeriod === p.v ? "0 2px 8px rgba(239,68,68,0.3)" : "none",
-                  }}>
-                  {p.l}
+            <div className="flex gap-1 p-1 rounded-2xl" style={{ background:"var(--bg-glass)" }}>
+              {(["week","month","year"] as const).map(p=>(
+                <button key={p} onClick={()=>setManagerPeriod(p)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                  style={{ background:managerPeriod===p?"linear-gradient(135deg,#f59e0b,#fbbf24)":"transparent", color:managerPeriod===p?"white":"var(--text-secondary)", boxShadow:managerPeriod===p?"0 2px 8px rgba(245,158,11,0.4)":"none" }}>
+                  {p==="week"?"Həftə":p==="month"?"Ay":"İl"}
                 </button>
               ))}
             </div>
           </div>
           <div className="p-4 space-y-1">
-            {topManagers.length === 0
-              ? <p className="text-sm text-center py-6" style={{ color: "var(--text-muted)" }}>Bu dövrdə sifariş yoxdur</p>
-              : topManagers.map((m: any, i: number) => <RankRow key={m.name} item={m} index={i} gradients={MEDAL_GRADIENTS} />)
-            }
+            {topManagers.length===0
+              ? <p className="text-sm text-center py-6" style={{ color:"var(--text-muted)" }}>Bu dövrdə sifariş yoxdur</p>
+              : topManagers.map((m:any,i:number)=><RankRow key={m.name} item={m} index={i} gradients={MEDAL_GRADIENTS}/>)}
           </div>
         </div>
 
-        {/* Top Clients */}
-        <div className="rounded-3xl overflow-hidden" style={card}>
-          <SectionHeader icon={Users} title="Top Müştərilər" iconColor="#3b82f6" iconBg="rgba(59,130,246,0.12)" />
+        <div className="rounded-3xl overflow-hidden dash-card" style={card}>
+          <SectionHeader icon={Star} title="Top Müştərilər" iconColor="#3b82f6" iconBg="rgba(59,130,246,0.12)" />
           <div className="p-4 space-y-1">
-            {topClients.map((c: any, i: number) => <RankRow key={c.name} item={c} index={i} gradients={CLIENT_GRADIENTS} />)}
+            {topClients.map((c:any,i:number)=><RankRow key={c.name} item={c} index={i} gradients={CLIENT_GRADIENTS}/>)}
           </div>
         </div>
       </div>
 
       {/* Cash + Debts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-        <div className="rounded-3xl overflow-hidden" style={card}>
-          <SectionHeader icon={Wallet} title="Son Kassa Əməliyyatları" href="/finances" hrefLabel="Maliyyə →"
-            iconColor="#6366f1" iconBg="rgba(99,102,241,0.12)" />
+        <div className="rounded-3xl overflow-hidden dash-card" style={card}>
+          <SectionHeader icon={Wallet} title="Kassa Hərəkəti" href="/finances" iconColor="#22c55e" iconBg="rgba(34,197,94,0.12)" />
           <div className="p-4 space-y-1">
-            {cashHistory.length === 0
-              ? <p className="text-sm text-center py-6" style={{ color: "var(--text-muted)" }}>Əməliyyat yoxdur</p>
-              : cashHistory.map((t: any) => <CashRow key={t.id} t={t} />)
-            }
+            {cashHistory.length===0
+              ? <p className="text-sm text-center py-6" style={{ color:"var(--text-muted)" }}>Əməliyyat yoxdur</p>
+              : cashHistory.map((t:any)=><CashRow key={t.id} t={t}/>)}
           </div>
         </div>
-
-        <div className="rounded-3xl overflow-hidden" style={card}>
-          <SectionHeader icon={AlertCircle} title="Ən Böyük Borclar" href="/debts"
-            iconColor="#ef4444" iconBg="rgba(239,68,68,0.12)" />
+        <div className="rounded-3xl overflow-hidden dash-card" style={card}>
+          <SectionHeader icon={AlertCircle} title="Ən Böyük Borclar" href="/debts" iconColor="#ef4444" iconBg="rgba(239,68,68,0.12)" />
           <div className="p-4 space-y-1">
-            {topDebts.length === 0
-              ? <div className="flex flex-col items-center py-6 gap-2"><CheckCircle2 size={24} className="text-green-500" /><p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Borc yoxdur 🎉</p></div>
-              : topDebts.map((b: any, i: number) => <DebtRow key={b.id} b={b} i={i} />)
-            }
+            {topDebts.length===0
+              ? <div className="flex flex-col items-center py-6 gap-2"><CheckCircle2 size={28} className="text-green-500"/><p className="text-sm font-semibold" style={{ color:"var(--text-muted)" }}>Borc yoxdur 🎉</p></div>
+              : topDebts.map((b:any,i:number)=><DebtRow key={b.id} b={b} i={i}/>)}
           </div>
         </div>
       </div>
 
       {/* Recent bookings */}
-      <div className="rounded-3xl overflow-hidden" style={card}>
-        <SectionHeader icon={Activity} title="Son Sifarişlər" href="/bookings"
-          iconColor="#ef4444" iconBg="rgba(239,68,68,0.12)" />
+      <div className="rounded-3xl overflow-hidden dash-card mb-6" style={card}>
+        <SectionHeader icon={Activity} title="Son Sifarişlər" href="/bookings" iconColor="#ef4444" iconBg="rgba(239,68,68,0.12)" />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
-                {["Müştəri", "İstiqamət", "Satış", "Mənfəət", "Ödəniş", "Status"].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-6 py-3.5"
-                    style={{ color: "var(--text-muted)" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+            <thead><tr style={{ borderBottom:"1px solid var(--border-color)" }}>
+              {["Müştəri","İstiqamət","Menecer","Tarix","Satış","Ödəniş","Status"].map(h=>(
+                <th key={h} className="text-left text-xs font-bold uppercase tracking-wider px-5 py-4" style={{ color:"var(--text-muted)" }}>{h}</th>
+              ))}
+            </tr></thead>
             <tbody>
-              {recent.map((b: any) => (
-                <tr key={b.id} className="transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-                  <td className="px-6 py-3.5">
-                    <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{b.clientName}</p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p>
-                  </td>
-                  <td className="px-6 py-3.5 max-w-xs truncate" style={{ color: "var(--text-secondary)" }}>{b.destination}</td>
-                  <td className="px-6 py-3.5 font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</td>
-                  <td className="px-6 py-3.5">
-                    <span className={`font-semibold tabular-nums ${b.profit >= 0 ? "text-green-500" : "text-red-500"}`}>
-                      {b.profit >= 0 ? "+" : ""}{formatCurrency(b.profit)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3.5">
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{
-                      background: b.paymentStatus === "paid" ? "rgba(34,197,94,0.12)" : b.paymentStatus === "partial" ? "rgba(249,115,22,0.12)" : "rgba(239,68,68,0.12)",
-                      color: b.paymentStatus === "paid" ? "#22c55e" : b.paymentStatus === "partial" ? "#f97316" : "#ef4444"
-                    }}>
-                      {b.paymentStatus === "paid" ? "Ödənilib" : b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3.5">
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{
-                      background: b.status === "confirmed" ? "rgba(34,197,94,0.12)" : b.status === "pending" ? "rgba(245,158,11,0.12)" : "rgba(99,102,241,0.12)",
-                      color: b.status === "confirmed" ? "#22c55e" : b.status === "pending" ? "#f59e0b" : "#6366f1"
-                    }}>
-                      {b.status === "confirmed" ? "Təsdiqlənib" : b.status === "pending" ? "Gözləyir" : "Tamamlandı"}
-                    </span>
-                  </td>
+              {recent.map((b:any)=>(
+                <tr key={b.id} className="transition-all" style={{ borderBottom:"1px solid var(--border-color)" }}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--bg-glass)"}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}>
+                  <td className="px-5 py-3.5"><p className="font-semibold text-sm" style={{ color:"var(--text-primary)" }}>{b.clientName}</p><p className="text-xs" style={{ color:"var(--text-muted)" }}>{b.clientPhone}</p></td>
+                  <td className="px-5 py-3.5 max-w-[160px] truncate text-sm" style={{ color:"var(--text-secondary)" }}>{b.destination}</td>
+                  <td className="px-5 py-3.5 text-xs" style={{ color:"var(--text-secondary)" }}>{b.manager?.split(" ")[0]}</td>
+                  <td className="px-5 py-3.5 text-xs" style={{ color:"var(--text-secondary)" }}>{b.departureDate}</td>
+                  <td className="px-5 py-3.5 text-sm font-bold tabular-nums" style={{ color:"var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</td>
+                  <td className="px-5 py-3.5"><span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background:b.paymentStatus==="paid"?"rgba(34,197,94,0.12)":b.paymentStatus==="partial"?"rgba(249,115,22,0.12)":"rgba(239,68,68,0.12)", color:b.paymentStatus==="paid"?"#22c55e":b.paymentStatus==="partial"?"#f97316":"#ef4444" }}>{b.paymentStatus==="paid"?"Ödənilib":b.paymentStatus==="partial"?"Qismən":"Ödənilməyib"}</span></td>
+                  <td className="px-5 py-3.5"><span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background:b.status==="confirmed"?"rgba(34,197,94,0.12)":b.status==="pending"?"rgba(245,158,11,0.12)":"rgba(99,102,241,0.12)", color:b.status==="confirmed"?"#22c55e":b.status==="pending"?"#f59e0b":"#6366f1" }}>{b.status==="confirmed"?"Təsdiqlənib":b.status==="pending"?"Gözləyir":"Tamamlandı"}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {recent.length > 0 && (
-          <div className="px-6 py-3 flex justify-center" style={{ borderTop: "1px solid var(--border-color)" }}>
-            <a href="/bookings" className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-xl transition-all hover:scale-[1.02]"
-              style={{ color: "var(--text-secondary)", background: "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
-              Bütün sifarişlərə bax <ArrowRight size={12} />
-            </a>
-          </div>
-        )}
+      </div>
+
+      {/* Footer */}
+      <div className="text-center py-2">
+        <a href="https://varktechnologies.netlify.app/" target="_blank" rel="noopener noreferrer"
+          className="text-xs font-medium transition-all hover:opacity-70"
+          style={{ color:"var(--text-muted)" }}>
+          Powered by <span style={{ color:"#6366f1", fontWeight:800 }}>VARK TECHNOLOGIES</span>
+        </a>
       </div>
     </div>
   )
 }
 
-// ─── Root ───────────────────────────────────────────────────────────────────
+// ─── Root ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { bookings, fetchBookings } = useBookingsStore()
   const { payments, fetchPayments } = usePaymentsStore()
@@ -814,10 +639,8 @@ export default function DashboardPage() {
   }, [])
 
   if (!profile) return <DashboardSkeleton />
-
   if (profile.role === "menecer" || profile.role === "bilet_menecer") {
     return <ManagerDashboard bookings={bookings} profile={profile} />
   }
-
   return <AdminDashboard bookings={bookings} payments={payments} cashHistory={cashHistory} profile={profile} />
 }
