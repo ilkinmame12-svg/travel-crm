@@ -479,8 +479,8 @@ function AdminDashboard({ bookings, payments, cashHistory, profile }: { bookings
         {/* Hero */}
         <div className="col-span-2 lg:col-span-1 p-6 text-white relative overflow-hidden rounded-3xl dash-card"
           style={{ background:"linear-gradient(135deg,#11998e 0%,#38ef7d 100%)", boxShadow:"0 12px 40px rgba(17,153,142,0.35)", animation:"slideUp 0.3s ease" }}>
-          <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-10" style={{ background:"white" }} />
-          <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full opacity-08" style={{ background:"white" }} />
+           <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-10" style={{ background:"white" }} />
+          <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full opacity-10" style={{ background:"white" }} />
           <div className="relative">
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs font-bold opacity-75 uppercase tracking-widest">Ümumi gəlir</p>
