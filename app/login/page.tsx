@@ -52,8 +52,8 @@ export default function LoginPage() {
         <div className="absolute w-[400px] h-[400px] rounded-full" style={{ background:"radial-gradient(circle,rgba(99,102,241,0.1) 0%,transparent 70%)", top:"50%", left:"50%", animation:"float3 12s ease-in-out infinite" }} />
 
         {/* Grid overlay */}
-        <div className="absolute inset-0 opacity-[0.011]" style={{
-         backgroundImage: "linear-gradient(rgba(255,255,255,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.05) 1px,transparent 1px)",
+        <div className="absolute inset-0 opacity-[0.008]" style={{
+         backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px)",
           backgroundSize: "48px 48px",
           animation: "gridFade 1s ease 0.1s both"
         }} />
