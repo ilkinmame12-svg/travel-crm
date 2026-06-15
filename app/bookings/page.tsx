@@ -130,54 +130,75 @@ function exportToPDF(bookings: any[], clientBalances: Record<string, number>) {
   const date = new Date().toLocaleDateString("az-AZ", { day: "numeric", month: "long", year: "numeric" })
   const typeLabels: Record<string, string> = {
     bilet:"Aviabilet",otel:"Otel",tur:"Tur",kruiz:"Kruiz",
-    transfer:"Transfer",bagaj:"Bagaj",yer_secimi:"Yer seçimi",cip:"CIP",sigorta:"Sığorta"
+    transfer:"Transfer",bagaj:"Bagaj",yer_secimi:"Yer seçimi",cip:"CIP",sigorta:"Sığorta",viza:"Viza"
   }
 
   const uniqueClients = [...new Set(bookings.map((b: any) => b.clientName))]
 
   const clientSections = uniqueClients.map((clientName: any) => {
     const cb = bookings.filter((b: any) => b.clientName === clientName)
-    const balance = clientBalances[clientName.toLowerCase()] ?? 0
-   const totalSell = cb.reduce((s: number, b: any) => s + b.sellPrice, 0)
-const finalBalance = balance
-    const balanceColor = finalBalance >= 0 ? "#16a34a" : "#dc2626"
-    const balanceLabel = finalBalance >= 0
-      ? `+${finalBalance.toFixed(2)} AZN — Biz borcluq`
-      : `${finalBalance.toFixed(2)} AZN — Müştəri borcu`
+    const totalSell = cb.reduce((s: number, b: any) => s + b.sellPrice, 0)
+    const totalPaid = cb.reduce((s: number, b: any) => s + (b.paidAmount ?? 0), 0)
+    const totalDebt = totalSell - totalPaid
+    const isFullyPaid = totalDebt <= 0
 
-    const rows = cb.map((b: any, i: number) => `
+    const rows = cb.map((b: any, i: number) => {
+      const paid = b.paidAmount ?? 0
+      const debt = b.sellPrice - paid
+      const isPaid = b.paymentStatus === "paid"
+      const isPartial = b.paymentStatus === "partial"
+
+      const payBadge = isPaid
+        ? `<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">✓ Ödənilib</span>`
+        : isPartial
+        ? `<span style="background:#fff7ed;color:#ea580c;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">⚡ Qismən (${paid.toFixed(2)} AZN)</span>`
+        : `<span style="background:#fef2f2;color:#dc2626;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">✗ Ödənilməyib</span>`
+
+      return `
       <tr style="border-bottom:1px solid #f0f0f0;background:${i%2===0?'white':'#fafafa'}">
-        <td style="padding:10px 14px;font-size:13px;color:#374151">${b.destination}</td>
+        <td style="padding:10px 14px;font-size:13px;color:#374151">
+          <div style="font-weight:600">${b.destination || "—"}</div>
+          ${b.ticketNumber ? `<div style="font-size:11px;color:#6366f1;margin-top:2px;font-family:monospace">✈ ${b.ticketNumber}</div>` : ""}
+          ${b.pnr ? `<div style="font-size:11px;color:#9ca3af;margin-top:1px">PNR: ${b.pnr}</div>` : ""}
+        </td>
         <td style="padding:10px 14px">
           <span style="background:#eff6ff;color:#3b82f6;padding:2px 8px;border-radius:6px;font-size:11px">
             ${typeLabels[b.bookingType]??b.bookingType}
           </span>
         </td>
-        <td style="padding:10px 14px;font-size:12px;color:#6b7280">${b.departureDate}</td>
-        <td style="padding:10px 14px;font-size:14px;font-weight:700;text-align:right;color:#1f2937">
-          ${b.sellPrice.toFixed(2)} AZN
+        <td style="padding:10px 14px;font-size:12px;color:#6b7280">${b.departureDate || "—"}</td>
+        <td style="padding:10px 14px;font-size:14px;font-weight:700;text-align:right;color:#1f2937">${b.sellPrice.toFixed(2)} AZN</td>
+        <td style="padding:10px 14px;text-align:center">${payBadge}</td>
+        <td style="padding:10px 14px;text-align:right;font-weight:700;font-size:13px;color:${isPaid?'#16a34a':'#dc2626'}">
+          ${isPaid ? `0.00 AZN` : `${debt.toFixed(2)} AZN`}
         </td>
-      </tr>`).join("")
+      </tr>`
+    }).join("")
 
     return `
       <div style="margin-bottom:28px;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;page-break-inside:avoid">
         <div style="background:#f8fafc;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e5e7eb">
           <div>
             <div style="font-size:16px;font-weight:700;color:#1f2937">${clientName}</div>
-            ${cb[0]?.clientPhone ? `<div style="font-size:12px;color:#9ca3af;margin-top:2px">${cb[0].clientPhone}</div>` : ""}
+            ${cb[0]?.clientPhone ? `<div style="font-size:12px;color:#9ca3af;margin-top:2px">📞 ${cb[0].clientPhone}</div>` : ""}
           </div>
           <div style="text-align:right">
-            <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Balans</div>
-            <div style="font-size:20px;font-weight:800;color:${balanceColor}">${balanceLabel}</div>
+            <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Ödəniş statusu</div>
+            ${isFullyPaid
+              ? `<div style="font-size:15px;font-weight:800;color:#16a34a;background:#dcfce7;padding:6px 14px;border-radius:10px">✓ Tam ödənilib</div>`
+              : `<div style="font-size:15px;font-weight:800;color:#dc2626;background:#fef2f2;padding:6px 14px;border-radius:10px">✗ Borc: ${totalDebt.toFixed(2)} AZN</div>`
+            }
           </div>
         </div>
         <table style="width:100%;border-collapse:collapse">
           <thead>
             <tr style="background:#1f2937">
-              <th style="padding:10px 14px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Xidmət / İstiqamət</th>
+              <th style="padding:10px 14px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Xidmət / Bilet №</th>
               <th style="padding:10px 14px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Növ</th>
               <th style="padding:10px 14px;text-align:left;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Tarix</th>
               <th style="padding:10px 14px;text-align:right;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Qiymət</th>
+              <th style="padding:10px 14px;text-align:center;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Status</th>
+              <th style="padding:10px 14px;text-align:right;color:white;font-size:11px;font-weight:600;text-transform:uppercase">Borc</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -185,6 +206,8 @@ const finalBalance = balance
             <tr style="background:#f8fafc;border-top:2px solid #e5e7eb">
               <td colspan="3" style="padding:12px 14px;font-size:13px;font-weight:600;color:#374151">Cəmi</td>
               <td style="padding:12px 14px;text-align:right;font-size:15px;font-weight:800;color:#1f2937">${totalSell.toFixed(2)} AZN</td>
+              <td style="padding:12px 14px;text-align:center;font-size:13px;font-weight:700;color:#16a34a">${totalPaid.toFixed(2)} AZN ödənilib</td>
+              <td style="padding:12px 14px;text-align:right;font-size:15px;font-weight:800;color:${isFullyPaid?'#16a34a':'#dc2626'}">${isFullyPaid?'0.00':totalDebt.toFixed(2)} AZN</td>
             </tr>
           </tfoot>
         </table>
@@ -199,7 +222,7 @@ const finalBalance = balance
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Arial,sans-serif;color:#1f2937;background:white}
-    .page{padding:40px;max-width:900px;margin:0 auto}
+    .page{padding:40px;max-width:960px;margin:0 auto}
     .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;padding-bottom:24px;border-bottom:3px solid #ef4444}
     .logo{font-size:32px;font-weight:bold;color:#ef4444}
     .logo span{color:#1f2937}
@@ -225,12 +248,31 @@ const finalBalance = balance
 
   <div class="footer">
     <p>itstour CRM • infinity tourism services • ${date}</p>
+    <p style="margin-top:4px;color:#d1d5db">Powered by VARK TECHNOLOGIES</p>
   </div>
 </div>
-<script>window.onload=()=>window.print()</script>
+<script>
+  window.onload = function() {
+    // Download as PDF instead of print dialog
+    const filename = "itstour-hesabat-${new Date().toISOString().slice(0,10)}.pdf"
+    // Try to use print to PDF
+    document.title = filename
+    window.print()
+  }
+</script>
 </body>
 </html>`
 
+  // Create blob and download directly
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `itstour-hesabat-${new Date().toISOString().slice(0,10)}.html`
+  a.click()
+  URL.revokeObjectURL(url)
+
+  // Also open in new tab for print/preview
   const win = window.open("","_blank")
   if(win){win.document.write(html);win.document.close()}
 }
@@ -499,7 +541,7 @@ export default function SifarislerPage() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-95"
             style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 4px 16px rgba(99,102,241,0.3)" }}>
             <FileText size={15} />
-            PDF / Çap et
+            ⬇ PDF / Çap et
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
