@@ -150,6 +150,212 @@ function DebtRow({ b, i }: { b: any; i: number }) {
   )
 }
 
+
+// ─── Flight Alert Overlay ────────────────────────────────────────────────────
+function FlightAlertOverlay({ flights, onClose }: { flights: any[]; onClose: () => void }) {
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    // Play dramatic sound
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const notes = [523, 659, 784, 1047, 784, 659, 523]
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain); gain.connect(ctx.destination)
+        osc.frequency.value = freq
+        osc.type = "sine"
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.12)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.2)
+        osc.start(ctx.currentTime + i * 0.12)
+        osc.stop(ctx.currentTime + i * 0.12 + 0.25)
+      })
+    } catch {}
+
+    // Auto close after 8 seconds
+    const t = setTimeout(() => { setVisible(false); setTimeout(onClose, 500) }, 8000)
+    return () => clearTimeout(t)
+  }, [])
+
+  if (!visible) return null
+
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
+  const dateStr = tomorrow.toLocaleDateString("az-AZ", { day: "numeric", month: "long" })
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)", animation: "fadeIn 0.3s ease" }}>
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes planeFly { 0% { transform: translateX(-100px) translateY(20px) rotate(-5deg); opacity: 0 } 30% { opacity: 1 } 100% { transform: translateX(calc(100vw + 100px)) translateY(-20px) rotate(5deg); opacity: 0 } }
+        @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6) } 50% { box-shadow: 0 0 0 30px rgba(239,68,68,0) } }
+        @keyframes slideUp { from { transform: translateY(40px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+        @keyframes countDown { from { width: 100% } to { width: 0% } }
+      `}</style>
+
+      {/* Animated plane flying across */}
+      <div style={{ position: "absolute", top: "20%", animation: "planeFly 3s ease-in-out infinite", fontSize: "60px", pointerEvents: "none" }}>✈️</div>
+
+      {/* Main alert card */}
+      <div style={{ animation: "slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1)", maxWidth: 480, width: "90%", position: "relative" }}>
+        <div className="rounded-3xl overflow-hidden"
+          style={{ background: "linear-gradient(135deg, #1a0000, #2d0000)", border: "2px solid rgba(239,68,68,0.5)", animation: "pulse-red 2s ease infinite" }}>
+
+          {/* Header */}
+          <div className="p-6 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.3), rgba(249,115,22,0.2))" }}>
+            <div style={{ fontSize: 64, lineHeight: 1, marginBottom: 8 }}>🚨</div>
+            <h1 style={{ color: "white", fontSize: 24, fontWeight: 900, letterSpacing: "-0.5px", textShadow: "0 0 20px rgba(239,68,68,0.8)" }}>
+              TƏCİLİ XATIRLATMA!
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, marginTop: 4 }}>
+              Sabah — {dateStr} — {flights.length} müştərinin uçuşu var
+            </p>
+          </div>
+
+          {/* Flight list */}
+          <div className="p-5 space-y-3">
+            {flights.slice(0, 4).map((b: any, i: number) => (
+              <div key={b.id} className="flex items-center gap-3 p-3 rounded-2xl"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", animation: `slideUp ${0.4 + i * 0.1}s cubic-bezier(0.34,1.56,0.64,1)` }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                  style={{ background: "rgba(239,68,68,0.2)" }}>✈</div>
+                <div className="flex-1 min-w-0">
+                  <p style={{ color: "white", fontWeight: 700, fontSize: 14 }}>{b.clientName}</p>
+                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{b.destination} · {b.manager?.split(" ")[0]}</p>
+                </div>
+                <div className="text-right">
+                  <p style={{ color: b.paymentStatus === "paid" ? "#4ade80" : "#fbbf24", fontSize: 11, fontWeight: 600 }}>
+                    {b.paymentStatus === "paid" ? "✓ Ödənilib" : "⚠ Ödənilməyib"}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {flights.length > 4 && (
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, textAlign: "center" }}>
+                +{flights.length - 4} daha müştəri
+              </p>
+            )}
+          </div>
+
+          {/* Countdown bar + close */}
+          <div className="px-5 pb-5">
+            <div style={{ height: 3, background: "rgba(255,255,255,0.1)", borderRadius: 9999, overflow: "hidden", marginBottom: 12 }}>
+              <div style={{ height: "100%", background: "linear-gradient(90deg, #ef4444, #f97316)", borderRadius: 9999, animation: "countDown 8s linear forwards" }} />
+            </div>
+            <div className="flex gap-2">
+              <a href="/bookings"
+                className="flex-1 py-3 rounded-2xl text-sm font-bold text-white text-center transition-all hover:scale-[1.02]"
+                style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 20px rgba(239,68,68,0.5)" }}>
+                Sifarişlərə bax →
+              </a>
+              <button onClick={() => { setVisible(false); setTimeout(onClose, 300) }}
+                className="px-4 py-3 rounded-2xl text-sm font-medium"
+                style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                Bağla
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Flight Widget (Dashboard card) ─────────────────────────────────────────
+function FlightWidget({ bookings, profile }: { bookings: any[]; profile: any }) {
+  const [showAlert, setShowAlert] = useState(false)
+  const [alertShown, setAlertShown] = useState(false)
+
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowStr = tomorrow.toISOString().split("T")[0]
+  const in5days = new Date(); in5days.setDate(in5days.getDate() + 5)
+  const in5daysStr = in5days.toISOString().split("T")[0]
+  const todayStr = new Date().toISOString().split("T")[0]
+
+  const flightsTomorrow = bookings.filter(b =>
+    b.departureDate === tomorrowStr && b.status !== "cancelled" &&
+    (["menecer","bilet_menecer"].includes(profile?.role) ? b.manager === profile?.fullName : true)
+  )
+  const flightsIn5Days = bookings.filter(b =>
+    b.departureDate === in5daysStr && b.status !== "cancelled" &&
+    (["menecer","bilet_menecer"].includes(profile?.role) ? b.manager === profile?.fullName : true)
+  )
+  const flightsToday = bookings.filter(b =>
+    b.departureDate === todayStr && b.status !== "cancelled" &&
+    (["menecer","bilet_menecer"].includes(profile?.role) ? b.manager === profile?.fullName : true)
+  )
+
+  useEffect(() => {
+    if (flightsTomorrow.length > 0 && !alertShown) {
+      const key = `alert_shown_${tomorrowStr}`
+      if (!sessionStorage.getItem(key)) {
+        setTimeout(() => { setShowAlert(true); setAlertShown(true) }, 1500)
+        sessionStorage.setItem(key, "1")
+      }
+    }
+  }, [flightsTomorrow.length])
+
+  if (flightsTomorrow.length === 0 && flightsIn5Days.length === 0 && flightsToday.length === 0) return null
+
+  return (
+    <>
+      {showAlert && flightsTomorrow.length > 0 && (
+        <FlightAlertOverlay flights={flightsTomorrow} onClose={() => setShowAlert(false)} />
+      )}
+
+      <div className="mb-5 rounded-3xl overflow-hidden" style={{ border: "2px solid rgba(239,68,68,0.3)", background: "var(--bg-card)" }}>
+        <div className="px-5 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(249,115,22,0.08))", borderBottom: "1px solid rgba(239,68,68,0.15)" }}>
+          <div className="flex items-center gap-3">
+            <span style={{ fontSize: 24 }}>✈️</span>
+            <div>
+              <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>Uçuş Xatırlatmaları</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Yaxınlaşan uçuşlar</p>
+            </div>
+          </div>
+          {flightsTomorrow.length > 0 && (
+            <button onClick={() => setShowAlert(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:scale-105"
+              style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 12px rgba(239,68,68,0.4)" }}>
+              🚨 {flightsTomorrow.length} sabah
+            </button>
+          )}
+        </div>
+
+        <div className="p-4 space-y-2">
+          {flightsToday.length > 0 && (
+            <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
+              <span className="text-xl">🔴</span>
+              <div className="flex-1">
+                <p className="text-xs font-bold" style={{ color: "#ef4444" }}>BU GÜN UÇUŞ — {flightsToday.length} müştəri</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{flightsToday.slice(0,3).map((b:any) => b.clientName).join(" · ")}</p>
+              </div>
+            </div>
+          )}
+          {flightsTomorrow.length > 0 && (
+            <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)" }}>
+              <span className="text-xl">🟠</span>
+              <div className="flex-1">
+                <p className="text-xs font-bold" style={{ color: "#f97316" }}>SABAH UÇUŞ — {flightsTomorrow.length} müştəri</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{flightsTomorrow.slice(0,3).map((b:any) => b.clientName).join(" · ")}</p>
+              </div>
+            </div>
+          )}
+          {flightsIn5Days.length > 0 && (
+            <div className="p-3 rounded-2xl flex items-center gap-3" style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)" }}>
+              <span className="text-xl">🟡</span>
+              <div className="flex-1">
+                <p className="text-xs font-bold" style={{ color: "#f59e0b" }}>5 GÜN SONRA — {flightsIn5Days.length} müştəri</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>{flightsIn5Days.slice(0,3).map((b:any) => b.clientName).join(" · ")}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ─── Manager Dashboard ──────────────────────────────────────────────────────
 function ManagerDashboard({ bookings, profile }: { bookings: any[]; profile: any }) {
   const myBookings = bookings.filter(b => b.manager === profile?.fullName)
@@ -331,7 +537,7 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[]; profile: any
 }
 
 // ─── Admin Dashboard ────────────────────────────────────────────────────────
-function AdminDashboard({ bookings, payments, cashHistory }: { bookings: any[]; payments: any[]; cashHistory: any[] }) {
+function AdminDashboard({ bookings, payments, cashHistory, profile }: { bookings: any[]; payments: any[]; cashHistory: any[]; profile?: any }) {
   const [managerPeriod, setManagerPeriod] = useState<"week" | "month" | "year">("month")
 
   const totalRevenue    = bookings.reduce((s, b) => s + b.sellPrice, 0)
@@ -398,6 +604,8 @@ function AdminDashboard({ bookings, payments, cashHistory }: { bookings: any[]; 
           <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{bookings.length} sifariş</span>
         </div>
       </div>
+
+      <FlightWidget bookings={bookings} profile={profile} />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
@@ -611,5 +819,5 @@ export default function DashboardPage() {
     return <ManagerDashboard bookings={bookings} profile={profile} />
   }
 
-  return <AdminDashboard bookings={bookings} payments={payments} cashHistory={cashHistory} />
+  return <AdminDashboard bookings={bookings} payments={payments} cashHistory={cashHistory} profile={profile} />
 }
