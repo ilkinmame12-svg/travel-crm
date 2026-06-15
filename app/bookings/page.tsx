@@ -295,29 +295,23 @@ function exportToExcel(bookings: any[]) {
     paid:"Ödənilib", partial:"Qismən", unpaid:"Ödənilməyib"
   }
 
-  const rows = bookings.map((b: any) => ({
-    "Müştəri":        b.clientName,
-    "Telefon":        b.clientPhone || "",
-    "İstiqamət":      b.destination,
-    "Növ":            typeLabels[b.bookingType] ?? b.bookingType,
-    "Uçuş tarixi":    b.departureDate,
-    "Qayıdış tarixi": b.returnDate || "",
-    "Sifariş tarixi": b.orderDate || "",
-    "Bilet №":        b.ticketNumber || "",
-    "PNR":            b.pnr || "",
-    "Satış":          b.sellPrice,
-    "Alış":           b.buyPrice,
-    "Mənfəət":        b.profit,
-    "Ödənilib":       b.paidAmount ?? 0,
-    "Borc":           Math.max(0, b.sellPrice - (b.paidAmount ?? 0)),
-    "Ödəniş statusu": payLabels[b.paymentStatus] ?? b.paymentStatus,
-    "Sifariş statusu":statusLabels[b.status] ?? b.status,
-    "Menecer":        b.manager,
-    "Vendor":         b.vendor || "",
-    "IATA":           b.isIata ? "Bəli" : "Xeyr",
-    "IATA dövrü":     b.iataPeriod,
-    "Qeydlər":        b.notes || "",
-  }))
+ const rows = bookings.map((b: any) => ({
+  "Müştəri":        b.clientName,
+  "Telefon":        b.clientPhone || "",
+  "İstiqamət":      b.destination,
+  "Növ":            typeLabels[b.bookingType] ?? b.bookingType,
+  "Uçuş tarixi":    b.departureDate,
+  "Qayıdış tarixi": b.returnDate || "",
+  "Sifariş tarixi": b.orderDate || "",
+  "Bilet №":        b.ticketNumber || "",
+  "PNR":            b.pnr || "",
+  "Məbləğ":         b.sellPrice,
+  "Ödənilib":       b.paidAmount ?? 0,
+  "Borc":           Math.max(0, b.sellPrice - (b.paidAmount ?? 0)),
+  "Ödəniş statusu": payLabels[b.paymentStatus] ?? b.paymentStatus,
+  "Menecer":        b.manager,
+  "Qeydlər":        b.notes || "",
+}))
 
   const ws = XLSX.utils.json_to_sheet(rows)
 
