@@ -1,4 +1,5 @@
 "use client"
+import * as XLSX from "xlsx"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
@@ -279,6 +280,59 @@ const isFullyPaid = totalDebt <= 0 && totalSell > 0 && cb.every((b: any) => b.pa
   if(win){win.document.write(html);win.document.close()}
 }
 
+
+// ─── Excel Export ─────────────────────────────────────────────────────────────
+function exportToExcel(bookings: any[]) {
+  const typeLabels: Record<string, string> = {
+    bilet:"Aviabilet",otel:"Otel",tur:"Tur",kruiz:"Kruiz",
+    transfer:"Transfer",bagaj:"Bagaj",yer_secimi:"Yer seçimi",
+    cip:"CIP",sigorta:"Sığorta",viza:"Viza"
+  }
+  const statusLabels: Record<string, string> = {
+    pending:"Gözləyir", confirmed:"Təsdiqlənib", cancelled:"Ləğv edilib", completed:"Tamamlandı"
+  }
+  const payLabels: Record<string, string> = {
+    paid:"Ödənilib", partial:"Qismən", unpaid:"Ödənilməyib"
+  }
+
+  const rows = bookings.map((b: any) => ({
+    "Müştəri":        b.clientName,
+    "Telefon":        b.clientPhone || "",
+    "İstiqamət":      b.destination,
+    "Növ":            typeLabels[b.bookingType] ?? b.bookingType,
+    "Uçuş tarixi":    b.departureDate,
+    "Qayıdış tarixi": b.returnDate || "",
+    "Sifariş tarixi": b.orderDate || "",
+    "Bilet №":        b.ticketNumber || "",
+    "PNR":            b.pnr || "",
+    "Satış":          b.sellPrice,
+    "Alış":           b.buyPrice,
+    "Mənfəət":        b.profit,
+    "Ödənilib":       b.paidAmount ?? 0,
+    "Borc":           Math.max(0, b.sellPrice - (b.paidAmount ?? 0)),
+    "Ödəniş statusu": payLabels[b.paymentStatus] ?? b.paymentStatus,
+    "Sifariş statusu":statusLabels[b.status] ?? b.status,
+    "Menecer":        b.manager,
+    "Vendor":         b.vendor || "",
+    "IATA":           b.isIata ? "Bəli" : "Xeyr",
+    "IATA dövrü":     b.iataPeriod,
+    "Qeydlər":        b.notes || "",
+  }))
+
+  const ws = XLSX.utils.json_to_sheet(rows)
+
+  // Column widths
+  ws["!cols"] = [
+    {wch:22},{wch:16},{wch:24},{wch:12},{wch:13},{wch:13},{wch:13},
+    {wch:30},{wch:12},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},
+    {wch:16},{wch:16},{wch:18},{wch:16},{wch:6},{wch:10},{wch:20}
+  ]
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Sifarişlər")
+  XLSX.writeFile(wb, `itstour-sifarisler-${new Date().toISOString().slice(0,10)}.xlsx`)
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SifarislerPage() {
   const { profile, canDelete } = useUserRole()
@@ -543,7 +597,14 @@ export default function SifarislerPage() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-95"
             style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 4px 16px rgba(99,102,241,0.3)" }}>
             <FileText size={15} />
-            ⬇ PDF / Çap et
+            ⬇ PDF
+          </button>
+          <button
+            onClick={() => exportToExcel(filtered)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-95"
+            style={{ background: "linear-gradient(135deg, #10b981, #34d399)", boxShadow: "0 4px 16px rgba(16,185,129,0.3)" }}>
+            <FileText size={15} />
+            ⬇ Excel
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
