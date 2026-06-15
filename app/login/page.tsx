@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 import Image from "next/image"
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Shield, Zap, Globe } from "lucide-react"
@@ -12,10 +12,6 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [focused, setFocused] = useState<"email"|"password"|null>(null)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => { setMounted(true) }, [])
-
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -59,7 +55,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 opacity-[0.04]" style={{
           backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px)",
           backgroundSize: "48px 48px",
-          animation: "gridFade 1s ease"
+          animation: "gridFade 1s ease 0.1s both"
         }} />
 
         {/* Scan line */}
@@ -120,7 +116,7 @@ export default function LoginPage() {
         {/* Subtle background */}
         <div className="absolute inset-0" style={{ background:"radial-gradient(ellipse 60% 50% at 50% 50%,rgba(99,102,241,0.06) 0%,transparent 100%)" }} />
 
-        <div className="relative w-full max-w-[400px]" style={{ animation: mounted ? "slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1)" : "none" }}>
+        <div className="relative w-full max-w-[400px]" style={{ animation: "slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
 
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2 mb-8">
