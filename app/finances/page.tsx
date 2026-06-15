@@ -97,6 +97,8 @@ export default function FinancesPage() {
   const [editModal, setEditModal] = useState<any>(null)
   const [editReason, setEditReason] = useState("")
   const [editAmount, setEditAmount] = useState("")
+  const [editOperation, setEditOperation] = useState<"add"|"subtract">("add")
+  const [editDate, setEditDate] = useState("")
   const [ready, setReady] = useState(false)
 
   async function loadCash() {
@@ -203,31 +205,48 @@ export default function FinancesPage() {
   async function handleEditCash(t: any) {
     const amount = parseFloat(editAmount)
     if (!amount || amount <= 0) return
-    // Recalculate balance: remove old, add new
-    const diff = amount - t.amount
-    const newBalanceAfter = t.balance_after + (t.operation === "add" ? diff : -diff)
-    await supabase.from("cash_transactions").update({ amount, reason: editReason, balance_after: newBalanceAfter }).eq("id", t.id)
-    // Update cash_balance
     const currency = t.currency
-    const currentBalance = currency === "AZN" ? cashAZN : cashUSD
-    const newBalance = currentBalance + (t.operation === "add" ? diff : -diff)
-    await supabase.from("cash_balance").update({ amount: newBalance }).eq("currency", currency)
-    if (currency === "AZN") setCashAZN(newBalance)
-    else setCashUSD(newBalance)
+
+    // 1. Update the transaction amount and reason
+    await supabase.from("cash_transactions").update({ amount, reason: editReason, operation: editOperation }).eq("id", t.id)
+
+    // 2. Recalculate the true balance from all transactions
+    const { data: allTx } = await supabase.from("cash_transactions").select("*").eq("currency", currency).order("created_at", { ascending: true })
+    let running = 0
+    for (const tx of allTx ?? []) {
+      running = tx.operation === "add" ? running + tx.amount : running - tx.amount
+      await supabase.from("cash_transactions").update({ balance_after: Math.max(0, running) }).eq("id", tx.id)
+    }
+
+    // 3. Set cash_balance to final running total
+    await supabase.from("cash_balance").update({ amount: Math.max(0, running) }).eq("currency", currency)
+    if (currency === "AZN") setCashAZN(Math.max(0, running))
+    else setCashUSD(Math.max(0, running))
+
     await loadCash()
     setEditModal(null)
   }
 
   async function handleDeleteCash(t: any) {
     if (!confirm("Bu əməliyyatı silmək istəyirsiniz?")) return
-    // Reverse the effect on balance
     const currency = t.currency
-    const currentBalance = currency === "AZN" ? cashAZN : cashUSD
-    const newBalance = t.operation === "add" ? currentBalance - t.amount : currentBalance + t.amount
+
+    // 1. Delete the transaction
     await supabase.from("cash_transactions").delete().eq("id", t.id)
-    await supabase.from("cash_balance").update({ amount: Math.max(0, newBalance) }).eq("currency", currency)
-    if (currency === "AZN") setCashAZN(Math.max(0, newBalance))
-    else setCashUSD(Math.max(0, newBalance))
+
+    // 2. Recalculate true balance from remaining transactions
+    const { data: allTx } = await supabase.from("cash_transactions").select("*").eq("currency", currency).order("created_at", { ascending: true })
+    let running = 0
+    for (const tx of allTx ?? []) {
+      running = tx.operation === "add" ? running + tx.amount : running - tx.amount
+      await supabase.from("cash_transactions").update({ balance_after: Math.max(0, running) }).eq("id", tx.id)
+    }
+
+    // 3. Set cash_balance to final running total
+    await supabase.from("cash_balance").update({ amount: Math.max(0, running) }).eq("currency", currency)
+    if (currency === "AZN") setCashAZN(Math.max(0, running))
+    else setCashUSD(Math.max(0, running))
+
     await loadCash()
   }
 
@@ -537,7 +556,7 @@ export default function FinancesPage() {
                         <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{t.balance_after} {t.currency}</td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
-                            <button onClick={() => { setEditModal(t); setEditAmount(String(t.amount)); setEditReason(t.reason || "") }}
+                            <button onClick={() => { setEditModal(t); setEditAmount(String(t.amount)); setEditReason(t.reason || ""); setEditOperation(t.operation); setEditDate(t.created_at?.slice(0,10) || "") }}
                               className="p-1.5 rounded-xl transition-all hover:scale-110"
                               style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
                               <Edit3 size={12} />
@@ -693,6 +712,18 @@ export default function FinancesPage() {
                   {editModal.operation === "add" ? "↑ Giriş" : "↓ Çıxış"}
                 </span>
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>{editModal.currency} · {new Date(editModal.created_at).toLocaleDateString("az-AZ")}</span>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Əməliyyat növü</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[{v:"add",l:"↑ Giriş",color:"#22c55e",bg:"rgba(34,197,94,0.15)"},{v:"subtract",l:"↓ Çıxış",color:"#ef4444",bg:"rgba(239,68,68,0.15)"}].map(op => (
+                    <button key={op.v} type="button" onClick={() => setEditOperation(op.v as any)}
+                      className="py-2.5 rounded-2xl text-sm font-semibold transition-all"
+                      style={{ background:editOperation===op.v?op.bg:"var(--bg-glass)", border:`1px solid ${editOperation===op.v?op.color+"40":"var(--border-color)"}`, color:editOperation===op.v?op.color:"var(--text-secondary)" }}>
+                      {op.l}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Məbləğ ({editModal.currency})</label>
