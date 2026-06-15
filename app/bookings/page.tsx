@@ -140,7 +140,7 @@ function exportToPDF(bookings: any[], clientBalances: Record<string, number>) {
     const totalSell = cb.reduce((s: number, b: any) => s + b.sellPrice, 0)
     const totalPaid = cb.reduce((s: number, b: any) => s + (b.paidAmount ?? 0), 0)
     const totalDebt = totalSell - totalPaid
-    const isFullyPaid = totalDebt <= 0
+const isFullyPaid = totalDebt <= 0 && totalSell > 0 && cb.every((b: any) => b.paymentStatus === "paid")
 
     const rows = cb.map((b: any, i: number) => {
       const paid = b.paidAmount ?? 0
