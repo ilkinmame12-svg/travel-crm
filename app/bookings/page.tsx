@@ -139,12 +139,14 @@ function exportToPDF(bookings: any[], clientBalances: Record<string, number>) {
     const cb = bookings.filter((b: any) => b.clientName === clientName)
     const totalSell = cb.reduce((s: number, b: any) => s + b.sellPrice, 0)
     const totalPaid = cb.reduce((s: number, b: any) => s + (b.paidAmount ?? 0), 0)
-    const totalDebt = totalSell - totalPaid
+    const totalDebt = cb
+  .filter((b: any) => b.paymentStatus !== "paid")
+  .reduce((s: number, b: any) => s + Math.max(0, b.sellPrice - (b.paidAmount ?? 0)), 0)
 const isFullyPaid = totalDebt <= 0 && totalSell > 0 && cb.every((b: any) => b.paymentStatus === "paid")
 
     const rows = cb.map((b: any, i: number) => {
       const paid = b.paidAmount ?? 0
-      const debt = b.sellPrice - paid
+      const debt = Math.max(0, b.sellPrice - paid)
       const isPaid = b.paymentStatus === "paid"
       const isPartial = b.paymentStatus === "partial"
 
