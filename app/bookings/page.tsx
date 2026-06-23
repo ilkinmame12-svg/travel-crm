@@ -125,7 +125,84 @@ function KpiCard({ label, value, sub, gradient, icon: Icon, trend }: any) {
     </div>
   )
 }
+// ─── Number to AZ words ────────────────────────────────────────────────────────
+function numToAzWords(n: number): string {
+  const ones = ["","bir","iki","üç","dörd","beş","altı","yeddi","səkkiz","doqquz"]
+  const tens = ["","on","iyirmi","otuz","qırx","əlli","altmış","yetmiş","səksən","doxsan"]
+  const h = ["","yüz","iki yüz","üç yüz","dörd yüz","beş yüz","altı yüz","yeddi yüz","səkkiz yüz","doqquz yüz"]
+  if (n <= 0) return "Sıfır manat."
+  let res = ""
+  const int = Math.floor(n)
+  const dec = Math.round((n - int) * 100)
+  if (int >= 1000) { const t = Math.floor(int/1000); res += (t===1?"min ":numToAzWords(t).replace(" manat.","")+" min ") }
+  const r = int % 1000
+  if (r >= 100) res += h[Math.floor(r/100)] + " "
+  const r2 = r % 100
+  if (r2 >= 10) res += tens[Math.floor(r2/10)] + " "
+  res += ones[r2 % 10]
+  res = res.trim()
+  if (dec > 0) res += " manat " + (dec < 10 ? "0"+dec : dec) + " qəpik."
+  else res += " manat."
+  return res.charAt(0).toUpperCase() + res.slice(1)
+}
 
+// ─── Üzləşmə Aktı Export ──────────────────────────────────────────────────────
+function exportUzlesme(bookings: any[], _clientBalances: Record<string, number>) {
+  const uniqueClients = [...new Set(bookings.map((b:any) => b.clientName))]
+  const clientName = uniqueClients[0] || "Müştəri"
+  const clientBookings = bookings
+    .filter((b:any) => b.clientName === clientName)
+    .sort((a:any,b:any) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
+  const today = new Date()
+  const todayStr = today.toLocaleDateString("az-AZ",{day:"2-digit",month:"2-digit",year:"numeric"})
+  const dates = clientBookings.map((b:any) => b.departureDate).filter(Boolean)
+  const dateFrom = dates[0] || todayStr
+  const dateTo = dates[dates.length-1] || todayStr
+  const totalDebit = clientBookings.reduce((s:number,b:any)=>s+b.sellPrice,0)
+  const totalCredit = clientBookings.reduce((s:number,b:any)=>s+(b.paidAmount??0),0)
+  const balance = Math.max(0, totalDebit - totalCredit)
+  type Row = (string|number|null)[]
+  const rows: Row[] = []
+  const push = (...cols: (string|number|null)[]) => rows.push(cols)
+  push("Üzləşmə aktı")
+  push(`Dövr: ${dateFrom} — ${dateTo}`)
+  push(null)
+  push(`Biz, aşağıda imza edənlər, El Art Travel MMC (itstour), bir tərəfdən, və ${clientName}, digər tərəfdən, bu tutuşdurulma aktını təşkil etmişik ki:`)
+  push(null)
+  push("El Art Travel MMC (itstour), məlumatına görə  AZN",null,null,null,null,null,null,null,`${clientName}, məlumatına görə  AZN`)
+  push("Tarix","Sənəd",null,"Debet",null,"Kredit",null,null,"Tarix","Sənəd",null,"Debet",null,null,"Kredit")
+  push("Başlanğıc saldo",null,null,null,null,0.00,null,null,"Başlanğıc saldo",null,null,0.00)
+  let runD = 0, runC = 0
+  clientBookings.forEach((b:any) => {
+    const d = b.departureDate || ""
+    const desc = `${b.destination||b.bookingType}${b.ticketNumber?" ("+b.ticketNumber+")":""}`
+    runD += b.sellPrice
+    push(d,desc,null,b.sellPrice,null,null,null,null,d,desc,null,null,null,null,b.sellPrice)
+    if ((b.paidAmount??0)>0) {
+      runC += b.paidAmount
+      push(d,`Ödəniş: ${b.clientName}`,null,null,null,b.paidAmount,null,null,d,`Ödəniş: ${b.clientName}`,null,b.paidAmount)
+    }
+  })
+  push("Dövriyyə (Dövr)",null,null,runD,null,runC,null,null,"Dövriyyə (Dövr)")
+  push("Sonuncu saldo",null,null,balance,null,null,null,null,"Sonuncu saldo")
+  push(null); push(null)
+  push("El Art Travel MMC (itstour) məlumatına görə")
+  push(`${dateTo} tarixinə ${clientName} ${balance.toFixed(2)} AZN`)
+  push(numToAzWords(balance))
+  push(null); push("Qaynar xətt: 0505550097"); push("itstour.az  |  it@itstour.az"); push(null)
+  push("El Art Travel MMC",null,null,null,null,null,null,null,clientName)
+  push(null); push("________________",null,null,null,null,null,null,null,"________________")
+  push(null); push("(Elxan Həsənov)",null,null,null,null,null,null,null,"(_______________________)")
+  push(null); push("M.Y.",null,null,null,null,null,null,null,"M.Y.")
+  push(null); push(null); push(null)
+  push("itstour CRM • El Art Travel MMC • Powered by VARK TECHNOLOGIES")
+  const ws = XLSX.utils.aoa_to_sheet(rows)
+  ws["!cols"] = [{wch:12},{wch:36},{wch:4},{wch:12},{wch:4},{wch:12},{wch:4},{wch:4},{wch:12},{wch:36},{wch:4},{wch:12},{wch:4},{wch:4},{wch:12}]
+  ws["!merges"] = [{s:{r:0,c:0},e:{r:0,c:14}},{s:{r:1,c:0},e:{r:1,c:14}},{s:{r:3,c:0},e:{r:3,c:14}}]
+  const wb2 = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb2, ws, "Üzləşmə Aktı")
+  XLSX.writeFile(wb2, `uzlesme-akti-${clientName.replace(/\s+/g,"-")}-${today.toISOString().slice(0,10)}.xlsx`)
+}
 // ─── PDF Export ───────────────────────────────────────────────────────────────
 function exportToPDF(bookings: any[], clientBalances: Record<string, number>) {
   const date = new Date().toLocaleDateString("az-AZ", { day: "numeric", month: "long", year: "numeric" })
