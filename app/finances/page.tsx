@@ -84,7 +84,7 @@ export default function FinancesPage() {
   const { payments, fetchPayments, addPayment, deletePayment } = usePaymentsStore()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [modal, setModal] = useState<"expense" | "income" | null>(null)
-  const [tab, setTab] = useState<"overview" | "income" | "expense" | "kassa">("overview")
+  const [tab, setTab] = useState<"overview" | "income" | "expense" | "kassa" | "debts">("overview")
   const [selectedBookingId, setSelectedBookingId] = useState("")
   const [cashAZN, setCashAZN] = useState(0)
   const [cashUSD, setCashUSD] = useState(0)
@@ -100,6 +100,9 @@ export default function FinancesPage() {
   const [editOperation, setEditOperation] = useState<"add"|"subtract">("add")
   const [editDate, setEditDate] = useState("")
   const [ready, setReady] = useState(false)
+  const [debtSearch, setDebtSearch] = useState("")
+  const [debtPayAmounts, setDebtPayAmounts] = useState<Record<string, string>>({})
+  const [debtPayLoading, setDebtPayLoading] = useState<string | null>(null)
 
   async function loadCash() {
     const { data: balances } = await supabase.from("cash_balance").select("*")
@@ -201,6 +204,19 @@ export default function FinancesPage() {
     await loadCash(); setCashModal(false)
   }
 
+
+
+  async function handleDebtPay(booking: any) {
+    const amount = parseFloat(debtPayAmounts[booking.id] ?? "")
+    if (!amount || amount <= 0) return
+    setDebtPayLoading(booking.id)
+    const newPaid = (booking.paidAmount ?? 0) + amount
+    const newStatus = newPaid >= booking.sellPrice ? "paid" : "partial"
+    await supabase.from("bookings").update({ paid_amount: newPaid, payment_status: newStatus }).eq("id", booking.id)
+    await fetchBookings()
+    setDebtPayAmounts(prev => { const n = {...prev}; delete n[booking.id]; return n })
+    setDebtPayLoading(null)
+  }
 
   async function handleEditCash(t: any) {
     const amount = parseFloat(editAmount)
@@ -747,6 +763,142 @@ export default function FinancesPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Debts Tab ── */}
+      {tab === "debts" && (
+        <div className="space-y-5">
+          {/* Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Müştəri adı ilə axtar..."
+              value={debtSearch}
+              onChange={e => setDebtSearch(e.target.value)}
+              className="w-full px-5 py-3.5 text-sm rounded-2xl"
+              style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none" }}
+            />
+            {debtSearch && (
+              <button onClick={() => setDebtSearch("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2"
+                style={{ color: "var(--text-muted)" }}>
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          {/* Debt list */}
+          {(() => {
+            const debtBookings = bookings
+              .filter(b => b.paymentStatus !== "paid" && b.sellPrice - (b.paidAmount ?? 0) > 0)
+              .filter(b => !debtSearch || b.clientName.toLowerCase().includes(debtSearch.toLowerCase()))
+              .sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
+
+            if (debtBookings.length === 0) {
+              return (
+                <div className="text-center py-16 rounded-3xl" style={{ ...card, color: "var(--text-muted)" }}>
+                  <p className="text-sm font-medium">{debtSearch ? "Müştəri tapılmadı" : "Borc yoxdur 🎉"}</p>
+                </div>
+              )
+            }
+
+            // Group by client
+            const grouped: Record<string, typeof debtBookings> = {}
+            debtBookings.forEach(b => {
+              if (!grouped[b.clientName]) grouped[b.clientName] = []
+              grouped[b.clientName].push(b)
+            })
+
+            return Object.entries(grouped).map(([clientName, clientBookings]) => {
+              const totalDebt = clientBookings.reduce((s, b) => s + Math.max(0, b.sellPrice - (b.paidAmount ?? 0)), 0)
+              return (
+                <div key={clientName} className="rounded-3xl overflow-hidden" style={card}>
+                  {/* Client header */}
+                  <div className="px-5 py-4 flex items-center justify-between"
+                    style={{ borderBottom: "1px solid var(--border-color)", background: "var(--bg-glass)" }}>
+                    <div>
+                      <p className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>{clientName}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{clientBookings.length} sifariş</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Cəmi borc</p>
+                      <p className="text-lg font-black tabular-nums text-red-500">{formatCurrency(totalDebt)}</p>
+                    </div>
+                  </div>
+
+                  {/* Bookings */}
+                  <div className="divide-y" style={{ borderColor: "var(--border-color)" }}>
+                    {clientBookings.map(b => {
+                      const remaining = Math.max(0, b.sellPrice - (b.paidAmount ?? 0))
+                      const isLoading = debtPayLoading === b.id
+                      return (
+                        <div key={b.id} className="px-5 py-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+                                {b.destination || "—"}
+                              </p>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                                  ✈ {b.departureDate}
+                                </span>
+                                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
+                                  {b.bookingType}
+                                </span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.paymentStatus === "partial" ? "text-orange-500" : "text-red-500"}`}
+                                  style={{ background: b.paymentStatus === "partial" ? "rgba(249,115,22,0.1)" : "rgba(239,68,68,0.1)" }}>
+                                  {b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib"}
+                                </span>
+                              </div>
+                              <div className="flex gap-4 mt-1.5">
+                                <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                                  Ümumi: <strong>{formatCurrency(b.sellPrice)}</strong>
+                                </span>
+                                <span className="text-xs text-green-500">
+                                  Ödənilib: <strong>{formatCurrency(b.paidAmount ?? 0)}</strong>
+                                </span>
+                                <span className="text-xs text-red-500">
+                                  Qalıq: <strong>{formatCurrency(remaining)}</strong>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Payment row */}
+                          <div className="flex items-center gap-2 mt-3">
+                            <input
+                              type="number"
+                              placeholder={`Ödəniş məbləği (max ${remaining.toFixed(2)})`}
+                              value={debtPayAmounts[b.id] ?? ""}
+                              onChange={e => setDebtPayAmounts(prev => ({ ...prev, [b.id]: e.target.value }))}
+                              className="flex-1 px-3 py-2 text-sm rounded-xl"
+                              style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none" }}
+                            />
+                            <button
+                              onClick={() => {
+                                if (!debtPayAmounts[b.id]) setDebtPayAmounts(prev => ({ ...prev, [b.id]: remaining.toFixed(2) }))
+                                else handleDebtPay(b)
+                              }}
+                              disabled={isLoading}
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02] disabled:opacity-50 whitespace-nowrap"
+                              style={{ background: "linear-gradient(135deg, #10b981, #34d399)", boxShadow: "0 4px 12px rgba(16,185,129,0.3)" }}>
+                              {isLoading ? (
+                                <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }} />
+                              ) : (
+                                <CheckCircle2 size={14} />
+                              )}
+                              {debtPayAmounts[b.id] ? "Ödə" : "Tam ödə"}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })
+          })()}
         </div>
       )}
       {/* ── Income Modal ── */}
