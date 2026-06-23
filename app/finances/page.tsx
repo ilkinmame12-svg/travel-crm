@@ -103,6 +103,10 @@ export default function FinancesPage() {
   const [debtSearch, setDebtSearch] = useState("")
   const [debtPayAmounts, setDebtPayAmounts] = useState<Record<string, string>>({})
   const [debtPayLoading, setDebtPayLoading] = useState<string | null>(null)
+  const [expenseCategories, setExpenseCategories] = useState<string[]>(["Ofis", "Kommunal", "Marketing", "Maaş", "Digər"])
+  const [newCategoryInput, setNewCategoryInput] = useState("")
+  const [showCategoryInput, setShowCategoryInput] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
 
   async function loadCash() {
     const { data: balances } = await supabase.from("cash_balance").select("*")
@@ -112,6 +116,11 @@ export default function FinancesPage() {
     }
     const { data: history } = await supabase.from("cash_transactions").select("*").order("created_at", { ascending: false }).limit(50)
     setCashHistory(history ?? [])
+    // Load custom categories
+    const { data: cats } = await supabase.from("expense_categories").select("name").order("created_at", { ascending: true })
+    if (cats && cats.length > 0) {
+      setExpenseCategories(cats.map((c: any) => c.name))
+    }
   }
 
   useEffect(() => { fetchBookings(); fetchPayments(); loadCash(); setReady(true) }, [])
@@ -216,6 +225,23 @@ export default function FinancesPage() {
     await fetchBookings()
     setDebtPayAmounts(prev => { const n = {...prev}; delete n[booking.id]; return n })
     setDebtPayLoading(null)
+  }
+
+  async function handleAddCategory() {
+    const name = newCategoryInput.trim()
+    if (!name) return
+    if (expenseCategories.includes(name)) { setNewCategoryInput(""); setShowCategoryInput(false); return }
+    // Save to supabase (create table if not exists)
+    await supabase.from("expense_categories").insert({ name })
+    setExpenseCategories(prev => [...prev, name])
+    setNewCategoryInput("")
+    setShowCategoryInput(false)
+  }
+
+  async function handleDeleteCategory(name: string) {
+    await supabase.from("expense_categories").delete().eq("name", name)
+    setExpenseCategories(prev => prev.filter(c => c !== name))
+    if (categoryFilter === name) setCategoryFilter("all")
   }
 
   async function handleEditCash(t: any) {
@@ -362,6 +388,10 @@ export default function FinancesPage() {
             Kassa
             <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.2)", fontSize: "11px" }}>{cashHistory.length}</span>
           </TabBtn>
+          <TabBtn active={tab === "debts"} onClick={() => setTab("debts")}>
+            <CreditCard size={14} />
+            Borclar
+          </TabBtn>
         </div>
 
         {/* Overview */}
@@ -466,11 +496,89 @@ export default function FinancesPage() {
 
         {/* Expense tab */}
         {tab === "expense" && (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Əməliyyat xərcləri</h3>
-              <p className="text-sm font-bold text-red-500 tabular-nums">Cəmi: {formatCurrency(totalExpenses)}</p>
+          <div className="p-6 space-y-5">
+            {/* Categories management */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>Kateqoriyalar</h3>
+                <button onClick={() => setShowCategoryInput(v => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all hover:scale-[1.02]"
+                  style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
+                  <Plus size={12} />Yeni kateqoriya
+                </button>
+              </div>
+              {showCategoryInput && (
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    placeholder="Kateqoriya adı..."
+                    value={newCategoryInput}
+                    onChange={e => setNewCategoryInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleAddCategory()}
+                    autoFocus
+                    className="flex-1 px-3 py-2 text-sm rounded-xl"
+                    style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none" }}
+                  />
+                  <button onClick={handleAddCategory}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                    style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}>Əlavə et</button>
+                  <button onClick={() => { setShowCategoryInput(false); setNewCategoryInput("") }}
+                    className="px-3 py-2 rounded-xl text-sm"
+                    style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>Ləğv et</button>
+                </div>
+              )}
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setCategoryFilter("all")}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                  style={{ background: categoryFilter === "all" ? "linear-gradient(135deg,#ef4444,#f97316)" : "var(--bg-glass)", color: categoryFilter === "all" ? "white" : "var(--text-secondary)", border: "1px solid var(--border-color)" }}>
+                  Hamısı
+                </button>
+                {expenseCategories.map(cat => (
+                  <div key={cat} className="flex items-center gap-1 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
+                    <button onClick={() => setCategoryFilter(cat)}
+                      className="px-3 py-1.5 text-xs font-semibold transition-all"
+                      style={{ background: categoryFilter === cat ? "rgba(99,102,241,0.15)" : "var(--bg-glass)", color: categoryFilter === cat ? "#6366f1" : "var(--text-secondary)" }}>
+                      {cat}
+                    </button>
+                    <button onClick={() => handleDeleteCategory(cat)}
+                      className="px-1.5 py-1.5 text-xs transition-all hover:bg-red-50"
+                      style={{ color: "var(--text-muted)", borderLeft: "1px solid var(--border-color)" }}>
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Stats by category */}
+            {expenses.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {expenseCategories
+                  .map(cat => ({ cat, total: expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0) }))
+                  .filter(x => x.total > 0)
+                  .sort((a, b) => b.total - a.total)
+                  .map(({ cat, total }) => (
+                    <div key={cat} className="p-4 rounded-2xl cursor-pointer transition-all hover:scale-[1.02]"
+                      style={{ background: categoryFilter === cat ? "rgba(239,68,68,0.08)" : "var(--bg-glass)", border: `1px solid ${categoryFilter === cat ? "rgba(239,68,68,0.3)" : "var(--border-color)"}` }}
+                      onClick={() => setCategoryFilter(categoryFilter === cat ? "all" : cat)}>
+                      <p className="text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>{cat}</p>
+                      <p className="text-base font-black text-red-500 tabular-nums">{formatCurrency(total)}</p>
+                      <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{expenses.filter(e => e.category === cat).length} əməliyyat</p>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {/* Total */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                Xərclər {categoryFilter !== "all" ? `— ${categoryFilter}` : ""}
+              </h3>
+              <p className="text-sm font-bold text-red-500 tabular-nums">
+                Cəmi: {formatCurrency(expenses.filter(e => categoryFilter === "all" || e.category === categoryFilter).reduce((s, e) => s + e.amount, 0))}
+              </p>
+            </div>
+
             {expenses.length === 0 ? <EmptyState icon={Receipt} label="Xərc qeydi yoxdur" action="İlk xərci əlavə et" onAction={() => setModal("expense")} /> : (
               <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
                 <table className="w-full text-sm">
@@ -482,7 +590,7 @@ export default function FinancesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {expenses.map(e => (
+                    {expenses.filter(e => categoryFilter === "all" || e.category === categoryFilter).map(e => (
                       <tr key={e.id} className="group transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
                         onMouseEnter={el => (el.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
                         onMouseLeave={el => (el.currentTarget as HTMLElement).style.background = "transparent"}>
@@ -766,8 +874,8 @@ export default function FinancesPage() {
         </div>
       )}
 
-      {/* ── Debts Tab ── */}
-      {tab === "debts" && (
+        {/* ── Debts Tab ── */}
+        {tab === "debts" && (
         <div className="space-y-5">
           {/* Search */}
           <div className="relative">
