@@ -1,4 +1,5 @@
 "use client"
+import * as XLSX from "xlsx"
 import { supabase } from "@/lib/supabase"
 import { useState, useEffect, useMemo } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
@@ -881,23 +882,55 @@ export default function FinancesPage() {
         {/* ── Debts Tab ── */}
         {tab === "debts" && (
         <div className="space-y-5">
-          {/* Search */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Müştəri adı ilə axtar..."
-              value={debtSearch}
-              onChange={e => setDebtSearch(e.target.value)}
-              className="w-full px-5 py-3.5 text-sm rounded-2xl"
-              style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none" }}
-            />
-            {debtSearch && (
-              <button onClick={() => setDebtSearch("")}
-                className="absolute right-4 top-1/2 -translate-y-1/2"
-                style={{ color: "var(--text-muted)" }}>
-                <X size={16} />
-              </button>
-            )}
+          {/* Search + Excel */}
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Müştəri adı ilə axtar..."
+                value={debtSearch}
+                onChange={e => setDebtSearch(e.target.value)}
+                className="w-full px-5 py-3.5 text-sm rounded-2xl"
+                style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none" }}
+              />
+              {debtSearch && (
+                <button onClick={() => setDebtSearch("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2"
+                  style={{ color: "var(--text-muted)" }}>
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                const rows = bookings
+                  .filter(b => b.paymentStatus !== "paid" && b.sellPrice - (b.paidAmount ?? 0) > 0)
+                  .filter(b => !debtSearch || b.clientName.toLowerCase().includes(debtSearch.toLowerCase()))
+                  .sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
+                  .map((b, i) => ({
+                    "#": i + 1,
+                    "Müştəri": b.clientName,
+                    "Telefon": b.clientPhone || "",
+                    "İstiqamət": b.destination || "",
+                    "Növ": b.bookingType,
+                    "Tarix": b.departureDate || "",
+                    "Ümumi (AZN)": b.sellPrice,
+                    "Ödənilib (AZN)": b.paidAmount ?? 0,
+                    "Qalıq Borc (AZN)": Math.max(0, b.sellPrice - (b.paidAmount ?? 0)),
+                    "Status": b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib",
+                    "Menecer": b.manager || "",
+                  }))
+                const ws = XLSX.utils.json_to_sheet(rows)
+                ws["!cols"] = [{wch:4},{wch:22},{wch:14},{wch:22},{wch:12},{wch:12},{wch:14},{wch:14},{wch:16},{wch:14},{wch:16}]
+                const wb2 = XLSX.utils.book_new()
+                XLSX.utils.book_append_sheet(wb2, ws, "Borclar")
+                XLSX.writeFile(wb2, `borclar-${new Date().toISOString().slice(0,10)}.xlsx`)
+              }}
+              className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] whitespace-nowrap"
+              style={{ background: "linear-gradient(135deg,#10b981,#34d399)", boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}>
+              <ArrowUpRight size={15} />
+              ⬇ Excel
+            </button>
           </div>
 
           {/* Debt list */}
