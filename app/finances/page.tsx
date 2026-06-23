@@ -107,6 +107,10 @@ export default function FinancesPage() {
   const [newCategoryInput, setNewCategoryInput] = useState("")
   const [showCategoryInput, setShowCategoryInput] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [incomeSearch, setIncomeSearch] = useState("")
+  const [incomeBookings, setIncomeBookings] = useState<any[]>([])
+  const [incomeAmounts, setIncomeAmounts] = useState<Record<string, string>>({})
+  const [incomeLoading, setIncomeLoading] = useState<string | null>(null)
 
   async function loadCash() {
     const { data: balances } = await supabase.from("cash_balance").select("*")
@@ -1011,66 +1015,258 @@ export default function FinancesPage() {
       )}
       {/* ── Income Modal ── */}
       {modal === "income" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
-          <div className="w-full max-w-md" style={modalStyle}>
-            <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(16,185,129,0.12)" }}>
-                  <TrendingUp size={14} className="text-green-500" />
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-8 px-4"
+          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(12px)" }}
+          onClick={e => { if (e.target === e.currentTarget) { setModal(null); setIncomeSearch(""); setIncomeBookings([]); setIncomeAmounts({}) } }}>
+          <div className="w-full max-w-lg mb-8" style={modalStyle}>
+
+            {/* Header */}
+            <div className="px-6 py-5 flex items-center justify-between"
+              style={{ borderBottom: "1px solid var(--border-color)", background: "linear-gradient(135deg,rgba(16,185,129,0.1),transparent)" }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
+                  style={{ background: "linear-gradient(135deg,#10b981,#34d399)", boxShadow: "0 4px 12px rgba(16,185,129,0.35)" }}>
+                  <TrendingUp size={18} color="white" />
                 </div>
-                <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Yeni gəlir qeydi</h2>
+                <div>
+                  <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>Ödəniş qəbul et</h2>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Müştəri borcunu sil</p>
+                </div>
               </div>
-              <button onClick={() => setModal(null)} className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
+              <button onClick={() => { setModal(null); setIncomeSearch(""); setIncomeBookings([]); setIncomeAmounts({}) }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:scale-110"
+                style={{ background: "var(--bg-glass)", color: "var(--text-muted)", border: "1px solid var(--border-color)" }}>
                 <X size={15} />
               </button>
             </div>
-            <form onSubmit={handleAddIncome} className="p-6 space-y-4">
+
+            <div className="p-6 space-y-5">
+
+              {/* ── SEARCH ── */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Müştəri / Şirkət *</label>
-                <input name="name" required placeholder="Məs: Leyla Mammadova" style={input} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Sifariş (istəyə görə)</label>
-                <select value={selectedBookingId} onChange={e => setSelectedBookingId(e.target.value)} style={input}>
-                  <option value="">— Seçin —</option>
-                  {unpaidBookings.map(b => <option key={b.id} value={b.id}>{b.clientName} — {b.destination} — {formatCurrency(b.sellPrice - (b.paidAmount ?? 0))}</option>)}
-                </select>
-                {selectedBookingId && <p className="text-xs mt-1.5 text-green-500">✓ Bu sifariş borcundan çıxılacaq</p>}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Məbləğ (AZN) *</label>
-                  <input name="amount" type="number" step="0.01" min="0" required style={input} />
+                <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-muted)" }}>
+                  Müştəri axtar
+                </label>
+                <div className="relative">
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Ad yazın..."
+                    value={incomeSearch}
+                    onChange={e => {
+                      const q = e.target.value
+                      setIncomeSearch(q)
+                      if (q.trim().length > 0) {
+                        const matched = bookings
+                          .filter(b => b.clientName.toLowerCase().includes(q.toLowerCase()) && b.paymentStatus !== "paid" && b.sellPrice - (b.paidAmount ?? 0) > 0)
+                          .sort((a, b) => new Date(a.departureDate).getTime() - new Date(b.departureDate).getTime())
+                        setIncomeBookings(matched)
+                      } else {
+                        setIncomeBookings([])
+                      }
+                    }}
+                    style={{ ...input, paddingRight: "44px" }}
+                  />
+                  {incomeSearch ? (
+                    <button onClick={() => { setIncomeSearch(""); setIncomeBookings([]); setIncomeAmounts({}) }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center"
+                      style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
+                      <X size={12} />
+                    </button>
+                  ) : (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}>
+                      <AlertCircle size={15} />
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Tarix</label>
-                  <input name="date" type="date" defaultValue={new Date().toISOString().split("T")[0]} style={input} />
+              </div>
+
+              {/* ── RESULTS ── */}
+              {incomeSearch && incomeBookings.length === 0 && (
+                <div className="py-8 text-center rounded-2xl" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
+                  <CheckCircle2 size={24} className="mx-auto mb-2 text-green-500" />
+                  <p className="text-sm font-medium">Bu müştərinin borcu yoxdur</p>
                 </div>
+              )}
+
+              {incomeBookings.length > 0 && (() => {
+                // Group by client
+                const grouped: Record<string, typeof incomeBookings> = {}
+                incomeBookings.forEach(b => {
+                  if (!grouped[b.clientName]) grouped[b.clientName] = []
+                  grouped[b.clientName].push(b)
+                })
+
+                return Object.entries(grouped).map(([cName, cBooks]) => {
+                  const totalDebt = cBooks.reduce((s, b) => s + Math.max(0, b.sellPrice - (b.paidAmount ?? 0)), 0)
+                  return (
+                    <div key={cName} className="rounded-2xl overflow-hidden"
+                      style={{ border: "1px solid var(--border-color)" }}>
+
+                      {/* Client row */}
+                      <div className="px-4 py-3 flex items-center justify-between"
+                        style={{ background: "var(--bg-glass)", borderBottom: "1px solid var(--border-color)" }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white text-sm font-black flex-shrink-0"
+                            style={{ background: "linear-gradient(135deg,#ef4444,#f97316)" }}>
+                            {cName[0]?.toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{cName}</p>
+                            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{cBooks.length} sifariş · borc var</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Cəmi borc</p>
+                          <p className="text-base font-black text-red-500 tabular-nums">{formatCurrency(totalDebt)}</p>
+                        </div>
+                      </div>
+
+                      {/* Booking rows */}
+                      <div className="divide-y" style={{ borderColor: "var(--border-color)" }}>
+                        {cBooks.map((b, bi) => {
+                          const remaining = Math.max(0, b.sellPrice - (b.paidAmount ?? 0))
+                          const val = incomeAmounts[b.id] ?? ""
+                          const isLoading = incomeLoading === b.id
+                          return (
+                            <div key={b.id} className="px-4 py-3.5"
+                              style={{ background: bi % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
+                              {/* Booking info */}
+                              <div className="flex items-start gap-2 mb-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+                                    {b.destination || "—"}
+                                  </p>
+                                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>✈ {b.departureDate}</span>
+                                    <span className="text-xs px-1.5 py-0.5 rounded-lg font-medium"
+                                      style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
+                                      {b.bookingType}
+                                    </span>
+                                    <span className="text-xs px-1.5 py-0.5 rounded-lg font-medium"
+                                      style={{ background: b.paymentStatus === "partial" ? "rgba(249,115,22,0.1)" : "rgba(239,68,68,0.1)",
+                                               color: b.paymentStatus === "partial" ? "#ea580c" : "#ef4444" }}>
+                                      {b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib"}
+                                    </span>
+                                  </div>
+                                  {/* Amounts row */}
+                                  <div className="flex gap-3 mt-1.5">
+                                    <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                                      Ümumi: <span className="font-bold">{formatCurrency(b.sellPrice)}</span>
+                                    </span>
+                                    {(b.paidAmount ?? 0) > 0 && (
+                                      <span className="text-xs text-green-500">
+                                        Ödənilib: <span className="font-bold">{formatCurrency(b.paidAmount)}</span>
+                                      </span>
+                                    )}
+                                    <span className="text-xs text-red-500">
+                                      Qalıq: <span className="font-bold">{formatCurrency(remaining)}</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Payment input */}
+                              <div className="flex gap-2">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  max={remaining}
+                                  value={val}
+                                  onChange={e => setIncomeAmounts(prev => ({ ...prev, [b.id]: e.target.value }))}
+                                  placeholder={`Max: ${remaining.toFixed(2)} AZN`}
+                                  className="flex-1 px-3 py-2 text-sm rounded-xl"
+                                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)", outline: "none" }}
+                                />
+                                <button
+                                  disabled={isLoading}
+                                  onClick={async () => {
+                                    const amt = parseFloat(val || remaining.toFixed(2))
+                                    if (!amt || amt <= 0) return
+                                    setIncomeLoading(b.id)
+                                    const newPaid = (b.paidAmount ?? 0) + amt
+                                    const newStatus = newPaid >= b.sellPrice ? "paid" : "partial"
+                                    await supabase.from("bookings").update({ paid_amount: newPaid, payment_status: newStatus }).eq("id", b.id)
+                                    await addPayment({ clientName: b.clientName, amount: amt, description: `Ödəniş: ${b.destination}`, date: new Date().toISOString().split("T")[0], bookingId: b.id })
+                                    await fetchBookings()
+                                    setIncomeAmounts(prev => { const n = { ...prev }; delete n[b.id]; return n })
+                                    setIncomeBookings(prev => prev.filter(x => {
+                                      if (x.id !== b.id) return true
+                                      return (x.sellPrice - newPaid) > 0.01
+                                    }))
+                                    setIncomeLoading(null)
+                                  }}
+                                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white whitespace-nowrap transition-all hover:scale-[1.03] active:scale-95 disabled:opacity-50"
+                                  style={{ background: "linear-gradient(135deg,#10b981,#34d399)", boxShadow: "0 4px 14px rgba(16,185,129,0.35)", minWidth: "80px", justifyContent: "center" }}>
+                                  {isLoading ? (
+                                    <span className="w-4 h-4 border-2 rounded-full animate-spin flex-shrink-0"
+                                      style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }} />
+                                  ) : (
+                                    <CheckCircle2 size={14} />
+                                  )}
+                                  {val ? "Ödə" : "Tam ödə"}
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })
+              })()}
+
+              {/* ── DIVIDER ── */}
+              <div className="flex items-center gap-3 py-1">
+                <div className="flex-1 h-px" style={{ background: "var(--border-color)" }} />
+                <span className="text-xs font-bold uppercase tracking-widest px-2" style={{ color: "var(--text-muted)" }}>Əl ilə qeyd</span>
+                <div className="flex-1 h-px" style={{ background: "var(--border-color)" }} />
               </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Açıqlama</label>
-                <input name="description" placeholder="Noyabr borcu..." style={input} />
-              </div>
-              <div className="grid grid-cols-2 gap-2 pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
-                <button type="button" onClick={() => setModal(null)}
-                  className="py-2.5 rounded-2xl text-sm font-medium transition-all"
-                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
-                  Ləğv et
-                </button>
-                <button type="submit"
-                  className="py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02]"
-                  style={{ background: "linear-gradient(135deg, #10b981, #34d399)", boxShadow: "0 4px 12px rgba(16,185,129,0.3)" }}>
-                  Yadda saxla
-                </button>
-              </div>
-            </form>
+
+              {/* ── MANUAL FORM ── */}
+              <form onSubmit={handleAddIncome} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Müştəri *</label>
+                    <input name="name" required placeholder="Ad..." style={input} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Məbləğ (AZN) *</label>
+                    <input name="amount" type="number" step="0.01" min="0" required style={input} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Tarix</label>
+                    <input name="date" type="date" defaultValue={new Date().toISOString().split("T")[0]} style={input} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Açıqlama</label>
+                    <input name="description" placeholder="Qeyd..." style={input} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-2" style={{ borderTop: "1px solid var(--border-color)" }}>
+                  <button type="button"
+                    onClick={() => { setModal(null); setIncomeSearch(""); setIncomeBookings([]); setIncomeAmounts({}) }}
+                    className="py-2.5 rounded-2xl text-sm font-medium transition-all"
+                    style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                    Bağla
+                  </button>
+                  <button type="submit"
+                    className="py-2.5 rounded-2xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
+                    style={{ background: "linear-gradient(135deg,#10b981,#34d399)", boxShadow: "0 4px 12px rgba(16,185,129,0.3)" }}>
+                    Yadda saxla
+                  </button>
+                </div>
+              </form>
+
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── Expense Modal ── */}
+            {/* ── Expense Modal ── */}
       {modal === "expense" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
