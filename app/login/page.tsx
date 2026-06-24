@@ -242,7 +242,11 @@ export default function LoginPage() {
             <span className="text-xs" style={{ color:"rgba(255,255,255,0.2)" }}>itstour CRM v2.0</span>
             <div className="flex-1 h-px" style={{ background:"rgba(255,255,255,0.06)" }} />
           </div>
-
+<a href="/register"
+  className="block text-center py-3 rounded-2xl text-sm font-semibold mt-4 transition-all hover:scale-[1.01]"
+  style={{ background:"rgba(255,255,255,0.04)", border:"1.5px solid rgba(255,255,255,0.08)", color:"rgba(255,255,255,0.5)" }}>
+  Yeni işçi qeydiyyatı →
+</a>
           {/* Footer */}
           <p className="text-center text-xs" style={{ color:"rgba(255,255,255,0.15)" }}>
             Powered by{" "}
