@@ -6,6 +6,8 @@ import { useState, useEffect } from "react"
 import SplashScreen from "@/components/SplashScreen"
 import { supabase } from "@/lib/supabase"
 
+const PUBLIC_PATHS = ["/login", "/register"]
+
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -14,23 +16,20 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const [checking, setChecking] = useState(true)
   const [authed, setAuthed] = useState(false)
 
-  const isLogin = pathname === "/login"
-  const isRegister = pathname === "/register"
+  const isPublic = PUBLIC_PATHS.includes(pathname)
 
   useEffect(() => {
     setMounted(true)
 
-    // Check auth
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        if (!isLogin && !isRegister) router.replace("/login")
+        if (!isPublic) router.replace("/login")
         setChecking(false)
         return
       }
       setAuthed(true)
       setChecking(false)
 
-      // Splash screen
       const key = `splash_${new Date().toLocaleDateString()}`
       const count = parseInt(localStorage.getItem(key) ?? "0")
       if (count < 2) {
@@ -39,11 +38,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       }
     })
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session) {
         setAuthed(false)
-        router.replace("/login")
+        if (!isPublic) router.replace("/login")
       } else if (session) {
         setAuthed(true)
       }
@@ -52,17 +50,16 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     return () => subscription.unsubscribe()
   }, [])
 
-  // Login/Register page — always show
-  if (isLogin || isRegister) return <>{children}</>
+  // Public pages — always show
+  if (isPublic) return <>{children}</>
 
-  // Checking auth — show blank
+  // Checking auth
   if (checking || !mounted) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-primary)" }}>
       <div className="w-10 h-10 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
     </div>
   )
 
-  // Not authed — redirect handled above, show nothing
   if (!authed) return null
 
   return (
