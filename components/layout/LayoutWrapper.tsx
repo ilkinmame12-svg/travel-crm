@@ -15,6 +15,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const [authed, setAuthed] = useState(false)
 
   const isLogin = pathname === "/login"
+  const isRegister = pathname === "/register"
 
   useEffect(() => {
     setMounted(true)
