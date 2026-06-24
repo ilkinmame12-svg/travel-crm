@@ -23,7 +23,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     // Check auth
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        if (!isLogin) router.replace("/login")
+        if (!isLogin && !isRegister) router.replace("/login")
         setChecking(false)
         return
       }
@@ -52,8 +52,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     return () => subscription.unsubscribe()
   }, [])
 
-  // Login page — always show
-  if (isLogin) return <>{children}</>
+  // Login/Register page — always show
+  if (isLogin || isRegister) return <>{children}</>
 
   // Checking auth — show blank
   if (checking || !mounted) return (
