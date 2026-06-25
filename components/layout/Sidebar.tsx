@@ -3,10 +3,11 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
+  
   LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe,
   Settings, HelpCircle, LogOut, BotMessageSquare, Users,
   PlaneTakeoff, Building2, Scale, Clock, MessageCircle,
-  ChevronRight, ChevronLeft, FileText, User
+  ChevronRight, ChevronLeft, FileText, User,MoreHorizontal
 } from "lucide-react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
@@ -127,6 +128,7 @@ export function MobileNav() {
 
   return (
     <>
+    
       {/* Top bar */}
       <div className="md:hidden px-4 py-2.5 flex items-center justify-between sticky top-0 z-40"
         style={{ background:"var(--bg-secondary)", borderBottom:"1px solid var(--border-color)", backdropFilter:"blur(20px)" }}>
@@ -137,11 +139,13 @@ export function MobileNav() {
           </span>
         </div>
         <div className="flex items-center gap-1.5">
+          
           <ThemeToggle />
           <button onClick={() => setShowMore(v => !v)}
             className="w-8 h-8 flex items-center justify-center rounded-xl transition-all"
             style={{ color:"var(--text-secondary)", background:"var(--bg-glass)", border:"1px solid var(--border-color)" }}>
             <MoreHorizontal size={16} />
+            
           </button>
         </div>
       </div>
