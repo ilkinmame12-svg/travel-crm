@@ -101,55 +101,186 @@ export function MobileNav() {
   const router = useRouter()
   const { profile } = useUserRole()
   const [mounted, setMounted] = useState(false)
+  const [showMore, setShowMore] = useState(false)
+  const [showFinance, setShowFinance] = useState(false)
   const unread = useUnread(profile?.id)
   useEffect(() => { setMounted(true) }, [])
+
   const MENU = ALL_MENU.filter(item => !profile || item.roles.includes(profile.role))
+  const showFinanceMenu = profile && FINANCE_ROLES.includes(profile.role)
+  const financeItems = getFinanceMenu(profile?.role ?? "")
+  const isFinanceActive = financeItems.some(f => pathname === f.href)
+
   async function handleLogout() { await supabase.auth.signOut(); router.push("/login"); router.refresh() }
 
   if (!mounted) return (
     <div className="md:hidden h-14 animate-pulse" style={{ background:"var(--bg-secondary)", borderBottom:"1px solid var(--border-color)" }} />
   )
 
+  // Bottom nav items: Dashboard, Bookings, Finance(if allowed), Chat, More
+  const bottomItems = [
+    MENU.find(m => m.href === "/"),
+    MENU.find(m => m.href === "/bookings"),
+    showFinanceMenu ? { href: "__finance__", label: "Maliyyə", icon: Wallet } : MENU.find(m => m.href === "/drafts"),
+    MENU.find(m => m.href === "/chat"),
+  ].filter(Boolean) as any[]
+
   return (
-    <div className="md:hidden px-4 py-3 flex items-center justify-between"
-      style={{ background:"var(--bg-secondary)", borderBottom:"1px solid var(--border-color)", backdropFilter:"blur(20px)" }}>
-      <div className="flex items-center gap-2">
-        <LogoIcon size={32} />
-        <span className="text-sm font-black" style={{ color:"var(--text-primary)", letterSpacing:"-0.5px" }}>
-          its<span style={{ color:"#ef4444" }}>tour</span>
-        </span>
+    <>
+      {/* Top bar */}
+      <div className="md:hidden px-4 py-2.5 flex items-center justify-between sticky top-0 z-40"
+        style={{ background:"var(--bg-secondary)", borderBottom:"1px solid var(--border-color)", backdropFilter:"blur(20px)" }}>
+        <div className="flex items-center gap-2">
+          <LogoIcon size={30} />
+          <span className="text-sm font-black" style={{ color:"var(--text-primary)", letterSpacing:"-0.5px" }}>
+            its<span style={{ color:"#ef4444" }}>tour</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle />
+          <button onClick={() => setShowMore(v => !v)}
+            className="w-8 h-8 flex items-center justify-center rounded-xl transition-all"
+            style={{ color:"var(--text-secondary)", background:"var(--bg-glass)", border:"1px solid var(--border-color)" }}>
+            <MoreHorizontal size={16} />
+          </button>
+        </div>
       </div>
-      <div className="flex gap-1 overflow-x-auto">
-        {MENU.map(item => {
-          const active = pathname === item.href
-          const Icon = item.icon
-          const isChat = item.href === "/chat"
-          return (
-            <Link key={item.href} href={item.href}
-              className="relative flex items-center justify-center w-9 h-9 rounded-xl transition-all active:scale-90"
-              style={{
-                background: active ? "linear-gradient(135deg,#ef4444,#f97316)" : "transparent",
-                color: active ? "white" : "var(--text-secondary)",
-                boxShadow: active ? "0 4px 12px rgba(239,68,68,0.3)" : "none",
-              }}>
-              <Icon size={17} />
-              {isChat && unread > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
-                  style={{ background:"#22c55e", fontSize:"9px" }}>{unread > 9 ? "9+" : unread}</span>
-              )}
-            </Link>
-          )
-        })}
+
+      {/* More drawer */}
+      {showMore && (
+        <div className="md:hidden fixed inset-0 z-50" onClick={() => setShowMore(false)}>
+          <div className="absolute inset-0" style={{ background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)" }} />
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl p-5 pb-8"
+            style={{ background:"var(--bg-card)", border:"1px solid var(--border-color)" }}
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background:"var(--border-color)" }} />
+            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color:"var(--text-muted)" }}>Menyu</p>
+            <div className="grid grid-cols-4 gap-3 mb-5">
+              {MENU.filter(m => !["/" , "/bookings", "/chat"].includes(m.href)).map(item => {
+                const active = pathname === item.href
+                const Icon = item.icon
+                return (
+                  <Link key={item.href} href={item.href} onClick={() => setShowMore(false)}
+                    className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-2xl transition-all active:scale-95"
+                    style={{ background: active ? "linear-gradient(135deg,#ef4444,#f97316)" : "var(--bg-glass)", border: active ? "none" : "1px solid var(--border-color)" }}>
+                    <Icon size={20} style={{ color: active ? "white" : "var(--text-secondary)" }} />
+                    <span className="text-xs font-medium text-center leading-tight" style={{ color: active ? "white" : "var(--text-secondary)", fontSize:"10px" }}>
+                      {item.label}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+            {showFinanceMenu && (
+              <>
+                <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color:"var(--text-muted)" }}>Maliyyə</p>
+                <div className="grid grid-cols-4 gap-3 mb-5">
+                  {financeItems.map(f => {
+                    const active = pathname === f.href
+                    const Icon = f.icon
+                    return (
+                      <Link key={f.href} href={f.href} onClick={() => setShowMore(false)}
+                        className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-2xl transition-all active:scale-95"
+                        style={{ background: active ? "linear-gradient(135deg,#ef4444,#f97316)" : "var(--bg-glass)", border: active ? "none" : "1px solid var(--border-color)" }}>
+                        <Icon size={20} style={{ color: active ? "white" : "var(--text-secondary)" }} />
+                        <span className="text-xs font-medium text-center leading-tight" style={{ color: active ? "white" : "var(--text-secondary)", fontSize:"10px" }}>
+                          {f.label}
+                        </span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+            <button onClick={handleLogout}
+              className="w-full py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
+              style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", color:"#ef4444" }}>
+              <LogOut size={16} />
+              Çıxış
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Finance submenu sheet */}
+      {showFinance && (
+        <div className="md:hidden fixed inset-0 z-50" onClick={() => setShowFinance(false)}>
+          <div className="absolute inset-0" style={{ background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)" }} />
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl p-5 pb-8"
+            style={{ background:"var(--bg-card)", border:"1px solid var(--border-color)" }}
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background:"var(--border-color)" }} />
+            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color:"var(--text-muted)" }}>Maliyyə</p>
+            <div className="grid grid-cols-3 gap-3">
+              {financeItems.map(f => {
+                const active = pathname === f.href
+                const Icon = f.icon
+                return (
+                  <Link key={f.href} href={f.href} onClick={() => setShowFinance(false)}
+                    className="flex flex-col items-center gap-2 py-4 px-3 rounded-2xl transition-all active:scale-95"
+                    style={{ background: active ? "linear-gradient(135deg,#ef4444,#f97316)" : "var(--bg-glass)", border: active ? "none" : "1px solid var(--border-color)" }}>
+                    <Icon size={22} style={{ color: active ? "white" : "var(--text-secondary)" }} />
+                    <span className="text-xs font-semibold text-center" style={{ color: active ? "white" : "var(--text-secondary)" }}>
+                      {f.label}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom navigation bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 px-4 pb-safe"
+        style={{ background:"var(--bg-secondary)", borderTop:"1px solid var(--border-color)", backdropFilter:"blur(20px)", paddingBottom:"max(16px, env(safe-area-inset-bottom))" }}>
+        <div className="flex items-center justify-around py-2">
+          {bottomItems.map(item => {
+            if (!item) return null
+            const isFinance = item.href === "__finance__"
+            const active = isFinance ? isFinanceActive : pathname === item.href
+            const Icon = item.icon
+            const isChat = item.href === "/chat"
+            return (
+              <button key={item.href}
+                onClick={() => {
+                  if (isFinance) { setShowFinance(v => !v) }
+                  else { router.push(item.href) }
+                }}
+                className="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition-all active:scale-90 relative"
+                style={{ color: active ? "#ef4444" : "var(--text-muted)", minWidth: 60 }}>
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all"
+                    style={{ background: active ? "linear-gradient(135deg,#ef4444,#f97316)" : "transparent", boxShadow: active ? "0 4px 12px rgba(239,68,68,0.35)" : "none" }}>
+                    <Icon size={18} style={{ color: active ? "white" : "var(--text-muted)" }} />
+                  </div>
+                  {isChat && unread > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
+                      style={{ background:"#22c55e", fontSize:"9px" }}>{unread > 9 ? "9+" : unread}</span>
+                  )}
+                </div>
+                <span className="text-center font-medium transition-all" style={{ fontSize:"10px", color: active ? "#ef4444" : "var(--text-muted)" }}>
+                  {item.label}
+                </span>
+              </button>
+            )
+          })}
+          {/* More button */}
+          <button onClick={() => setShowMore(v => !v)}
+            className="flex flex-col items-center gap-1 py-1 px-4 rounded-2xl transition-all active:scale-90"
+            style={{ minWidth: 60 }}>
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
+              style={{ background: showMore ? "var(--bg-glass)" : "transparent" }}>
+              <MoreHorizontal size={18} style={{ color:"var(--text-muted)" }} />
+            </div>
+            <span className="font-medium" style={{ fontSize:"10px", color:"var(--text-muted)" }}>Daha çox</span>
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-1.5">
-        <ThemeToggle />
-        <button onClick={handleLogout}
-          className="w-9 h-9 flex items-center justify-center rounded-xl transition-all"
-          style={{ color:"var(--text-secondary)", background:"var(--bg-glass)", border:"1px solid var(--border-color)" }}>
-          <LogOut size={16} />
-        </button>
-      </div>
-    </div>
+
+      {/* Bottom padding to prevent content being hidden behind bottom nav */}
+      <div className="md:hidden h-20" />
+    </>
   )
 }
 
