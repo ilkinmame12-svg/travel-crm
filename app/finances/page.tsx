@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/calculations"
 import {
   TrendingUp, TrendingDown, DollarSign, Plus, Trash2,
   Wallet, ArrowUpRight, X, Receipt, CreditCard, BarChart3,
-  CheckCircle2, Clock, AlertCircle, Edit3
+  CheckCircle2, Clock, AlertCircle, Edit3, FileDown, CalendarRange
 } from "lucide-react"
 
 interface Expense { id: string; name: string; amount: number; category: string; date: string }
@@ -101,6 +101,9 @@ export default function FinancesPage() {
   const [editOperation, setEditOperation] = useState<"add"|"subtract">("add")
   const [editDate, setEditDate] = useState("")
   const [ready, setReady] = useState(false)
+  const [kassaFrom, setKassaFrom] = useState("")
+  const [kassaTo, setKassaTo] = useState("")
+  const [pdfLoading, setPdfLoading] = useState(false)
   const [debtSearch, setDebtSearch] = useState("")
   const [debtPayAmounts, setDebtPayAmounts] = useState<Record<string, string>>({})
   const [debtPayLoading, setDebtPayLoading] = useState<string | null>(null)
@@ -140,6 +143,82 @@ export default function FinancesPage() {
 
   const cashAznIn  = useMemo(() => cashHistory.filter(t => t.currency === "AZN" && t.operation === "add").reduce((s, t) => s + t.amount, 0), [cashHistory])
   const cashAznOut = useMemo(() => cashHistory.filter(t => t.currency === "AZN" && t.operation === "subtract").reduce((s, t) => s + t.amount, 0), [cashHistory])
+
+  const filteredCashHistory = useMemo(() => {
+    return cashHistory.filter(t => {
+      if (!kassaFrom && !kassaTo) return true
+      const d = new Date(t.created_at)
+      const from = kassaFrom ? new Date(kassaFrom + "T00:00:00") : null
+      const to   = kassaTo   ? new Date(kassaTo   + "T23:59:59") : null
+      if (from && d < from) return false
+      if (to   && d > to)   return false
+      return true
+    })
+  }, [cashHistory, kassaFrom, kassaTo])
+
+  async function downloadKassaPDF() {
+    setPdfLoading(true)
+    try {
+      const { default: jsPDF } = await import("jspdf")
+      const { default: autoTable } = await import("jspdf-autotable")
+
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" })
+
+      // Header
+      doc.setFontSize(18)
+      doc.setTextColor(40, 40, 40)
+      doc.text("ITS Tour — Kassa Hesabatı", 14, 18)
+
+      const periodLabel = kassaFrom || kassaTo
+        ? `${kassaFrom ? kassaFrom : "əvvəl"} — ${kassaTo ? kassaTo : "bu günə qədər"}`
+        : "Bütün tarixlər"
+      doc.setFontSize(10)
+      doc.setTextColor(120, 120, 120)
+      doc.text(`Dövr: ${periodLabel}`, 14, 26)
+      doc.text(`Çap tarixi: ${new Date().toLocaleDateString("az-AZ")}`, 14, 32)
+
+      // Summary row
+      const totalIn  = filteredCashHistory.filter(t => t.currency === "AZN" && t.operation === "add").reduce((s, t) => s + t.amount, 0)
+      const totalOut = filteredCashHistory.filter(t => t.currency === "AZN" && t.operation === "subtract").reduce((s, t) => s + t.amount, 0)
+      doc.setFontSize(10)
+      doc.setTextColor(40, 40, 40)
+      doc.text(`AZN Giriş: ${totalIn.toFixed(2)}    AZN Çıxış: ${totalOut.toFixed(2)}    Fərq: ${(totalIn - totalOut).toFixed(2)}`, 14, 40)
+
+      // Table
+      const rows = filteredCashHistory.map(t => [
+        new Date(t.created_at).toLocaleDateString("az-AZ") + " " + new Date(t.created_at).toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" }),
+        t.currency,
+        t.operation === "add" ? "Giriş" : "Çıxış",
+        (t.operation === "add" ? "+" : "−") + Number(t.amount).toFixed(2) + " " + t.currency,
+        t.reason || "—",
+        Number(t.balance_after ?? 0).toFixed(2) + " " + t.currency,
+      ])
+
+      autoTable(doc, {
+        startY: 46,
+        head: [["Tarix / Saat", "Valyuta", "Növ", "Məbləğ", "Səbəb", "Qalıq"]],
+        body: rows,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [245, 245, 255] },
+        didParseCell(data) {
+          if (data.section === "body" && data.column.index === 2) {
+            data.cell.styles.textColor = data.cell.raw === "Giriş" ? [22, 163, 74] : [220, 38, 38]
+          }
+          if (data.section === "body" && data.column.index === 3) {
+            const isIn = String(data.cell.raw ?? "").startsWith("+")
+            data.cell.styles.textColor = isIn ? [22, 163, 74] : [220, 38, 38]
+            data.cell.styles.fontStyle = "bold"
+          }
+        },
+      })
+
+      const filename = `kassa_${kassaFrom || "start"}_${kassaTo || "end"}.pdf`
+      doc.save(filename)
+    } finally {
+      setPdfLoading(false)
+    }
+  }
 
   if (!ready) return (
     <div className="min-h-screen p-7" style={{ background: "var(--bg-primary)" }}>
@@ -641,14 +720,49 @@ export default function FinancesPage() {
 
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Kassa əməliyyatları</h3>
-              <button onClick={() => setCashModal(true)}
-                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl transition-all hover:scale-[1.03]"
-                style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>
-                <Plus size={12} /> Əməliyyat
-              </button>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {/* Period filter */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
+                  <CalendarRange size={12} style={{ color: "var(--text-muted)" }} />
+                  <input
+                    type="date" value={kassaFrom} onChange={e => setKassaFrom(e.target.value)}
+                    className="text-xs outline-none bg-transparent"
+                    style={{ color: "var(--text-primary)", width: "110px" }}
+                  />
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>
+                  <input
+                    type="date" value={kassaTo} onChange={e => setKassaTo(e.target.value)}
+                    className="text-xs outline-none bg-transparent"
+                    style={{ color: "var(--text-primary)", width: "110px" }}
+                  />
+                  {(kassaFrom || kassaTo) && (
+                    <button onClick={() => { setKassaFrom(""); setKassaTo("") }}
+                      className="ml-1 p-0.5 rounded-lg transition-all hover:scale-110"
+                      style={{ color: "var(--text-muted)" }}>
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+                {/* PDF download */}
+                <button
+                  onClick={downloadKassaPDF}
+                  disabled={pdfLoading || filteredCashHistory.length === 0}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl text-white transition-all hover:scale-[1.03] active:scale-95 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 4px 12px rgba(99,102,241,0.3)" }}>
+                  {pdfLoading
+                    ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : <FileDown size={13} />}
+                  PDF {filteredCashHistory.length !== cashHistory.length ? `(${filteredCashHistory.length})` : ""}
+                </button>
+                <button onClick={() => setCashModal(true)}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl transition-all hover:scale-[1.03]"
+                  style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>
+                  <Plus size={12} /> Əməliyyat
+                </button>
+              </div>
             </div>
 
-            {cashHistory.length === 0 ? <EmptyState icon={Wallet} label="Hələ əməliyyat yoxdur" /> : (
+            {filteredCashHistory.length === 0 ? <EmptyState icon={Wallet} label={cashHistory.length > 0 ? "Seçilmiş dövrdə əməliyyat yoxdur" : "Hələ əməliyyat yoxdur"} /> : (
               <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border-color)" }}>
                 <table className="w-full text-sm">
                   <thead>
@@ -659,7 +773,7 @@ export default function FinancesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {cashHistory.map((t: any) => (
+                    {filteredCashHistory.map((t: any) => (
                       <tr key={t.id} className="group transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
