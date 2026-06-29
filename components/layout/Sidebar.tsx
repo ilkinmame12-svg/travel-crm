@@ -21,7 +21,7 @@ const ALL_MENU = [
   { href: "/mir",       label: "MIR Import",  icon: FileText,        roles: ["it_admin","direktor","menecer","bilet_menecer"] },
   { href: "/flights",   label: "TK NDC",      icon: PlaneTakeoff,    roles: ["it_admin","direktor","menecer"] },
   { href: "/assistant", label: "AI Köməkçi",  icon: BotMessageSquare,roles: ["it_admin","boss","direktor","muhasib","menecer"] },
-  { href: "/chat",      label: "Mesajlar",    icon: MessageCircle,   roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
+  { href: "/mesajlar",  label: "Mesajlar",    icon: MessageCircle,   roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
   { href: "/employees", label: "İşçilər",     icon: Users,           roles: ["it_admin","boss","direktor","muhasib"] },
   { href: "/settings",  label: "Ayarlar",     icon: Settings,        roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
   { href: "/help",      label: "Help",        icon: HelpCircle,      roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
@@ -123,7 +123,7 @@ export function MobileNav() {
     MENU.find(m => m.href === "/"),
     MENU.find(m => m.href === "/bookings"),
     showFinanceMenu ? { href: "__finance__", label: "Maliyyə", icon: Wallet } : MENU.find(m => m.href === "/drafts"),
-    MENU.find(m => m.href === "/chat"),
+    MENU.find(m => m.href === "/mesajlar"),
   ].filter(Boolean) as any[]
 
   return (
