@@ -570,8 +570,9 @@ export default function SifarislerPage() {
     const sellPrice = Number(fd.get("sellPrice"))
     const buyPrice = Number(fd.get("buyPrice"))
     const commissionPercent = Number(fd.get("commissionPercent"))
-    const commissionAmount = Math.round(sellPrice * commissionPercent) / 100
-    const profit = sellPrice - buyPrice - commissionAmount
+    const grossProfit = sellPrice - buyPrice
+    const commissionAmount = Math.round(grossProfit * commissionPercent) / 100
+    const profit = grossProfit - commissionAmount
     const paid = paymentStatus === "paid" ? sellPrice : paymentStatus === "partial" ? paidAmount : 0
 
     const data: BookingFormData = {
