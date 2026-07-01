@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import * as XLSX from "xlsx"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { supabase } from "@/lib/supabase"
 import { formatCurrency, formatDate } from "@/lib/calculations"
-import { Plus, Trash2, TrendingUp, TrendingDown, CheckCircle, FileText, X } from "lucide-react"
+import { Plus, Trash2, TrendingUp, TrendingDown, CheckCircle, FileText, X, FileDown } from "lucide-react"
 
 interface ManualDebt { id: string; name: string; amount: number; direction: "they_owe" | "we_owe"; description: string; dueDate: string; status: "pending" | "paid" }
 
@@ -322,11 +323,40 @@ export default function DebtsPage() {
         </div>
         <div className="flex gap-3">
           {visibleDebts.length > 0 && (
-            <button onClick={() => exportToPDF(visibleDebts, activeTab === "selected" ? "Seçilmişlər" : "Hamısı")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium text-white"
-              style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
-              <FileText size={15} />PDF
-            </button>
+            <>
+              <button onClick={() => exportToPDF(visibleDebts, activeTab === "selected" ? "Seçilmişlər" : "Hamısı")}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium text-white"
+                style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
+                <FileText size={15} />PDF
+              </button>
+              <button onClick={() => {
+                const rows = visibleDebts.map((b, i) => ({
+                  "#": i + 1,
+                  "Müştəri": b.clientName,
+                  "Telefon": b.clientPhone || "",
+                  "İstiqamət": b.destination || "",
+                  "Növ": b.bookingType || "",
+                  "Getmə tarixi": formatDate(b.departureDate),
+                  "Ümumi (AZN)": b.sellPrice,
+                  "Ödənilib (AZN)": b.paidAmount ?? 0,
+                  "Qalıq Borc (AZN)": b.remaining,
+                  "Status": b.paymentStatus === "partial" ? "Qismən" : "Ödənilməyib",
+                  "Menecer": b.manager || "",
+                }))
+                const ws = XLSX.utils.json_to_sheet(rows)
+                ws["!cols"] = [
+                  {wch:4},{wch:22},{wch:14},{wch:22},{wch:12},
+                  {wch:14},{wch:14},{wch:14},{wch:16},{wch:14},{wch:16}
+                ]
+                const wb = XLSX.utils.book_new()
+                XLSX.utils.book_append_sheet(wb, ws, "Borclar")
+                XLSX.writeFile(wb, `borclar-${new Date().toISOString().slice(0,10)}.xlsx`)
+              }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium text-white"
+                style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}>
+                <FileDown size={15} />Excel
+              </button>
+            </>
           )}
           <button onClick={() => setModal(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium text-white"
