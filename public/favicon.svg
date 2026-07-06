@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Red background -->
+  <rect width="64" height="64" rx="12" fill="#ef4444"/>
+  <!-- White airplane -->
+  <g transform="translate(32,27) rotate(-30)" fill="white">
+    <path d="M0,-13 L3,-4 L13,-4 L5,2 L8,11 L0,6 L-8,11 L-5,2 L-13,-4 L-3,-4 Z" transform="scale(0.9)"/>
+  </g>
+  <!-- ITS TOUR text -->
+  <text x="32" y="56" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="9" font-weight="bold" letter-spacing="1">ITS TOUR</text>
+</svg>
