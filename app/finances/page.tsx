@@ -1333,8 +1333,6 @@ export default function FinancesPage() {
                                     if (!amt || amt <= 0) return
                                     setIncomeLoading(b.id)
                                     const newPaid = (b.paidAmount ?? 0) + amt
-                                    const newStatus = newPaid >= b.sellPrice ? "paid" : "partial"
-                                    await supabase.from("bookings").update({ paid_amount: newPaid, payment_status: newStatus }).eq("id", b.id)
                                     await addPayment({ clientName: b.clientName, amount: amt, description: `Ödəniş: ${b.destination}`, date: new Date().toISOString().split("T")[0], bookingId: b.id })
                                     await fetchBookings()
                                     setIncomeAmounts(prev => { const n = { ...prev }; delete n[b.id]; return n })
