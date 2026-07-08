@@ -49,6 +49,7 @@ export function useUserRole() {
   const canEdit      = ["it_admin", "direktor", "muhasib"].includes(profile?.role ?? "")
   const canDelete    = profile?.role === "it_admin"
   const canSeeFinances = ["it_admin", "boss", "direktor", "muhasib"].includes(profile?.role ?? "")
+  const isReadOnly   = profile?.role === "boss"
 
   // bilet_menecer — sadəcə bilet sifarişlərini görə bilər
   const isManager    = profile?.role === "menecer"
@@ -58,6 +59,6 @@ export function useUserRole() {
     profile, loading,
     isAdmin, isBoss, isDirektor, isMuhasib,
     isBiletMenecer, isBiletOnly, isManager,
-    canEdit, canDelete, canSeeFinances
+    canEdit, canDelete, canSeeFinances, isReadOnly
   }
 }
