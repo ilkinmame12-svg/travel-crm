@@ -155,12 +155,12 @@ function DebtTable({ debts, selectedIds, toggleRow, setPayModal, setPayAmount, h
                   <td className="px-4 py-3 text-xs" style={{ color: "var(--text-secondary)" }} onClick={() => toggleRow(b.id)}>{b.manager?.split(" ")[0]}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1.5">
-                      <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
+                      {!isReadOnly && <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
                         className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl font-medium transition-all hover:scale-105"
                         style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
                         <CheckCircle size={12} />Ödə
-                      </button>
-                      {canDelete && (
+                      </button>}
+                      {canDelete && !isReadOnly && (
                         <button onClick={() => handleDeleteDebt(b.id, b.sellPrice)}
                           className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-xl font-medium transition-all hover:scale-105"
                           style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
@@ -240,6 +240,7 @@ export default function DebtsPage() {
   const [activeTab, setActiveTab] = useState<"all" | "selected">("all")
 
   const canDelete = ["it_admin", "direktor", "muhasib"].includes(profile?.role ?? "")
+  const isReadOnly = profile?.role === "boss"
 
   useEffect(() => { fetchBookings() }, [])
 
@@ -358,11 +359,11 @@ export default function DebtsPage() {
               </button>
             </>
           )}
-          <button onClick={() => setModal(true)}
+          {!isReadOnly && <button onClick={() => setModal(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium text-white"
             style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>
             <Plus size={16} />Yeni borc
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -475,10 +476,10 @@ export default function DebtsPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={handlePay} className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}>Ödənişi qeyd et</button>
+              {!isReadOnly && <button onClick={handlePay} className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #10b981, #34d399)" }}>Ödənişi qeyd et</button>}
               <button onClick={() => setPayModal(null)} className="flex-1 py-3 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>Ləğv et</button>
             </div>
-            {canDelete && (
+            {canDelete && !isReadOnly && (
               <button onClick={() => handleDeleteDebt(payModal.id, payModal.sellPrice)}
                 className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-medium"
                 style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>
