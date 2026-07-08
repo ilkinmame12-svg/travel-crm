@@ -424,7 +424,8 @@ function AdminDashboard({ bookings, payments, cashHistory, profile }: { bookings
   const totalRevenue    = bookings.reduce((s,b)=>s+b.sellPrice,0)
   const totalCost       = bookings.reduce((s,b)=>s+b.buyPrice,0)
   const totalProfit     = bookings.reduce((s,b)=>s+b.profit,0)
-  const totalCommission = bookings.reduce((s,b)=>s+b.commissionAmount,0)
+  const totalGrossProfit = bookings.reduce((s,b)=>s+b.profit+b.commissionAmount,0)
+  const totalCommission = totalGrossProfit * 0.10
   const pending         = bookings.filter(b=>b.status==="pending").length
   const unpaid          = bookings.filter(b=>b.paymentStatus!=="paid").length
   const margin          = totalRevenue>0?Math.round((totalProfit/totalRevenue)*100):0
