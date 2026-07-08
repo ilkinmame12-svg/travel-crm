@@ -616,7 +616,7 @@ export default function SifarislerPage() {
 
     if (modal === "edit" && selected) {
       await updateBooking(selected.id, data)
-      await logActivity({ userName: profile.fullName, userRole: profile.role, action: "update", entity: "booking", entityId: selected.id, details: { client: data.clientName, destination: data.destination, amount: data.sellPrice } })
+      await logActivity({ userName: profile?.fullName ?? "", userRole: profile?.role ?? "", action: "update", entity: "booking", entityId: selected.id, details: { client: data.clientName, destination: data.destination, amount: data.sellPrice } })
     } else if (isManager || isBiletMenecer) {
       await supabase.from("booking_drafts").insert({
         client_name: data.clientName, client_phone: data.clientPhone,
@@ -633,11 +633,11 @@ export default function SifarislerPage() {
         submitted_by: profile?.fullName ?? "", submitted_by_role: profile?.role ?? "",
         review_status: "pending",
       })
-      await logActivity({ userName: profile.fullName, userRole: profile.role, action: "create", entity: "draft", details: { client: data.clientName, destination: data.destination, amount: data.sellPrice } })
+      await logActivity({ userName: profile?.fullName ?? "", userRole: profile?.role ?? "", action: "create", entity: "draft", details: { client: data.clientName, destination: data.destination, amount: data.sellPrice } })
       alert("✅ Sifariş təsdiq üçün göndərildi!")
     } else {
       await addBooking(data)
-      await logActivity({ userName: profile.fullName, userRole: profile.role, action: "create", entity: "booking", details: { client: data.clientName, destination: data.destination, amount: data.sellPrice } })
+      await logActivity({ userName: profile?.fullName ?? "", userRole: profile?.role ?? "", action: "create", entity: "booking", details: { client: data.clientName, destination: data.destination, amount: data.sellPrice } })
     }
     setModal(null); setSelected(null)
   }
@@ -948,7 +948,7 @@ export default function SifarislerPage() {
                           </button>
                         )}
                         {canDelete && (
-                          <button onClick={() => { if (confirm("Silinsin?")) { deleteBooking(b.id); logActivity({ userName: profile.fullName, userRole: profile.role, action: "delete", entity: "booking", entityId: b.id, details: { client: b.clientName, destination: b.destination } }) } }}
+                          <button onClick={() => { if (confirm("Silinsin?")) { deleteBooking(b.id); logActivity({ userName: profile?.fullName ?? "", userRole: profile?.role ?? "", action: "delete", entity: "booking", entityId: b.id, details: { client: b.clientName, destination: b.destination } }) } }}
                             className="p-1.5 rounded-xl transition-all hover:scale-110"
                             style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}>
                             <Trash2 size={13} />
