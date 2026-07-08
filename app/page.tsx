@@ -273,7 +273,8 @@ function ManagerDashboard({ bookings, profile }: { bookings: any[]; profile: any
   const myBookings = bookings.filter(b => b.manager === profile?.fullName)
   const myRevenue = myBookings.reduce((s,b) => s+b.sellPrice, 0)
   const myProfit = myBookings.reduce((s,b) => s+b.profit, 0)
-  const myCommission = myBookings.reduce((s,b) => s+b.commissionAmount, 0)
+  const myGrossProfit = myBookings.reduce((s,b) => s+b.profit+b.commissionAmount, 0)
+  const myCommission = myGrossProfit * 0.10
   const myPending = myBookings.filter(b => b.status==="pending").length
   const myUnpaid = myBookings.filter(b => b.paymentStatus!=="paid").length
   const myConfirmed = myBookings.filter(b => b.status==="confirmed").length
@@ -424,8 +425,7 @@ function AdminDashboard({ bookings, payments, cashHistory, profile }: { bookings
   const totalRevenue    = bookings.reduce((s,b)=>s+b.sellPrice,0)
   const totalCost       = bookings.reduce((s,b)=>s+b.buyPrice,0)
   const totalProfit     = bookings.reduce((s,b)=>s+b.profit,0)
-  const totalGrossProfit = bookings.reduce((s,b)=>s+b.profit+b.commissionAmount,0)
-  const totalCommission = totalGrossProfit * 0.10
+  const totalCommission = bookings.reduce((s,b)=>s+b.commissionAmount,0)
   const pending         = bookings.filter(b=>b.status==="pending").length
   const unpaid          = bookings.filter(b=>b.paymentStatus!=="paid").length
   const margin          = totalRevenue>0?Math.round((totalProfit/totalRevenue)*100):0
