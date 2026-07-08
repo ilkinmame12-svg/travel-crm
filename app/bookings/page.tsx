@@ -419,6 +419,7 @@ export default function SifarislerPage() {
   const [actionMenu, setActionMenu] = useState<string | null>(null)
   const [clientBalances, setClientBalances] = useState<Record<string, number>>({})
   const [viewModal, setViewModal] = useState<Booking | null>(null)
+  const [myDrafts, setMyDrafts] = useState<any[]>([])
 
   useEffect(() => {
     fetchBookings()
@@ -432,6 +433,17 @@ export default function SifarislerPage() {
       }
     })
   }, [])
+
+  useEffect(() => {
+    if (!profile) return
+    if (!["menecer", "bilet_menecer"].includes(profile.role ?? "")) return
+    supabase.from("booking_drafts")
+      .select("*")
+      .eq("submitted_by", profile.fullName)
+      .in("review_status", ["pending", "rejected"])
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setMyDrafts(data ?? []))
+  }, [profile])
 
   useEffect(() => {
     if (modal) {
@@ -798,7 +810,66 @@ export default function SifarislerPage() {
             </thead>
             <tbody>
               {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
-              {!loading && filtered.length === 0 && <EmptyState onAdd={() => setModal("create")} isManager={isManager} />}
+              {!loading && filtered.length === 0 && myDrafts.length === 0 && <EmptyState onAdd={() => setModal("create")} isManager={isManager} />}
+
+              {/* Draft rows — only visible to the manager who submitted */}
+              {!loading && (isManager || isBiletMenecer) && myDrafts.map(d => {
+                const ti = getTypeInfo(d.booking_type)
+                const Icon = ti.Icon
+                const isPending = d.review_status === "pending"
+                return (
+                  <tr key={"draft-" + d.id} style={{ borderBottom: "1px solid var(--border-color)", opacity: 0.88 }}>
+                    <td className="px-4 py-3.5">
+                      <div className="flex flex-col gap-1">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-xl w-fit" style={{ background: ti.bg, color: ti.color }}>
+                          <Icon size={11} />{ti.label}
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg w-fit" style={{
+                          background: isPending ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)",
+                          color: isPending ? "#f59e0b" : "#ef4444"
+                        }}>
+                          {isPending ? "⏳ Gözləyir" : "❌ Rədd edildi"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{d.client_name}</p>
+                      {d.client_phone && <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{d.client_phone}</p>}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="font-medium" style={{ color: "var(--text-primary)" }}>{d.destination}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{d.travelers ?? 1} nəfər</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {d.vendor ? <span className="text-xs font-medium px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>{d.vendor}</span>
+                        : <span style={{ color: "var(--text-muted)" }}>—</span>}
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{formatDate(d.departure_date)}</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{d.manager?.split(" ")[0]}</p>
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <p className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{formatCurrency(d.sell_price)}</p>
+                      <p className="text-xs mt-0.5 tabular-nums text-green-500">{formatCurrency(d.paid_amount ?? 0)}</p>
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <span style={{ color: "var(--text-muted)" }}>—</span>
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <span style={{ color: "var(--text-muted)" }}>—</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-xs px-2.5 py-1 rounded-xl font-medium" style={{ background: isPending ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)", color: isPending ? "#f59e0b" : "#ef4444" }}>
+                        {isPending ? "Təsdiq gözləyir" : "Rədd edildi"}
+                      </span>
+                      {d.reviewer_note && <p className="text-xs mt-0.5" style={{ color: "#ef4444" }}>{d.reviewer_note}</p>}
+                    </td>
+                    <td className="px-4 py-3.5" />
+                  </tr>
+                )
+              })}}
               {!loading && filtered.map(b => {
                 const ti = getTypeInfo(b.bookingType)
                 const Icon = ti.Icon
