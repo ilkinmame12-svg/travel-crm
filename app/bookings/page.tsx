@@ -869,7 +869,7 @@ export default function SifarislerPage() {
                     <td className="px-4 py-3.5" />
                   </tr>
                 )
-              })}}
+              })}
               {!loading && filtered.map(b => {
                 const ti = getTypeInfo(b.bookingType)
                 const Icon = ti.Icon
