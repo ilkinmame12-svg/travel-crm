@@ -103,7 +103,7 @@ function exportToPDF(debts: any[], label: string) {
 }
 
 // ─── DebtTable — OUTSIDE main component to prevent scroll on re-render ──────
-function DebtTable({ debts, selectedIds, toggleRow, setPayModal, setPayAmount, handleDeleteDebt, canDelete }: {
+function DebtTable({ debts, selectedIds, toggleRow, setPayModal, setPayAmount, handleDeleteDebt, canDelete, isReadOnly }: {
   debts: any[]
   selectedIds: Set<string>
   toggleRow: (id: string) => void
@@ -111,6 +111,7 @@ function DebtTable({ debts, selectedIds, toggleRow, setPayModal, setPayAmount, h
   setPayAmount: (s: string) => void
   handleDeleteDebt: (id: string, price: number) => void
   canDelete: boolean
+  isReadOnly: boolean
 }) {
   return (
     <>
@@ -206,12 +207,12 @@ function DebtTable({ debts, selectedIds, toggleRow, setPayModal, setPayAmount, h
                 </div>
               </div>
               <div className="flex gap-2 ml-8">
-                <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
+                {!isReadOnly && <button onClick={() => { setPayModal(b); setPayAmount(String(b.remaining)) }}
                   className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 rounded-2xl font-medium"
                   style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
                   <CheckCircle size={14} />Ödə
-                </button>
-                {canDelete && (
+                </button>}
+                {canDelete && !isReadOnly && (
                   <button onClick={() => handleDeleteDebt(b.id, b.sellPrice)}
                     className="px-3 py-2 rounded-2xl"
                     style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
@@ -455,6 +456,7 @@ export default function DebtsPage() {
           setPayAmount={setPayAmount}
           handleDeleteDebt={handleDeleteDebt}
           canDelete={canDelete}
+          isReadOnly={isReadOnly}
         />
       )}
 
