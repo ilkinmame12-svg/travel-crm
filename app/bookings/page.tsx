@@ -6,6 +6,7 @@ import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { supabase } from "@/lib/supabase"
 import type { Booking, BookingFilters, BookingFormData, BookingType, IATAPeriod } from "@/lib/types"
 import { formatCurrency, formatDate } from "@/lib/calculations"
+import { logActivity } from "@/lib/activityLogger"
 import {
   Plus, Search, Plane, Hotel, Palmtree, Ship, Car, Luggage,
   Armchair, Star, Shield, TrendingUp, TrendingDown, DollarSign,
@@ -615,6 +616,7 @@ export default function SifarislerPage() {
 
     if (modal === "edit" && selected) {
       await updateBooking(selected.id, data)
+      await logActivity({ userName: profile.fullName, userRole: profile.role, action: "update", entity: "booking", entityId: selected.id, details: { client: data.clientName, destination: data.destination, amount: data.sellPrice } })
     } else if (isManager || isBiletMenecer) {
       await supabase.from("booking_drafts").insert({
         client_name: data.clientName, client_phone: data.clientPhone,
@@ -631,9 +633,11 @@ export default function SifarislerPage() {
         submitted_by: profile?.fullName ?? "", submitted_by_role: profile?.role ?? "",
         review_status: "pending",
       })
+      await logActivity({ userName: profile.fullName, userRole: profile.role, action: "create", entity: "draft", details: { client: data.clientName, destination: data.destination, amount: data.sellPrice } })
       alert("✅ Sifariş təsdiq üçün göndərildi!")
     } else {
       await addBooking(data)
+      await logActivity({ userName: profile.fullName, userRole: profile.role, action: "create", entity: "booking", details: { client: data.clientName, destination: data.destination, amount: data.sellPrice } })
     }
     setModal(null); setSelected(null)
   }
@@ -801,10 +805,10 @@ export default function SifarislerPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[1300px]">
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+              <tr style={{ background: "linear-gradient(135deg, var(--bg-glass), var(--bg-secondary))", borderBottom: "1px solid var(--border-color)" }}>
                 {["Növ", "Müştəri", "İstiqamət", "Vendor", "Tarix", "Menecer", "Satış", "Qalıq", "Mənfəət", "Status", "Ödəniş", ""].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider px-4 py-3.5"
-                    style={{ color: "var(--text-muted)" }}>{h}</th>
+                  <th key={h} className="text-left text-[11px] font-bold uppercase tracking-widest px-4 py-4"
+                    style={{ color: "var(--text-muted)", letterSpacing: "0.06em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -818,9 +822,9 @@ export default function SifarislerPage() {
                 const Icon = ti.Icon
                 const isPending = d.review_status === "pending"
                 return (
-                  <tr key={"draft-" + d.id} style={{ borderBottom: "1px solid var(--border-color)", opacity: 0.88 }}>
+                  <tr key={"draft-" + d.id} style={{ borderBottom: "1px solid var(--border-color)", opacity: 0.85, background: isPending ? "rgba(245,158,11,0.03)" : "rgba(239,68,68,0.03)" }}>
                     <td className="px-4 py-3.5">
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1.5">
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-xl w-fit" style={{ background: ti.bg, color: ti.color }}>
                           <Icon size={11} />{ti.label}
                         </span>
@@ -848,25 +852,26 @@ export default function SifarislerPage() {
                       <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{formatDate(d.departure_date)}</p>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{d.manager?.split(" ")[0]}</p>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>
+                          {d.manager?.charAt(0)}
+                        </div>
+                        <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{d.manager?.split(" ")[0]}</p>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <p className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{formatCurrency(d.sell_price)}</p>
                       <p className="text-xs mt-0.5 tabular-nums text-green-500">{formatCurrency(d.paid_amount ?? 0)}</p>
                     </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span style={{ color: "var(--text-muted)" }}>—</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span style={{ color: "var(--text-muted)" }}>—</span>
-                    </td>
+                    <td className="px-4 py-3.5 text-right"><span style={{ color: "var(--text-muted)" }}>—</span></td>
+                    <td className="px-4 py-3.5 text-right"><span style={{ color: "var(--text-muted)" }}>—</span></td>
                     <td className="px-4 py-3.5">
                       <span className="text-xs px-2.5 py-1 rounded-xl font-medium" style={{ background: isPending ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)", color: isPending ? "#f59e0b" : "#ef4444" }}>
                         {isPending ? "Təsdiq gözləyir" : "Rədd edildi"}
                       </span>
                       {d.reviewer_note && <p className="text-xs mt-0.5" style={{ color: "#ef4444" }}>{d.reviewer_note}</p>}
                     </td>
-                    <td className="px-4 py-3.5" />
+                    <td className="px-4 py-3.5" /><td className="px-4 py-3.5" />
                   </tr>
                 )
               })}
@@ -879,11 +884,11 @@ export default function SifarislerPage() {
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                     <td className="px-4 py-3.5">
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1.5">
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-xl w-fit" style={{ background: ti.bg, color: ti.color }}>
                           <Icon size={11} />{ti.label}
                         </span>
-                        {b.isIata && <span className="text-xs font-bold px-2 py-0.5 rounded-lg w-fit text-white" style={{ background: "#3b82f6", fontSize: "10px" }}>IATA</span>}
+                        {b.isIata && <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg w-fit text-white" style={{ background: "linear-gradient(135deg,#3b82f6,#06b6d4)" }}>IATA</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
@@ -891,30 +896,38 @@ export default function SifarislerPage() {
                       {b.clientPhone && <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{b.clientPhone}</p>}
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="font-medium" style={{ color: "var(--text-primary)" }}>{b.destination}</p>
+                      <p className="font-medium text-sm" style={{ color: "var(--text-primary)" }}>{b.destination}</p>
                       <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{b.travelers} nəfər</p>
                     </td>
                     <td className="px-4 py-3.5">
-                      {b.vendor ? <span className="text-xs font-medium px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>{b.vendor}</span>
+                      {b.vendor
+                        ? <span className="text-xs font-medium px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}>{b.vendor}</span>
                         : <span style={{ color: "var(--text-muted)" }}>—</span>}
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
-                      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{formatDate(b.departureDate)}</p>
+                      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{formatDate(b.departureDate)}</p>
                       <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>→ {formatDate(b.returnDate)}</p>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{b.manager?.split(" ")[0]}</p>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>
+                          {b.manager?.charAt(0)}
+                        </div>
+                        <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{b.manager?.split(" ")[0]}</p>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <p className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</p>
-                      <p className="text-xs mt-0.5 tabular-nums text-green-500">{formatCurrency(b.paidAmount ?? 0)}</p>
+                      <p className="font-bold tabular-nums text-sm" style={{ color: "var(--text-primary)" }}>{formatCurrency(b.sellPrice)}</p>
+                      <p className="text-xs mt-0.5 tabular-nums" style={{ color: "#22c55e" }}>{formatCurrency(b.paidAmount ?? 0)}</p>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      {remaining > 0 ? <span className="font-semibold tabular-nums text-red-500">{formatCurrency(remaining)}</span>
-                        : <span style={{ color: "var(--text-muted)" }}>—</span>}
+                      {remaining > 0
+                        ? <span className="font-bold tabular-nums text-sm px-2 py-0.5 rounded-lg" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)" }}>{formatCurrency(remaining)}</span>
+                        : <span className="text-base" style={{ color: "var(--text-muted)" }}>—</span>}
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <span className={`font-semibold tabular-nums ${b.profit >= 0 ? "text-green-500" : "text-red-500"}`}>
+                      <span className={`font-bold tabular-nums text-sm px-2 py-0.5 rounded-lg ${b.profit >= 0 ? "text-green-500" : "text-red-500"}`}
+                        style={{ background: b.profit >= 0 ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)" }}>
                         {b.profit >= 0 ? "+" : ""}{formatCurrency(b.profit)}
                       </span>
                     </td>
@@ -923,20 +936,20 @@ export default function SifarislerPage() {
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <button onClick={() => setViewModal(b)}
-                          className="p-2 rounded-xl transition-all hover:scale-110"
+                          className="p-1.5 rounded-xl transition-all hover:scale-110"
                           style={{ color: "#6366f1", background: "rgba(99,102,241,0.1)" }}>
                           <Eye size={13} />
                         </button>
                         {!isReadOnly && (
                           <button onClick={() => { setSelected(b); setModal("edit") }}
-                            className="p-2 rounded-xl transition-all hover:scale-110"
-                            style={{ color: "var(--text-muted)", background: "var(--bg-glass)" }}>
+                            className="p-1.5 rounded-xl transition-all hover:scale-110"
+                            style={{ color: "var(--text-secondary)", background: "var(--bg-glass)" }}>
                             <Edit3 size={13} />
                           </button>
                         )}
                         {canDelete && (
-                          <button onClick={() => { if (confirm("Silinsin?")) deleteBooking(b.id) }}
-                            className="p-2 rounded-xl transition-all hover:scale-110"
+                          <button onClick={() => { if (confirm("Silinsin?")) { deleteBooking(b.id); logActivity({ userName: profile.fullName, userRole: profile.role, action: "delete", entity: "booking", entityId: b.id, details: { client: b.clientName, destination: b.destination } }) } }}
+                            className="p-1.5 rounded-xl transition-all hover:scale-110"
                             style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}>
                             <Trash2 size={13} />
                           </button>
