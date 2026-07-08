@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import { useState, useEffect, useMemo } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { usePaymentsStore } from "@/lib/store/paymentsStore"
+import { useUserRole } from "@/lib/hooks/useUserRole"
 import { formatCurrency } from "@/lib/calculations"
 import {
   TrendingUp, TrendingDown, DollarSign, Plus, Trash2,
@@ -83,6 +84,8 @@ function EmptyState({ icon: Icon, label, action, onAction }: any) {
 export default function FinancesPage() {
   const { bookings, fetchBookings } = useBookingsStore()
   const { payments, fetchPayments, addPayment, deletePayment } = usePaymentsStore()
+  const { profile } = useUserRole()
+  const isReadOnly = profile?.role === "boss"
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [modal, setModal] = useState<"expense" | "income" | null>(null)
   const [tab, setTab] = useState<"overview" | "income" | "expense" | "kassa" | "debts">("overview")
@@ -386,16 +389,16 @@ export default function FinancesPage() {
           <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Maliyyə hesabatı və idarəetmə</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setModal("income")}
+          {!isReadOnly && <button onClick={() => setModal("income")}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-95"
             style={{ background: "linear-gradient(135deg, #10b981, #34d399)", boxShadow: "0 4px 16px rgba(16,185,129,0.3)" }}>
             <Plus size={15} />Gəlir
-          </button>
-          <button onClick={() => setModal("expense")}
+          </button>}
+          {!isReadOnly && <button onClick={() => setModal("expense")}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-95"
             style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 16px rgba(239,68,68,0.3)" }}>
             <Plus size={15} />Xərc
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -433,9 +436,9 @@ export default function FinancesPage() {
         ))}
 
         {/* Kassa card */}
-        <div className="p-5 rounded-3xl cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
-          style={{ ...card, borderColor: "rgba(99,102,241,0.25)", boxShadow: "0 0 0 1px rgba(99,102,241,0.1)" }}
-          onClick={() => setCashModal(true)}>
+        <div className="p-5 rounded-3xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+          style={{ ...card, borderColor: "rgba(99,102,241,0.25)", boxShadow: "0 0 0 1px rgba(99,102,241,0.1)", cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && setCashModal(true)}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Kassa</p>
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.12)" }}>
@@ -562,11 +565,11 @@ export default function FinancesPage() {
                           <td className="px-4 py-3 font-bold text-green-500 tabular-nums">{formatCurrency(p.amount)}</td>
                           <td className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)" }}>{booking ? booking.destination : "—"}</td>
                           <td className="px-4 py-3">
-                            <button onClick={() => deletePayment(p.id)}
+                            {!isReadOnly && <button onClick={() => deletePayment(p.id)}
                               className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl transition-all hover:scale-110"
                               style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}>
                               <Trash2 size={12} />
-                            </button>
+                            </button>}
                           </td>
                         </tr>
                       )
@@ -685,11 +688,11 @@ export default function FinancesPage() {
                         <td className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)" }}>{e.date}</td>
                         <td className="px-4 py-3 font-bold text-red-500 tabular-nums">{formatCurrency(e.amount)}</td>
                         <td className="px-4 py-3">
-                          <button onClick={() => setExpenses(prev => prev.filter(x => x.id !== e.id))}
+                          {!isReadOnly && <button onClick={() => setExpenses(prev => prev.filter(x => x.id !== e.id))}
                             className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl transition-all hover:scale-110"
                             style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}>
                             <Trash2 size={12} />
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     ))}
@@ -754,11 +757,11 @@ export default function FinancesPage() {
                     : <FileDown size={13} />}
                   PDF {filteredCashHistory.length !== cashHistory.length ? `(${filteredCashHistory.length})` : ""}
                 </button>
-                <button onClick={() => setCashModal(true)}
+                {!isReadOnly && <button onClick={() => setCashModal(true)}
                   className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl transition-all hover:scale-[1.03]"
                   style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>
                   <Plus size={12} /> Əməliyyat
-                </button>
+                </button>}
               </div>
             </div>
 
@@ -798,7 +801,7 @@ export default function FinancesPage() {
                         <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{t.reason || "—"}</td>
                         <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{t.balance_after} {t.currency}</td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                          {!isReadOnly && <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
                             <button onClick={() => { setEditModal(t); setEditAmount(String(t.amount)); setEditReason(t.reason || ""); setEditOperation(t.operation); setEditDate(t.created_at?.slice(0,10) || "") }}
                               className="p-1.5 rounded-xl transition-all hover:scale-110"
                               style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
@@ -809,7 +812,7 @@ export default function FinancesPage() {
                               style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
                               <Trash2 size={12} />
                             </button>
-                          </div>
+                          </div>}
                         </td>
                       </tr>
                     ))}
