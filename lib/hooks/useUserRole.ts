@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 
-export type UserRole = "it_admin" | "boss" | "direktor" | "muhasib" | "menecer" | "bilet_menecer"
+export type UserRole = "it_admin" | "boss" | "direktor" | "muhasib" | "menecer" | "bilet_menecer" | "tender_menecer"
 
 interface UserProfile {
   id: string
