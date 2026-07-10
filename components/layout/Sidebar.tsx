@@ -25,10 +25,10 @@ const ALL_MENU = [
   { href: "/assistant", label: "AI Köməkçi",  icon: BotMessageSquare,roles: ["it_admin","boss","direktor","muhasib","menecer"] },
   { href: "/mesajlar",  label: "Mesajlar",    icon: MessageCircle,   roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
   { href: "/employees", label: "İşçilər",     icon: Users,           roles: ["it_admin","boss","direktor","muhasib"] },
+   { href: "/tenders", label: "Tenderlər", icon: Trophy, roles: ["it_admin", "boss", "direktor", "tender_menecer"] },
+     { href: "/founder",   label: "Əsasçı",      icon: User,            roles: ["it_admin","direktor","boss","muhasib"] },
   { href: "/settings",  label: "Ayarlar",     icon: Settings,        roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer","tender_menecer"] },
-  { href: "/help",      label: "Help",        icon: HelpCircle,      roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer","tender_menecer"] },
-  { href: "/founder",   label: "Əsasçı",      icon: User,            roles: ["it_admin","direktor","boss","muhasib"] },
-  { href: "/tenders", label: "Tenderlər", icon: Trophy, roles: ["it_admin", "boss", "direktor", "tender_menecer"] },
+  { href: "/help",      label: "Help",        icon: HelpCircle,      roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer","tender_menecer"] }, 
 ]
 
 const FINANCE_MENU = [
