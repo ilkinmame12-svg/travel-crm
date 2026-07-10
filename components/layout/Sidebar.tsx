@@ -3,13 +3,11 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  
   LayoutDashboard, ClipboardList, Wallet, CreditCard, Globe,
   Settings, HelpCircle, LogOut, BotMessageSquare, Users,
   PlaneTakeoff, Building2, Scale, Clock, MessageCircle,
-  ChevronRight, ChevronLeft, FileText, User,MoreHorizontal,
-  Activity,
-  Trophy
+  ChevronRight, ChevronLeft, FileText, User, MoreHorizontal,
+  Activity, Trophy
 } from "lucide-react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
@@ -17,7 +15,7 @@ import { useUserRole } from "@/lib/hooks/useUserRole"
 import { ThemeToggle } from "@/components/ThemeProvider"
 
 const ALL_MENU = [
-  { href: "/",          label: "Dashboard",   icon: LayoutDashboard, roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
+  { href: "/",          label: "Dashboard",   icon: LayoutDashboard, roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer","tender_menecer"] },
   { href: "/bookings",  label: "Sifarişlər",  icon: ClipboardList,   roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
   { href: "/drafts",    label: "Təsdiq",      icon: Clock,           roles: ["it_admin","direktor","muhasib","menecer"] },
   { href: "/mir",       label: "MIR Import",  icon: FileText,        roles: ["it_admin","direktor","menecer","bilet_menecer"] },
@@ -25,10 +23,10 @@ const ALL_MENU = [
   { href: "/assistant", label: "AI Köməkçi",  icon: BotMessageSquare,roles: ["it_admin","boss","direktor","muhasib","menecer"] },
   { href: "/mesajlar",  label: "Mesajlar",    icon: MessageCircle,   roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer"] },
   { href: "/employees", label: "İşçilər",     icon: Users,           roles: ["it_admin","boss","direktor","muhasib"] },
-   { href: "/tenders", label: "Tenderlər", icon: Trophy, roles: ["it_admin", "boss", "direktor", "tender_menecer"] },
-     { href: "/founder",   label: "Əsasçı",      icon: User,            roles: ["it_admin","direktor","boss","muhasib"] },
+  { href: "/tenders",   label: "Tenderlər",   icon: Trophy,          roles: ["it_admin","boss","direktor","tender_menecer"] },
+  { href: "/founder",   label: "Əsasçı",      icon: User,            roles: ["it_admin","direktor","boss","muhasib"] },
   { href: "/settings",  label: "Ayarlar",     icon: Settings,        roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer","tender_menecer"] },
-  { href: "/help",      label: "Help",        icon: HelpCircle,      roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer","tender_menecer"] }, 
+  { href: "/help",      label: "Help",        icon: HelpCircle,      roles: ["it_admin","boss","direktor","muhasib","menecer","bilet_menecer","tender_menecer"] },
 ]
 
 const FINANCE_MENU = [
@@ -37,7 +35,6 @@ const FINANCE_MENU = [
   { href: "/creditors", label: "Kreditorlar", icon: Building2 },
   { href: "/balances",  label: "Balanslar",   icon: Scale },
   { href: "/iata",      label: "IATA",        icon: Globe },
-  { href: "/logs", label: "Jurnal", icon: Activity, roles: ["it_admin"] }, 
 ]
 
 const FINANCE_ROLES = ["it_admin","boss","direktor","muhasib","bilet_menecer"]
@@ -127,7 +124,7 @@ export function MobileNav() {
     MENU.find(m => m.href === "/"),
     MENU.find(m => m.href === "/bookings"),
     showFinanceMenu ? { href: "__finance__", label: "Maliyyə", icon: Wallet } : MENU.find(m => m.href === "/drafts"),
-    MENU.find(m => m.href === "/mesajlar"),
+    MENU.find(m => m.href === "/chat"),
   ].filter(Boolean) as any[]
 
   return (
