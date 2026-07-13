@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useBookingsStore } from "@/lib/store/bookingsStore"
 import { formatCurrency } from "@/lib/calculations"
 import { supabase } from "@/lib/supabase"
 import {
   Plus, Trash2, Users, TrendingUp, DollarSign, Award,
   CheckCircle2, Clock, X, ChevronLeft, ChevronRight,
-  Edit3, Gift, AlertCircle
+  Edit3, Gift, AlertCircle, Wallet, BarChart3, ClipboardList,
+  Calendar, Star
 } from "lucide-react"
 
 interface Employee {
@@ -41,24 +42,26 @@ function getMonthLabel(month: string) {
   const [y, m] = month.split("-")
   return `${MONTHS_AZ[parseInt(m) - 1]} ${y}`
 }
-
 function getCurrentMonth() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
 }
-
 function prevMonth(month: string) {
   const [y, m] = month.split("-").map(Number)
   if (m === 1) return `${y-1}-12`
   return `${y}-${String(m-1).padStart(2,"0")}`
 }
-
 function nextMonth(month: string) {
   const [y, m] = month.split("-").map(Number)
   if (m === 12) return `${y+1}-01`
   return `${y}-${String(m+1).padStart(2,"0")}`
 }
-
+function monthsBack(n: number) {
+  const months = []
+  let m = getCurrentMonth()
+  for (let i = 0; i < n; i++) { months.push(m); m = prevMonth(m) }
+  return months
+}
 function mapPayment(p: any): EmployeePayment {
   return {
     id: p.id, employeeId: p.employee_id, employeeName: p.employee_name, month: p.month,
@@ -71,36 +74,43 @@ function mapPayment(p: any): EmployeePayment {
     notes: p.notes ?? ""
   }
 }
-
 function getSalaryStatus(payment: EmployeePayment) {
-  const remaining = payment.salaryAmount - payment.salaryPaidAmount
   if (payment.salaryPaidAmount === 0) return "unpaid"
-  if (remaining <= 0) return "paid"
+  if (payment.salaryPaidAmount >= payment.salaryAmount) return "paid"
+  return "partial"
+}
+function getBonusStatus(payment: EmployeePayment) {
+  if (payment.bonusAmount === 0) return "none"
+  if (payment.bonusPaidAmount === 0) return "unpaid"
+  if (payment.bonusPaidAmount >= payment.bonusAmount) return "paid"
   return "partial"
 }
 
-function getBonusStatus(payment: EmployeePayment) {
-  if (payment.bonusAmount === 0) return "none"
-  const remaining = payment.bonusAmount - payment.bonusPaidAmount
-  if (payment.bonusPaidAmount === 0) return "unpaid"
-  if (remaining <= 0) return "paid"
-  return "partial"
+const STATUS_CONFIG = {
+  paid:    { label: "Tam ödənilib",    color: "#22c55e", bg: "rgba(34,197,94,0.12)",   Icon: CheckCircle2 },
+  partial: { label: "Qismən",          color: "#f97316", bg: "rgba(249,115,22,0.12)",  Icon: AlertCircle },
+  unpaid:  { label: "Ödənilməyib",     color: "#ef4444", bg: "rgba(239,68,68,0.12)",   Icon: Clock },
+  none:    { label: "Bonus yoxdur",    color: "#9ca3af", bg: "var(--bg-glass)",          Icon: Gift },
 }
 
 export default function EmployeesPage() {
   const { bookings, fetchBookings } = useBookingsStore()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [payments, setPayments] = useState<EmployeePayment[]>([])
+  const [allPayments, setAllPayments] = useState<EmployeePayment[]>([])
   const [modal, setModal] = useState(false)
   const [payModal, setPayModal] = useState<{ emp: Employee; payment: EmployeePayment } | null>(null)
+  const [bookingsModal, setBookingsModal] = useState<{ emp: Employee; month: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Employee | null>(null)
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())
   const [ready, setReady] = useState(false)
-  const [activeTab, setActiveTab] = useState<"salary" | "employees">("salary")
+  const [activeTab, setActiveTab] = useState<"salary" | "period" | "employees">("salary")
+  const [periodMonths, setPeriodMonths] = useState(1)
+  const [markingId, setMarkingId] = useState<string | null>(null)
 
   useEffect(() => { fetchBookings(); fetchEmployees(); setReady(true) }, [])
-  useEffect(() => { if (employees.length > 0) fetchPayments() }, [selectedMonth])
+  useEffect(() => { if (employees.length > 0) fetchPayments() }, [selectedMonth, employees.length])
 
   async function fetchPayments(empList?: Employee[]) {
     const list = empList ?? employees
@@ -119,6 +129,9 @@ export default function EmployeesPage() {
     } else {
       setPayments(existing.map(mapPayment))
     }
+    // Load all payments for period tab
+    const { data: all } = await supabase.from("employee_payments").select("*")
+    setAllPayments((all ?? []).map(mapPayment))
   }
 
   async function fetchEmployees() {
@@ -126,7 +139,7 @@ export default function EmployeesPage() {
     if (data) {
       const list: Employee[] = data.map((e: any) => ({
         id: e.id, name: e.name, position: e.position ?? "",
-        baseSalary: e.base_salary ?? 0, commissionPercent: e.commission_percent ?? 5,
+        baseSalary: e.base_salary ?? 0, commissionPercent: e.commission_percent ?? 10,
         phone: e.phone ?? "", email: e.email ?? "", status: e.status ?? "active"
       }))
       setEmployees(list)
@@ -135,17 +148,37 @@ export default function EmployeesPage() {
     setLoading(false)
   }
 
-  function getStats(name: string) {
-    const eb = bookings.filter(b => b.manager === name)
-    return {
-      totalRevenue: eb.reduce((s, b) => s + b.sellPrice, 0),
-      totalCommission: eb.reduce((s, b) => s + b.commissionAmount, 0),
-      bookingsCount: eb.length
-    }
+  // Get bookings for employee in a specific month
+  function getMonthBookings(name: string, month: string) {
+    return bookings.filter(b => {
+      if (b.manager !== name) return false
+      const bMonth = (b.createdAt ?? "").slice(0, 7)
+      return bMonth === month
+    })
   }
 
-  function getPayment(empId: string) {
-    return payments.find(p => p.employeeId === empId)
+  // Calculate real commission from bookings for a month
+  function calcRealCommission(emp: Employee, month: string) {
+    const mb = getMonthBookings(emp.name, month)
+    const gross = mb.reduce((s, b) => s + b.profit + b.commissionAmount, 0)
+    return Math.round(gross * (emp.commissionPercent / 100) * 100) / 100
+  }
+
+  // Period stats for an employee
+  function getPeriodStats(emp: Employee, nMonths: number) {
+    const months = monthsBack(nMonths)
+    let totalSalary = 0, totalBonus = 0, totalPaid = 0, totalBookings = 0, totalRevenue = 0
+    for (const m of months) {
+      const p = allPayments.find(p => p.employeeId === emp.id && p.month === m)
+      totalSalary += p?.salaryAmount ?? emp.baseSalary
+      const bonus = calcRealCommission(emp, m)
+      totalBonus += bonus
+      totalPaid += (p?.salaryPaidAmount ?? 0) + (p?.bonusPaidAmount ?? 0)
+      const mb = getMonthBookings(emp.name, m)
+      totalBookings += mb.length
+      totalRevenue += mb.reduce((s, b) => s + b.sellPrice, 0)
+    }
+    return { totalSalary, totalBonus, totalPaid, totalBookings, totalRevenue, months }
   }
 
   async function handleSavePayment(e: React.FormEvent<HTMLFormElement>) {
@@ -157,20 +190,16 @@ export default function EmployeesPage() {
     const bonusAmount = Number(fd.get("bonusAmount"))
     const bonusPaidAmount = Number(fd.get("bonusPaidAmount"))
     const now = new Date().toISOString()
-
     await supabase.from("employee_payments").update({
-      salary_amount: salaryAmount,
-      salary_paid_amount: salaryPaidAmount,
+      salary_amount: salaryAmount, salary_paid_amount: salaryPaidAmount,
       salary_paid: salaryPaidAmount >= salaryAmount && salaryAmount > 0,
       salary_paid_at: salaryPaidAmount >= salaryAmount && salaryAmount > 0 ? now : null,
-      bonus_amount: bonusAmount,
-      bonus_paid_amount: bonusPaidAmount,
+      bonus_amount: bonusAmount, bonus_paid_amount: bonusPaidAmount,
       bonus_paid: bonusPaidAmount >= bonusAmount && bonusAmount > 0,
       bonus_paid_at: bonusPaidAmount >= bonusAmount && bonusAmount > 0 ? now : null,
       notes: fd.get("notes") as string,
     }).eq("id", payModal.payment.id)
-    await fetchPayments()
-    setPayModal(null)
+    await fetchPayments(); setPayModal(null)
   }
 
   async function handleSubmitEmployee(e: React.FormEvent<HTMLFormElement>) {
@@ -190,347 +219,399 @@ export default function EmployeesPage() {
     if (confirm("Silinsin?")) { await supabase.from("employees").delete().eq("id", id); await fetchEmployees() }
   }
 
+  async function toggleCommissionPaid(bookingId: string, currentPaid: boolean) {
+    setMarkingId(bookingId)
+    await supabase.from("bookings").update({
+      commission_paid: !currentPaid,
+      commission_paid_at: !currentPaid ? new Date().toISOString() : null
+    }).eq("id", bookingId)
+    await fetchBookings()
+    setMarkingId(null)
+  }
+
   if (!ready) return null
 
   const activeEmps = employees.filter(e => e.status === "active")
   const totalBaseSalary = activeEmps.reduce((s, e) => s + e.baseSalary, 0)
-  const totalBonus = payments.reduce((s, p) => s + p.bonusAmount, 0)
+  const totalBonus = activeEmps.reduce((s, e) => s + calcRealCommission(e, selectedMonth), 0)
   const totalPaidOut = payments.reduce((s, p) => s + p.salaryPaidAmount + p.bonusPaidAmount, 0)
-
   const paidFull = payments.filter(p => getSalaryStatus(p) === "paid").length
-  const paidPartial = payments.filter(p => getSalaryStatus(p) === "partial").length
-  const unpaid = payments.filter(p => getSalaryStatus(p) === "unpaid").length
-
-  const STATUS_CONFIG = {
-    paid:    { label: "Tam ödənilib",    color: "#22c55e", bg: "rgba(34,197,94,0.12)",   Icon: CheckCircle2 },
-    partial: { label: "Qismən ödənilib", color: "#f97316", bg: "rgba(249,115,22,0.12)", Icon: AlertCircle },
-    unpaid:  { label: "Ödənilməyib",     color: "#ef4444", bg: "rgba(239,68,68,0.12)",  Icon: Clock },
-    none:    { label: "Bonus yoxdur",    color: "#9ca3af", bg: "var(--bg-glass)",         Icon: Gift },
-  }
+  const unpaidCount = payments.filter(p => getSalaryStatus(p) === "unpaid").length
 
   return (
     <div className="min-h-screen p-5 md:p-7" style={{ background: "var(--bg-primary)" }}>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-7">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>İşçilər</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Əməkdaşlar və maaş idarəetməsi</p>
+          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>İşçilər & Maaşlar</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>{activeEmps.length} aktiv işçi</p>
         </div>
         <button onClick={() => { setSelected(null); setModal(true) }}
-          className="flex items-center gap-2 text-white px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.02]"
-          style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 4px 16px rgba(239,68,68,0.3)" }}>
-          <Plus size={16} />Yeni işçi
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:scale-[1.02]"
+          style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", boxShadow: "0 4px 16px rgba(99,102,241,0.3)" }}>
+          <Plus size={15} />İşçi əlavə et
         </button>
       </div>
 
       {/* KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="p-6 text-white rounded-3xl relative overflow-hidden"
-          style={{ background: "linear-gradient(135deg, #ef4444, #f97316)", boxShadow: "0 8px 24px rgba(239,68,68,0.25)" }}>
-          <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-15" style={{ background: "white" }} />
-          <div className="flex items-center justify-between mb-3"><p className="text-sm opacity-80">Aktiv işçilər</p><Users size={18} className="opacity-70" /></div>
-          <p className="text-3xl font-bold">{activeEmps.length}</p>
-          <p className="text-xs opacity-60 mt-1">{employees.length} cəmi</p>
-        </div>
         {[
-          { label: "Maaş fondu", value: formatCurrency(totalBaseSalary), icon: DollarSign, color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
-          { label: "Bu ay bonus", value: formatCurrency(totalBonus), icon: Gift, color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-          { label: "Ödənilmiş", value: formatCurrency(totalPaidOut), icon: Award, color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="p-5 rounded-3xl transition-all hover:scale-[1.01]" style={card}>
+          { label: "Ümumi maaş fondu", value: formatCurrency(totalBaseSalary), Icon: Wallet, color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
+          { label: `${getMonthLabel(selectedMonth)} bonusu`, value: formatCurrency(totalBonus), Icon: Gift, color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+          { label: "Ödənilib (bu ay)", value: formatCurrency(totalPaidOut), Icon: CheckCircle2, color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
+          { label: "Ödənilməyib", value: unpaidCount + " nəfər", Icon: AlertCircle, color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+        ].map(({ label, value, Icon, color, bg }) => (
+          <div key={label} className="p-5 rounded-3xl" style={card}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: bg }}>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
+              <div className="w-8 h-8 rounded-2xl flex items-center justify-center" style={{ background: bg }}>
                 <Icon size={14} style={{ color }} />
               </div>
             </div>
-            <p className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>{value}</p>
+            <p className="text-xl font-black tabular-nums" style={{ color: "var(--text-primary)" }}>{value}</p>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-5">
-        {[{ v: "salary", l: "💰 Maaş & Bonus" }, { v: "employees", l: "👥 İşçilər" }].map(t => (
-          <button key={t.v} onClick={() => setActiveTab(t.v as any)}
-            className="px-4 py-2.5 rounded-2xl text-sm font-medium transition-all"
-            style={{ background: activeTab === t.v ? "linear-gradient(135deg,#ef4444,#f97316)" : "var(--bg-card)", color: activeTab === t.v ? "white" : "var(--text-secondary)", border: "1px solid var(--border-color)", boxShadow: activeTab === t.v ? "0 4px 12px rgba(239,68,68,0.3)" : "none" }}>
-            {t.l}
-          </button>
+      <div className="flex gap-1 p-1 rounded-2xl mb-5 w-fit" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
+        {[
+          { key: "salary", label: "💰 Maaş & Bonus" },
+          { key: "period", label: "📊 Dövr analizi" },
+          { key: "employees", label: "👥 İşçilər" },
+        ].map(t => (
+          <button key={t.key} onClick={() => setActiveTab(t.key as any)}
+            className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: activeTab === t.key ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent",
+              color: activeTab === t.key ? "white" : "var(--text-secondary)",
+              boxShadow: activeTab === t.key ? "0 2px 8px rgba(99,102,241,0.3)" : "none"
+            }}>{t.label}</button>
         ))}
       </div>
 
-      {/* ── SALARY TAB ── */}
+      {/* ── Salary Tab ── */}
       {activeTab === "salary" && (
-        <div>
-          {/* Month navigator */}
-          <div className="flex items-center justify-between mb-5 p-4 rounded-3xl" style={card}>
+        <>
+          {/* Month nav */}
+          <div className="flex items-center gap-3 mb-5">
             <button onClick={() => setSelectedMonth(prevMonth(selectedMonth))}
-              className="w-9 h-9 rounded-2xl flex items-center justify-center transition-all hover:scale-110"
-              style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>
+              className="p-2 rounded-xl transition-all hover:scale-110"
+              style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
               <ChevronLeft size={16} />
             </button>
-            <div className="text-center">
-              <p className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>{getMonthLabel(selectedMonth)}</p>
-              <div className="flex items-center justify-center gap-3 mt-1">
-                <span className="text-xs font-medium" style={{ color: "#22c55e" }}>✓ {paidFull} tam</span>
-                {paidPartial > 0 && <span className="text-xs font-medium" style={{ color: "#f97316" }}>◑ {paidPartial} qismən</span>}
-                {unpaid > 0 && <span className="text-xs font-medium" style={{ color: "#ef4444" }}>✗ {unpaid} ödənilməyib</span>}
-              </div>
-            </div>
+            <span className="text-sm font-bold px-4 py-2 rounded-xl" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)", minWidth: 160, textAlign: "center" }}>
+              {getMonthLabel(selectedMonth)}
+            </span>
             <button onClick={() => setSelectedMonth(nextMonth(selectedMonth))}
-              className="w-9 h-9 rounded-2xl flex items-center justify-center transition-all hover:scale-110"
-              style={{ background: "var(--bg-glass)", color: "var(--text-secondary)" }}>
+              className="p-2 rounded-xl transition-all hover:scale-110"
+              style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
               <ChevronRight size={16} />
             </button>
           </div>
 
-          {/* Salary cards */}
-          {loading ? (
-            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 rounded-3xl animate-pulse" style={{ background: "var(--bg-glass)" }} />)}</div>
-          ) : activeEmps.length === 0 ? (
-            <div className="p-8 text-center rounded-3xl" style={{ ...card, color: "var(--text-muted)" }}>
-              <Users size={32} className="mx-auto mb-3 opacity-40" /><p>Aktiv işçi yoxdur</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activeEmps.map((emp, idx) => {
-                const payment = getPayment(emp.id)
-                if (!payment) return (
-                  <div key={emp.id} className="p-4 rounded-3xl animate-pulse" style={{ ...card, color: "var(--text-muted)" }}>
-                    <p className="text-sm">{emp.name} — yüklənir...</p>
-                  </div>
-                )
-
-                const salaryStatus = getSalaryStatus(payment)
-                const bonusStatus = getBonusStatus(payment)
-                const salaryCfg = STATUS_CONFIG[salaryStatus]
-                const bonusCfg = STATUS_CONFIG[bonusStatus]
-                const SalaryIcon = salaryCfg.Icon
-                const BonusIcon = bonusCfg.Icon
-                const salaryRemaining = payment.salaryAmount - payment.salaryPaidAmount
-                const bonusRemaining = payment.bonusAmount - payment.bonusPaidAmount
-
-                return (
-                  <div key={emp.id} className="p-5 rounded-3xl" style={card}>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {/* Avatar */}
-                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-bold text-base flex-shrink-0"
-                        style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>
-                        {emp.name[0]}
-                      </div>
-
-                      {/* Name */}
-                      <div className="flex-1 min-w-[120px]">
-                        <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{emp.name}</p>
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{emp.position}</p>
-                      </div>
-
-                      {/* Salary info */}
-                      <div className="px-3 py-2 rounded-2xl" style={{ background: "var(--bg-glass)" }}>
-                        <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Maaş</p>
-                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>
-                          {formatCurrency(payment.salaryAmount)}
-                        </p>
-                        {salaryStatus === "partial" && (
-                          <p className="text-xs tabular-nums" style={{ color: "#f97316" }}>
-                            Ödənilib: {formatCurrency(payment.salaryPaidAmount)}
-                          </p>
-                        )}
-                        {salaryStatus === "partial" && (
-                          <p className="text-xs tabular-nums" style={{ color: "#ef4444" }}>
-                            Qalıq: {formatCurrency(salaryRemaining)}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Bonus info */}
-                      <div className="px-3 py-2 rounded-2xl" style={{ background: "var(--bg-glass)" }}>
-                        <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Bonus</p>
-                        <p className="text-sm font-bold tabular-nums" style={{ color: payment.bonusAmount > 0 ? "#f59e0b" : "var(--text-muted)" }}>
-                          {payment.bonusAmount > 0 ? formatCurrency(payment.bonusAmount) : "—"}
-                        </p>
-                        {bonusStatus === "partial" && (
-                          <p className="text-xs tabular-nums" style={{ color: "#f97316" }}>
-                            Qalıq: {formatCurrency(bonusRemaining)}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Salary status badge */}
-                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Maaş</p>
-                        <div className="px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold"
-                          style={{ background: salaryCfg.bg, color: salaryCfg.color }}>
-                          <SalaryIcon size={13} />
-                          {salaryCfg.label}
-                        </div>
-                      </div>
-
-                      {/* Bonus status badge */}
-                      {bonusStatus !== "none" && (
-                        <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Bonus</p>
-                          <div className="px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold"
-                            style={{ background: bonusCfg.bg, color: bonusCfg.color }}>
-                            <BonusIcon size={13} />
-                            {bonusCfg.label}
+          <div className="rounded-3xl overflow-hidden" style={card}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
+                <thead>
+                  <tr style={{ background: "linear-gradient(135deg,var(--bg-glass),var(--bg-secondary))", borderBottom: "1px solid var(--border-color)" }}>
+                    {["İşçi", "Vəzifə", "Əməkhaqqı", "Sifarişlər", "Hesablanan bonus", "Ödənilib (maaş)", "Ödənilib (bonus)", "Status", ""].map(h => (
+                      <th key={h} className="text-left text-[11px] font-bold uppercase tracking-widest px-4 py-4" style={{ color: "var(--text-muted)" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                      {Array.from({ length: 9 }).map((_, j) => (
+                        <td key={j} className="px-4 py-4"><div className="h-4 rounded-lg animate-pulse" style={{ background: "var(--bg-glass)", width: "80%" }} /></td>
+                      ))}
+                    </tr>
+                  )) : activeEmps.map((emp, idx) => {
+                    const payment = payments.find(p => p.employeeId === emp.id)
+                    if (!payment) return null
+                    const realBonus = calcRealCommission(emp, selectedMonth)
+                    const monthBookings = getMonthBookings(emp.name, selectedMonth)
+                    const salStatus = getSalaryStatus(payment)
+                    const bonStatus = getBonusStatus(payment)
+                    const salCfg = STATUS_CONFIG[salStatus]
+                    const SalIcon = salCfg.Icon
+                    return (
+                      <tr key={emp.id} className="group transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                              style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>
+                              {emp.name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{emp.name}</p>
+                              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{emp.commissionPercent}% komissiya</p>
+                            </div>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Edit button */}
-                      <button
-                        onClick={() => setPayModal({ emp, payment })}
-                        className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all hover:scale-110 flex-shrink-0"
-                        style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", color: "white", boxShadow: "0 4px 12px rgba(99,102,241,0.3)" }}
-                        title="Ödəniş məlumatlarını redaktə et">
-                        <Edit3 size={15} />
-                      </button>
-                    </div>
-
-                    {/* Paid dates */}
-                    {(payment.salaryPaidAt || payment.bonusPaidAt) && (
-                      <div className="flex gap-2 mt-3 flex-wrap">
-                        {payment.salaryPaidAt && (
-                          <span className="text-xs px-2.5 py-1 rounded-xl" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
-                            ✓ Maaş: {new Date(payment.salaryPaidAt).toLocaleDateString("az-AZ")}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className="text-xs font-medium px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-secondary)", border: "1px solid var(--border-color)" }}>
+                            {emp.position || "—"}
                           </span>
-                        )}
-                        {payment.bonusPaidAt && (
-                          <span className="text-xs px-2.5 py-1 rounded-xl" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
-                            ✓ Bonus: {new Date(payment.bonusPaidAt).toLocaleDateString("az-AZ")}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <p className="font-bold tabular-nums text-sm" style={{ color: "var(--text-primary)" }}>{formatCurrency(emp.baseSalary)}</p>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <button onClick={() => setBookingsModal({ emp, month: selectedMonth })}
+                            className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-all hover:scale-105"
+                            style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
+                            <ClipboardList size={12} />
+                            {monthBookings.length} sifariş
+                          </button>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <p className="font-bold tabular-nums text-sm" style={{ color: "#f59e0b" }}>{formatCurrency(realBonus)}</p>
+                          <p className="text-xs" style={{ color: "var(--text-muted)" }}>{emp.commissionPercent}% × mənfəət</p>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <p className="font-semibold tabular-nums text-sm" style={{ color: "#22c55e" }}>{formatCurrency(payment.salaryPaidAmount)}</p>
+                          {payment.salaryPaidAmount < payment.salaryAmount && (
+                            <p className="text-xs text-red-400">Qalıq: {formatCurrency(payment.salaryAmount - payment.salaryPaidAmount)}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <p className="font-semibold tabular-nums text-sm" style={{ color: "#22c55e" }}>{formatCurrency(payment.bonusPaidAmount)}</p>
+                          {payment.bonusPaidAmount < realBonus && realBonus > 0 && (
+                            <p className="text-xs text-red-400">Qalıq: {formatCurrency(realBonus - payment.bonusPaidAmount)}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-xl"
+                            style={{ background: salCfg.bg, color: salCfg.color }}>
+                            <SalIcon size={11} />{salCfg.label}
                           </span>
-                        )}
-                      </div>
-                    )}
-
-                    {payment.notes && (
-                      <p className="text-xs mt-2 px-3 py-2 rounded-xl" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
-                        📝 {payment.notes}
-                      </p>
-                    )}
-                  </div>
-                )
-              })}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <button onClick={() => setPayModal({ emp, payment })}
+                            className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl text-white transition-all hover:scale-105"
+                            style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+                            <Edit3 size={12} />Ödə
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+          </div>
+        </>
       )}
 
-      {/* ── EMPLOYEES TAB ── */}
+      {/* ── Period Tab ── */}
+      {activeTab === "period" && (
+        <>
+          <div className="flex gap-2 mb-5">
+            {[1, 2, 3, 6].map(n => (
+              <button key={n} onClick={() => setPeriodMonths(n)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  background: periodMonths === n ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "var(--bg-glass)",
+                  color: periodMonths === n ? "white" : "var(--text-secondary)",
+                  border: "1px solid " + (periodMonths === n ? "transparent" : "var(--border-color)")
+                }}>
+                {n} ay
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {activeEmps.map((emp, idx) => {
+              const stats = getPeriodStats(emp, periodMonths)
+              const unpaid = stats.totalSalary + stats.totalBonus - stats.totalPaid
+              return (
+                <div key={emp.id} className="p-5 rounded-3xl" style={card}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-base font-bold text-white flex-shrink-0"
+                      style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>
+                      {emp.name.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>{emp.name}</p>
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{emp.position} · {emp.commissionPercent}% komissiya</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Son {periodMonths} ay</p>
+                      <p className="text-sm font-bold" style={{ color: "#6366f1" }}>{stats.totalBookings} sifariş</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    {[
+                      { label: "Maaş cəmi", value: formatCurrency(stats.totalSalary), color: "var(--text-primary)" },
+                      { label: "Bonus cəmi", value: formatCurrency(stats.totalBonus), color: "#f59e0b" },
+                      { label: "Ödənilib", value: formatCurrency(stats.totalPaid), color: "#22c55e" },
+                      { label: "Qalıq borc", value: formatCurrency(Math.max(0, unpaid)), color: unpaid > 0 ? "#ef4444" : "#22c55e" },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="p-3 rounded-2xl" style={{ background: "var(--bg-glass)" }}>
+                        <p className="text-[10px] font-medium mb-0.5" style={{ color: "var(--text-muted)" }}>{label}</p>
+                        <p className="text-sm font-bold tabular-nums" style={{ color }}>{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Monthly breakdown */}
+                  <div className="space-y-1.5">
+                    {stats.months.map(m => {
+                      const p = allPayments.find(p => p.employeeId === emp.id && p.month === m)
+                      const bonus = calcRealCommission(emp, m)
+                      const mb = getMonthBookings(emp.name, m)
+                      const salPaid = p?.salaryPaidAmount ?? 0
+                      const bonPaid = p?.bonusPaidAmount ?? 0
+                      return (
+                        <div key={m} className="flex items-center justify-between px-3 py-2 rounded-xl"
+                          style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)" }}>
+                          <div className="flex items-center gap-2">
+                            <Calendar size={12} style={{ color: "var(--text-muted)" }} />
+                            <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{getMonthLabel(m)}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>{mb.length} sif.</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs">
+                            <span style={{ color: "var(--text-muted)" }}>Maaş: <span className="font-semibold" style={{ color: salPaid >= (p?.salaryAmount ?? emp.baseSalary) ? "#22c55e" : "#ef4444" }}>{formatCurrency(salPaid)}</span></span>
+                            <span style={{ color: "var(--text-muted)" }}>Bonus: <span className="font-semibold" style={{ color: bonPaid >= bonus && bonus > 0 ? "#22c55e" : bonus > 0 ? "#f59e0b" : "var(--text-muted)" }}>{formatCurrency(bonPaid)}/{formatCurrency(bonus)}</span></span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* ── Employees Tab ── */}
       {activeTab === "employees" && (
-        <div className="space-y-4">
-          {loading ? (
-            <div className="p-8 text-center rounded-3xl animate-pulse" style={{ ...card, color: "var(--text-muted)" }}>Yüklənir...</div>
-          ) : employees.length === 0 ? (
-            <div className="p-8 text-center rounded-3xl" style={{ ...card, color: "var(--text-muted)" }}>
-              <Users size={32} className="mx-auto mb-3 opacity-40" /><p>Hələ işçi yoxdur</p>
-            </div>
-          ) : employees.map((emp, idx) => {
-            const stats = getStats(emp.name)
-            return (
-              <div key={emp.id} className="p-6 rounded-3xl" style={card}>
-                <div className="flex items-start justify-between mb-5">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl"
-                      style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>{emp.name[0]}</div>
-                    <div>
-                      <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>{emp.name}</h3>
-                      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{emp.position}</p>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block"
-                        style={{ background: emp.status === "active" ? "rgba(34,197,94,0.1)" : "var(--bg-glass)", color: emp.status === "active" ? "#22c55e" : "var(--text-muted)" }}>
-                        {emp.status === "active" ? "Aktiv" : "Deaktiv"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setSelected(emp); setModal(true) }} className="p-2 rounded-xl transition-all hover:scale-110" style={{ color: "var(--text-muted)", background: "var(--bg-glass)" }}><Edit3 size={14} /></button>
-                    <button onClick={() => handleDelete(emp.id)} className="p-2 rounded-xl transition-all hover:scale-110" style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}><Trash2 size={14} /></button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                  {[
-                    { label: "Əsas maaş", value: formatCurrency(emp.baseSalary), color: "var(--text-primary)" },
-                    { label: "Komissiya %", value: `${emp.commissionPercent}%`, color: "var(--text-primary)" },
-                    { label: "Sifarişlər", value: stats.bookingsCount, color: "#6366f1" },
-                    { label: "Komissiya", value: formatCurrency(stats.totalCommission), color: "#22c55e" },
-                    { label: "Gəlir", value: formatCurrency(stats.totalRevenue), color: "#8b5cf6" },
-                    { label: "Ümumi ödəniş", value: formatCurrency(emp.baseSalary + stats.totalCommission), color: "#ef4444" },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} className="p-3 rounded-2xl" style={{ background: "var(--bg-glass)" }}>
-                      <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>{label}</p>
-                      <p className="text-sm font-bold" style={{ color }}>{value}</p>
-                    </div>
+        <div className="rounded-3xl overflow-hidden" style={card}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: "linear-gradient(135deg,var(--bg-glass),var(--bg-secondary))", borderBottom: "1px solid var(--border-color)" }}>
+                  {["İşçi", "Vəzifə", "Əsas maaş", "Komissiya %", "Ümumi sifariş", "Ümumi satış", "Telefon", "Status", ""].map(h => (
+                    <th key={h} className="text-left text-[11px] font-bold uppercase tracking-widest px-4 py-4" style={{ color: "var(--text-muted)" }}>{h}</th>
                   ))}
-                </div>
-              </div>
-            )
-          })}
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map((emp, idx) => {
+                  const allB = bookings.filter(b => b.manager === emp.name)
+                  return (
+                    <tr key={emp.id} className="group transition-all" style={{ borderBottom: "1px solid var(--border-color)" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--bg-glass)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-sm font-bold text-white"
+                            style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>
+                            {emp.name.charAt(0)}
+                          </div>
+                          <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{emp.name}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs" style={{ color: "var(--text-secondary)" }}>{emp.position || "—"}</td>
+                      <td className="px-4 py-3.5 font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{formatCurrency(emp.baseSalary)}</td>
+                      <td className="px-4 py-3.5">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-xl" style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b" }}>
+                          {emp.commissionPercent}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{allB.length}</td>
+                      <td className="px-4 py-3.5 font-semibold tabular-nums" style={{ color: "#22c55e" }}>{formatCurrency(allB.reduce((s, b) => s + b.sellPrice, 0))}</td>
+                      <td className="px-4 py-3.5 text-xs" style={{ color: "var(--text-secondary)" }}>{emp.phone || "—"}</td>
+                      <td className="px-4 py-3.5">
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-xl"
+                          style={{ background: emp.status === "active" ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)", color: emp.status === "active" ? "#22c55e" : "#ef4444" }}>
+                          {emp.status === "active" ? "Aktiv" : "Deaktiv"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => { setSelected(emp); setModal(true) }}
+                            className="p-1.5 rounded-xl" style={{ color: "#6366f1", background: "rgba(99,102,241,0.1)" }}>
+                            <Edit3 size={13} />
+                          </button>
+                          <button onClick={() => handleDelete(emp.id)}
+                            className="p-1.5 rounded-xl" style={{ color: "#ef4444", background: "rgba(239,68,68,0.1)" }}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {/* ── Pay Modal ── */}
       {payModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
-          <div className="w-full max-w-sm" style={modalCard}>
-            <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" style={{ backdropFilter: "blur(8px)" }}>
+          <div className="w-full max-w-md p-6" style={modalCard}>
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>Ödəniş redaktəsi</h2>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{payModal.emp.name} · {getMonthLabel(selectedMonth)}</p>
+                <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>{payModal.emp.name}</h2>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{getMonthLabel(selectedMonth)}</p>
               </div>
-              <button onClick={() => setPayModal(null)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
-                <X size={15} />
-              </button>
+              <button onClick={() => setPayModal(null)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
             </div>
-            <form onSubmit={handleSavePayment} className="p-6 space-y-4">
-              {/* Salary section */}
-              <div className="p-4 rounded-2xl space-y-3" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)" }}>
-                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#ef4444" }}>💰 Maaş</p>
+
+            {/* Commission info */}
+            <div className="p-3 rounded-2xl mb-4" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
+              <p className="text-xs font-medium mb-1" style={{ color: "#f59e0b" }}>Hesablanan bonus ({payModal.emp.commissionPercent}%)</p>
+              <p className="text-xl font-black tabular-nums" style={{ color: "#f59e0b" }}>
+                {formatCurrency(calcRealCommission(payModal.emp, selectedMonth))}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                {getMonthBookings(payModal.emp.name, selectedMonth).length} sifariş əsasında
+              </p>
+            </div>
+
+            <form onSubmit={handleSavePayment} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Maaş məbləği (AZN)</label>
-                  <input name="salaryAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.salaryAmount} style={inp} />
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Maaş məbləği</label>
+                  <input name="salaryAmount" type="number" step="0.01" defaultValue={payModal.payment.salaryAmount || payModal.emp.baseSalary} style={inp} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Ödənilən məbləğ (AZN)</label>
-                  <input name="salaryPaidAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.salaryPaidAmount}
-                    style={{ ...inp, borderColor: "rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.04)" }} />
-                  <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                    Tam ödənilsə maaşla eyni məbləği yazın
-                  </p>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Ödənilən maaş</label>
+                  <input name="salaryPaidAmount" type="number" step="0.01" defaultValue={payModal.payment.salaryPaidAmount} style={inp} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Bonus məbləği</label>
+                  <input name="bonusAmount" type="number" step="0.01" defaultValue={payModal.payment.bonusAmount || calcRealCommission(payModal.emp, selectedMonth)} style={inp} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Ödənilən bonus</label>
+                  <input name="bonusPaidAmount" type="number" step="0.01" defaultValue={payModal.payment.bonusPaidAmount} style={inp} />
                 </div>
               </div>
-
-              {/* Bonus section */}
-              <div className="p-4 rounded-2xl space-y-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}>
-                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#f59e0b" }}>🎁 Bonus</p>
-                <div>
-                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Bonus məbləği (AZN)</label>
-                  <input name="bonusAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.bonusAmount} style={inp} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Ödənilən bonus (AZN)</label>
-                  <input name="bonusPaidAmount" type="number" step="0.01" min="0" defaultValue={payModal.payment.bonusPaidAmount}
-                    style={{ ...inp, borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.04)" }} />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Qeyd</label>
-                <input name="notes" defaultValue={payModal.payment.notes} placeholder="Məs: Aprel maaşı qismən ödənilib..." style={inp} />
+                <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Qeyd</label>
+                <input name="notes" defaultValue={payModal.payment.notes} placeholder="Əlavə qeyd..." style={inp} />
               </div>
-
-              <div className="flex gap-2 pt-2" style={{ borderTop: "1px solid var(--border-color)" }}>
-                <button type="button" onClick={() => setPayModal(null)}
-                  className="flex-1 py-2.5 rounded-2xl text-sm"
-                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
-                  Ləğv et
-                </button>
+              <div className="flex gap-3 pt-1">
                 <button type="submit"
-                  className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg,#ef4444,#f97316)" }}>
+                  className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white"
+                  style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
                   Yadda saxla
+                </button>
+                <button type="button" onClick={() => setPayModal(null)}
+                  className="px-5 py-3 rounded-2xl text-sm"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                  Ləğv
                 </button>
               </div>
             </form>
@@ -538,29 +619,139 @@ export default function EmployeesPage() {
         </div>
       )}
 
+      {/* ── Bookings Modal (commission tracking) ── */}
+      {bookingsModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" style={{ backdropFilter: "blur(8px)" }}>
+          <div className="w-full max-w-2xl max-h-[85vh] flex flex-col" style={modalCard}>
+            <div className="flex items-center justify-between p-5 pb-3">
+              <div>
+                <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>
+                  {bookingsModal.emp.name} — {getMonthLabel(bookingsModal.month)}
+                </h2>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  Komissiya ödəmə statusu · {bookingsModal.emp.commissionPercent}%
+                </p>
+              </div>
+              <button onClick={() => setBookingsModal(null)} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
+            </div>
+
+            {/* Summary */}
+            <div className="px-5 pb-3">
+              <div className="grid grid-cols-3 gap-3">
+                {(() => {
+                  const mb = getMonthBookings(bookingsModal.emp.name, bookingsModal.month)
+                  const paid = mb.filter((b: any) => b.commissionPaid)
+                  const totalBonus = calcRealCommission(bookingsModal.emp, bookingsModal.month)
+                  return [
+                    { label: "Cəmi sifariş", value: mb.length, color: "#6366f1" },
+                    { label: "Komissiya ödənilib", value: paid.length, color: "#22c55e" },
+                    { label: "Hesablanan bonus", value: formatCurrency(totalBonus), color: "#f59e0b" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="p-3 rounded-2xl" style={{ background: "var(--bg-glass)" }}>
+                      <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{label}</p>
+                      <p className="text-sm font-bold mt-0.5" style={{ color }}>{value}</p>
+                    </div>
+                  ))
+                })()}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2">
+              {getMonthBookings(bookingsModal.emp.name, bookingsModal.month).length === 0 ? (
+                <div className="py-10 text-center" style={{ color: "var(--text-muted)" }}>Bu ay üçün sifariş yoxdur</div>
+              ) : getMonthBookings(bookingsModal.emp.name, bookingsModal.month).map((b: any) => {
+                const gross = b.profit + b.commissionAmount
+                const commission = Math.round(gross * (bookingsModal.emp.commissionPercent / 100) * 100) / 100
+                const isPaid = b.commissionPaid
+                return (
+                  <div key={b.id} className="flex items-center gap-3 p-3 rounded-2xl transition-all"
+                    style={{ background: isPaid ? "rgba(34,197,94,0.05)" : "var(--bg-glass)", border: `1px solid ${isPaid ? "rgba(34,197,94,0.2)" : "var(--border-color)"}` }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{b.clientName}</p>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-lg" style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>{b.bookingType}</span>
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                        {b.destination} · Satış: {formatCurrency(b.sellPrice)} · Mənfəət: {formatCurrency(b.profit)}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold tabular-nums" style={{ color: "#f59e0b" }}>{formatCurrency(commission)}</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>komissiya</p>
+                    </div>
+                    <button
+                      onClick={() => toggleCommissionPaid(b.id, isPaid)}
+                      disabled={markingId === b.id}
+                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all hover:scale-105 disabled:opacity-50 flex-shrink-0"
+                      style={{
+                        background: isPaid ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)",
+                        color: isPaid ? "#22c55e" : "#ef4444",
+                        border: `1px solid ${isPaid ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.2)"}`,
+                        minWidth: 90
+                      }}>
+                      {markingId === b.id ? "..." : isPaid ? <><CheckCircle2 size={11} />Ödənilib</> : <><Clock size={11} />Ödənilməyib</>}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Employee Modal ── */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
-          <div className="w-full max-w-md" style={modalCard}>
-            <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: "1px solid var(--border-color)" }}>
-              <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>{selected ? "İşçini redaktə et" : "Yeni işçi"}</h2>
-              <button onClick={() => { setModal(false); setSelected(null) }} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-glass)", color: "var(--text-muted)" }}>
-                <X size={15} />
-              </button>
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" style={{ backdropFilter: "blur(8px)" }}>
+          <div className="w-full max-w-md p-6" style={modalCard}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>{selected ? "İşçini düzəlt" : "Yeni işçi"}</h2>
+              <button onClick={() => { setModal(false); setSelected(null) }} style={{ color: "var(--text-muted)" }}><X size={18} /></button>
             </div>
-            <form onSubmit={handleSubmitEmployee} className="p-6 space-y-3">
+            <form onSubmit={handleSubmitEmployee} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2"><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Ad Soyad *</label><input name="name" defaultValue={selected?.name} required style={inp} /></div>
-                <div className="col-span-2"><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Vəzifə</label><input name="position" defaultValue={selected?.position} style={inp} /></div>
-                <div><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Maaş (AZN)</label><input name="baseSalary" type="number" min="0" defaultValue={selected?.baseSalary ?? 0} style={inp} /></div>
-                <div><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Komissiya (%)</label><input name="commissionPercent" type="number" min="0" max="100" step="0.1" defaultValue={selected?.commissionPercent ?? 5} style={inp} /></div>
-                <div><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Telefon</label><input name="phone" defaultValue={selected?.phone} style={inp} /></div>
-                <div><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Email</label><input name="email" type="email" defaultValue={selected?.email} style={inp} /></div>
-                <div className="col-span-2"><label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Status</label><select name="status" defaultValue={selected?.status ?? "active"} style={inp}><option value="active">Aktiv</option><option value="inactive">Deaktiv</option></select></div>
+                <div className="col-span-2">
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Ad Soyad *</label>
+                  <input name="name" required defaultValue={selected?.name} placeholder="Ad Soyad" style={inp} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Vəzifə</label>
+                  <input name="position" defaultValue={selected?.position} placeholder="Menecer" style={inp} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Status</label>
+                  <select name="status" defaultValue={selected?.status ?? "active"} style={inp}>
+                    <option value="active">Aktiv</option>
+                    <option value="inactive">Deaktiv</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Əsas maaş (AZN)</label>
+                  <input name="baseSalary" type="number" step="0.01" defaultValue={selected?.baseSalary} placeholder="800" style={inp} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Komissiya (%)</label>
+                  <input name="commissionPercent" type="number" step="0.1" min="0" max="100" defaultValue={selected?.commissionPercent ?? 10} placeholder="10" style={inp} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Telefon</label>
+                  <input name="phone" defaultValue={selected?.phone} placeholder="+994..." style={inp} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--text-secondary)" }}>Email</label>
+                  <input name="email" type="email" defaultValue={selected?.email} placeholder="email@..." style={inp} />
+                </div>
               </div>
-              <div className="flex gap-3 pt-3" style={{ borderTop: "1px solid var(--border-color)" }}>
-                <button type="button" onClick={() => { setModal(false); setSelected(null) }} className="flex-1 py-2.5 rounded-2xl text-sm" style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>Ləğv et</button>
-                <button type="submit" className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #ef4444, #f97316)" }}>{selected ? "Yadda saxla" : "Əlavə et"}</button>
+              <div className="flex gap-3 pt-1">
+                <button type="submit"
+                  className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white"
+                  style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+                  {selected ? "Yadda saxla" : "Əlavə et"}
+                </button>
+                <button type="button" onClick={() => { setModal(false); setSelected(null) }}
+                  className="px-5 py-3 rounded-2xl text-sm"
+                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+                  Ləğv
+                </button>
               </div>
             </form>
           </div>

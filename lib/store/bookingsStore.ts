@@ -43,6 +43,8 @@ function toBooking(row: any): Booking {
     status: row.status,
     paymentStatus: row.payment_status,
     notes: row.notes,
+    commissionPaid: row.commission_paid ?? false,
+    commissionPaidAt: row.commission_paid_at ?? null,
   }
 }
 
