@@ -35,6 +35,7 @@ const FINANCE_MENU = [
   { href: "/creditors", label: "Kreditorlar", icon: Building2 },
   { href: "/balances",  label: "Balanslar",   icon: Scale },
   { href: "/iata",      label: "IATA",        icon: Globe },
+  { href: "/logs",      label: "Jurnal",      icon: Activity },
 ]
 
 const FINANCE_ROLES = ["it_admin","boss","direktor","muhasib","bilet_menecer"]
