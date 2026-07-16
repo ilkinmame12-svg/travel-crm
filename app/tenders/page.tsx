@@ -26,7 +26,7 @@ function formatDate(d: string | null) {
   if (!d) return "—"
   return new Date(d).toLocaleDateString("az-AZ", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
-const ALLOWED_ROLES = ["it_admin", "boss", "direktor", "tender_menecer"]
+const ALLOWED_ROLES = ["it_admin", "boss", "direktor", "tender_menecer", "muhasib"]
 
 // ─── Tender Project Detail ────────────────────────────────────────────────────
 function TenderProject({ tender, onBack, canEdit, profile }: { tender: any; onBack: () => void; canEdit: boolean; profile: any }) {
