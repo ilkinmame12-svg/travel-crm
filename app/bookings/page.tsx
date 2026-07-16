@@ -14,7 +14,7 @@ import {
   Edit3, Trash2, MoreHorizontal, SlidersHorizontal, ArrowUpRight, FileText, Eye, Calendar, User, Phone, Mail, MapPin, CreditCard, Hash
 } from "lucide-react"
 
-const MANAGERS = ["Miraslan Abbasov", "Rehime Qasimli", "Ayxan Elxanli", "Gunes Abdullazade", "Gunay Qurbanova", "Mircemil Abbasov", "Meryem Eliyeva", "Günel", "Gulnare"]
+const MANAGERS = ["Aslan Abaszadə", "Rəhimə Qasımlı", "Ayxan Elxanlı", "Günəş Abdullazadə", "Günay Qurbanova", "Mircəmil Abbasov", "Məryəmxanım Əliyeva", "Günel", "Gulnare"]
 
 const BOOKING_TYPES = [
   { value: "bilet",     label: "Aviabilet", Icon: Plane,    color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
@@ -601,7 +601,7 @@ export default function SifarislerPage() {
       vendor: fd.get("vendor") as string,
       isIata, buyPrice, sellPrice, commissionPercent,
       paidAmount: paid,
-      manager: fd.get("manager") as string,
+      manager: (isManager || isBiletMenecer) ? (profile?.fullName ?? "") : fd.get("manager") as string,
       iataPeriod: fd.get("iataPeriod") as IATAPeriod,
       status: fd.get("status") as any,
       paymentStatus: paymentStatus as any,
@@ -1106,11 +1106,18 @@ export default function SifarislerPage() {
               <div className="col-span-2 pt-2"><p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>İdarəetmə</p></div>
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Menecer</label>
-                <select name="manager" defaultValue={selected?.manager ?? MANAGERS[0]}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
-                  style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
-                  {MANAGERS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                {(isManager || isBiletMenecer) ? (
+                  <div className="w-full px-4 py-2.5 text-sm rounded-xl font-medium"
+                    style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                    {profile?.fullName}
+                  </div>
+                ) : (
+                  <select name="manager" defaultValue={selected?.manager ?? MANAGERS[0]}
+                    className="w-full px-4 py-2.5 text-sm rounded-xl focus:outline-none"
+                    style={{ background: "var(--bg-glass)", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
+                    {MANAGERS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>IATA period</label>
