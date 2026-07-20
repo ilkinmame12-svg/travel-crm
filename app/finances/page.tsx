@@ -125,8 +125,16 @@ export default function FinancesPage() {
       setCashAZN(balances.find((c: any) => c.currency === "AZN")?.amount ?? 0)
       setCashUSD(balances.find((c: any) => c.currency === "USD")?.amount ?? 0)
     }
-    const { data: history } = await supabase.from("cash_transactions").select("*").order("created_at", { ascending: false })
-    setCashHistory(history ?? [])
+    let allTxData: any[] = []
+    let txFrom = 0
+    while (true) {
+      const { data: txChunk } = await supabase.from("cash_transactions").select("*").order("created_at", { ascending: false }).range(txFrom, txFrom + 999)
+      if (!txChunk || txChunk.length === 0) break
+      allTxData = [...allTxData, ...txChunk]
+      if (txChunk.length < 1000) break
+      txFrom += 1000
+    }
+    setCashHistory(allTxData)
     // Load custom categories
     const { data: cats } = await supabase.from("expense_categories").select("name").order("created_at", { ascending: true })
     if (cats && cats.length > 0) {
