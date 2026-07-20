@@ -125,7 +125,7 @@ export default function FinancesPage() {
       setCashAZN(balances.find((c: any) => c.currency === "AZN")?.amount ?? 0)
       setCashUSD(balances.find((c: any) => c.currency === "USD")?.amount ?? 0)
     }
-    const { data: history } = await supabase.from("cash_transactions").select("*").order("created_at", { ascending: false }).limit(50)
+    const { data: history } = await supabase.from("cash_transactions").select("*").order("created_at", { ascending: false })
     setCashHistory(history ?? [])
     // Load custom categories
     const { data: cats } = await supabase.from("expense_categories").select("name").order("created_at", { ascending: true })
