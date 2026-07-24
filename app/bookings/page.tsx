@@ -14,7 +14,7 @@ import {
   Edit3, Trash2, MoreHorizontal, SlidersHorizontal, ArrowUpRight, FileText, Eye, Calendar, User, Phone, Mail, MapPin, CreditCard, Hash
 } from "lucide-react"
 
-const MANAGERS = ["Miraslan Abbasov", "Rəhimə Qasımlı", "Ayxan Elxanlı", "Mircəmil Abbasov", "Günel", "Günel Haciyeva", "Gulnare", "Aysel Nəsirova", "Fidan", "Jalə", "Nigar", "Şəlalə", "Telman"]
+const MANAGERS = ["Miraslan Abbasov", "Rəhimə Qasımlı", "Ayxan Elxanlı", "Mircəmil Abbasov", "Məryəmxanım Əliyeva", "Günel", "Günel Haciyeva", "Gulnare", "Aysel Nəsirova", "Fidan", "Jalə", "Nigar", "Şəlalə", "Telman"]
 
 const BOOKING_TYPES = [
   { value: "bilet",     label: "Aviabilet", Icon: Plane,    color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
